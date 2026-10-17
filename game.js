@@ -267,7 +267,7 @@
   let player = {
     x: 2.5,
     y: 2.5,
-    radius: 0.26,
+    radius: 0.20,
     dirX: 0,
     dirY: 1,
     hp: 100,
@@ -299,7 +299,7 @@
   let player2 = {
     x: 2.5,
     y: 1.5,
-    radius: 0.25,
+    radius: 0.20,
     dirX: 0,
     dirY: 1,
     crouching: false
@@ -2257,13 +2257,16 @@
     setTimeout(updateOverlaySelectionUI, 20);
   }
 
-  // --- 3D Walkthrough Kinematics & World-Space Footsteps State ---
+  // --- 3D Walkthrough Kinematics, Follow-Camera & World-Space Footsteps State ---
   let cameraMode3D = 'DIORAMA_3D';
   let fpsCamYaw = 0;
+  let fpsCamX = 1.5;
+  let fpsCamY = 1.5;
   let fpsWalkPhase = 0;
   let fpsLastStepHalf = 0;
   let fpsForwardSurge = 0;
   let fpsTurnBias = 0;
+  let autoInteractCooldown = 0;
   let footsteps3D = [];
   let lastContextPrompt = '';
 
@@ -2275,11 +2278,12 @@
     fireSpreadTimer += dt;
     pathRecordTimer += dt;
     if (player.hurtCooldown > 0) player.hurtCooldown -= dt;
+    if (autoInteractCooldown > 0) autoInteractCooldown -= dt;
 
     const activeSkin = getSelectedSkin();
     let baseSpeed = player.crouching
-      ? 2.45 * (activeSkin.crouchSpeedBonus || 1.0)
-      : 3.55;
+      ? 2.65 * (activeSkin.crouchSpeedBonus || 1.0)
+      : 3.75;
     if (player.carryingToy) baseSpeed *= 0.72;
 
     let mvX = 0;
@@ -2288,161 +2292,118 @@
     let targetSurge = 0;
     let targetTurnBias = 0;
 
-    if (cameraMode3D === 'FPS_3D') {
-      // Camera-Relative 3D Walkthrough Controls:
-      // Up (▲/W) = Walk forward into the 3D corridor in front of you
-      // Down (▼/S) = Step backward
-      // Left (◀/A) & Right (▶/D) = Turn left/right & stride along the turn
-      const turnInput = (keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0);
-      const fwdInput = (keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0);
+    // Unified, Non-Rotating 4-Way Movement in BOTH 3D Modes (Zero Motion Sickness!)
+    // ▲(W) = Up (North), ▼(S) = Down (South), ◀(A) = Left (West), ▶(D) = Right (East)
+    if (keysPressed.up) mvY -= 1;
+    if (keysPressed.down) mvY += 1;
+    if (keysPressed.left) mvX -= 1;
+    if (keysPressed.right) mvX += 1;
 
-      if (turnInput !== 0) {
+    if (mvX !== 0 || mvY !== 0) {
+      pointerMoveTarget = null;
+    } else if (pointerMoveTarget) {
+      const dx = pointerMoveTarget.x - player.x;
+      const dy = pointerMoveTarget.y - player.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.12) {
+        mvX = dx / dist;
+        mvY = dy / dist;
+      } else {
         pointerMoveTarget = null;
-        const turnSpeed = fwdInput !== 0 ? 2.15 : 2.45;
-        fpsCamYaw += turnInput * turnSpeed * dt;
-        targetTurnBias = turnInput;
       }
+    }
 
-      let moveThrottle = fwdInput;
-      // On mobile D-pad or single-key press, holding Left/Right alone also glides forward along the turn!
-      if (moveThrottle === 0 && turnInput !== 0) {
-        moveThrottle = 0.76;
-      }
+    isMoving = (mvX !== 0 || mvY !== 0);
 
-      if (moveThrottle !== 0) {
-        pointerMoveTarget = null;
-        const moveSign = moveThrottle >= 0 ? 1 : -0.75;
-        const speedMult = Math.abs(moveThrottle);
-        const dirCos = Math.cos(fpsCamYaw);
-        const dirSin = Math.sin(fpsCamYaw);
-        mvX = dirCos * Math.sign(moveSign);
-        mvY = dirSin * Math.sign(moveSign);
-        player.dirX = dirCos;
-        player.dirY = dirSin;
-        isMoving = true;
-        targetSurge = moveThrottle > 0 ? 1.0 : -0.65;
+    if (isMoving) {
+      const len = Math.hypot(mvX, mvY);
+      mvX /= len;
+      mvY /= len;
+      player.dirX = mvX;
+      player.dirY = mvY;
+      fpsCamYaw = Math.atan2(mvY, mvX);
+      targetSurge = 1.0;
+      targetTurnBias = mvX * 0.65;
 
-        const stepDist = baseSpeed * speedMult * Math.abs(moveSign) * dt;
-        const stepX = mvX * stepDist;
-        const stepY = mvY * stepDist;
-
-        let movedX = false;
-        let movedY = false;
-        if (canMoveTo(player.x + stepX, player.y, player.radius)) {
-          player.x += stepX;
-          movedX = true;
-        }
-        if (canMoveTo(player.x, player.y + stepY, player.radius)) {
-          player.y += stepY;
-          movedY = true;
-        }
-
-        // Smooth corridor corner-gliding if blocked ahead in 3D view
-        if (!movedX && !movedY && moveThrottle > 0 && turnInput === 0) {
-          const leftYaw = fpsCamYaw - Math.PI * 0.38;
-          const rightYaw = fpsCamYaw + Math.PI * 0.38;
-          const canLeft = canMoveTo(player.x + Math.cos(leftYaw) * 0.45, player.y + Math.sin(leftYaw) * 0.45, player.radius);
-          const canRight = canMoveTo(player.x + Math.cos(rightYaw) * 0.45, player.y + Math.sin(rightYaw) * 0.45, player.radius);
-          if (canLeft && !canRight) {
-            fpsCamYaw -= 1.85 * dt;
-            targetTurnBias = -0.7;
-          } else if (canRight && !canLeft) {
-            fpsCamYaw += 1.85 * dt;
-            targetTurnBias = 0.7;
+      // Auto-Interact when walking directly into a closed door, locked door (with key), debris (with axe), or sink/valve/breaker/alarm
+      if (autoInteractCooldown <= 0) {
+        const probeC = Math.floor(player.x + mvX * 0.56);
+        const probeR = Math.floor(player.y + mvY * 0.56);
+        if (probeC >= 0 && probeC < COLS && probeR >= 0 && probeR < ROWS) {
+          const probeTile = grid[probeR][probeC];
+          if (
+            probeTile === TILE.DOOR ||
+            (probeTile === TILE.LOCKED_DOOR && player.keys > 0) ||
+            (probeTile === TILE.DEBRIS && player.hasAxe) ||
+            (probeTile === TILE.SINK && ((player.hasTowel && !player.wetTowel) || player.o2 < 85)) ||
+            (probeTile === TILE.GAS_VALVE && !player.gasClosed) ||
+            (probeTile === TILE.BREAKER && !player.breakerClosed) ||
+            (probeTile === TILE.ALARM_BELL && !player.alarmRung)
+          ) {
+            autoInteractCooldown = 0.38;
+            triggerInteraction({ kind: 'tile', c: probeC, r: probeR, tile: probeTile });
           }
         }
-      } else if (pointerMoveTarget) {
-        const dx = pointerMoveTarget.x - player.x;
-        const dy = pointerMoveTarget.y - player.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 0.14) {
-          mvX = dx / dist;
-          mvY = dy / dist;
-          player.dirX = mvX;
-          player.dirY = mvY;
-          const targetYaw = Math.atan2(mvY, mvX);
-          let diff = targetYaw - fpsCamYaw;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          fpsCamYaw += diff * Math.min(1, dt * 8.5);
-          targetTurnBias = Math.max(-1, Math.min(1, diff * 1.8));
-          targetSurge = 1.0;
-          isMoving = true;
-
-          const stepX = mvX * baseSpeed * dt;
-          const stepY = mvY * baseSpeed * dt;
-          if (canMoveTo(player.x + stepX, player.y, player.radius)) player.x += stepX;
-          if (canMoveTo(player.x, player.y + stepY, player.radius)) player.y += stepY;
-        } else {
-          pointerMoveTarget = null;
-        }
-      }
-    } else {
-      // Standard 2D/Diorama 3D Directional Movement
-      if (keysPressed.up) mvY -= 1;
-      if (keysPressed.down) mvY += 1;
-      if (keysPressed.left) mvX -= 1;
-      if (keysPressed.right) mvX += 1;
-
-      if (mvX === 0 && mvY === 0 && pointerMoveTarget) {
-        const dx = pointerMoveTarget.x - player.x;
-        const dy = pointerMoveTarget.y - player.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 0.12) {
-          mvX = dx / dist;
-          mvY = dy / dist;
-        } else {
-          pointerMoveTarget = null;
-        }
       }
 
-      isMoving = (mvX !== 0 || mvY !== 0);
+      const stepX = mvX * baseSpeed * dt;
+      const stepY = mvY * baseSpeed * dt;
 
-      if (isMoving) {
-        const len = Math.hypot(mvX, mvY);
-        mvX /= len;
-        mvY /= len;
-        player.dirX = mvX;
-        player.dirY = mvY;
-        fpsCamYaw = Math.atan2(mvY, mvX);
-        targetSurge = 1.0;
-
-        const stepX = mvX * baseSpeed * dt;
-        const stepY = mvY * baseSpeed * dt;
-
-        if (canMoveTo(player.x + stepX, player.y, player.radius)) {
-          player.x += stepX;
-        } else if (Math.abs(mvX) > 0.5) {
-          const centerY = Math.floor(player.y) + 0.5;
-          const diffY = centerY - player.y;
-          if (Math.abs(diffY) > 0.03 && Math.abs(diffY) < 0.42) {
-            const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), 2.2 * dt);
-            if (canMoveTo(player.x + stepX * 0.5, player.y + nudgeY, player.radius)) {
-              player.y += nudgeY;
-            }
+      // Horizontal step + strong doorway auto-centering
+      if (canMoveTo(player.x + stepX, player.y, player.radius)) {
+        player.x += stepX;
+      } else if (Math.abs(mvX) > 0.35) {
+        const centerY = Math.floor(player.y) + 0.5;
+        const diffY = centerY - player.y;
+        if (Math.abs(diffY) > 0.01 && Math.abs(diffY) < 0.48) {
+          const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), baseSpeed * 0.95 * dt);
+          if (canMoveTo(player.x, player.y + nudgeY, player.radius)) {
+            player.y += nudgeY;
+          }
+          if (canMoveTo(player.x + stepX * 0.75, player.y, player.radius)) {
+            player.x += stepX * 0.75;
           }
         }
+      }
 
-        if (canMoveTo(player.x, player.y + stepY, player.radius)) {
-          player.y += stepY;
-        } else if (Math.abs(mvY) > 0.5) {
-          const centerX = Math.floor(player.x) + 0.5;
-          const diffX = centerX - player.x;
-          if (Math.abs(diffX) > 0.03 && Math.abs(diffX) < 0.42) {
-            const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), 2.2 * dt);
-            if (canMoveTo(player.x + nudgeX, player.y + stepY * 0.5, player.radius)) {
-              player.x += nudgeX;
-            }
+      // Vertical step + strong doorway auto-centering
+      if (canMoveTo(player.x, player.y + stepY, player.radius)) {
+        player.y += stepY;
+      } else if (Math.abs(mvY) > 0.35) {
+        const centerX = Math.floor(player.x) + 0.5;
+        const diffX = centerX - player.x;
+        if (Math.abs(diffX) > 0.01 && Math.abs(diffX) < 0.48) {
+          const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), baseSpeed * 0.95 * dt);
+          if (canMoveTo(player.x + nudgeX, player.y, player.radius)) {
+            player.x += nudgeX;
+          }
+          if (canMoveTo(player.x, player.y + stepY * 0.75, player.radius)) {
+            player.y += stepY * 0.75;
           }
         }
       }
     }
 
-    // Update 3D Walk Stride Phase, Chase Camera Surge/Turn Bias & World-Space 3D Footprints
+    // Walk-Over Auto-Pickup for Safety Items & Trapped Companions (except 'toy' which asks a moral choice)
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.type === 'toy') continue;
+      const dist = Math.hypot(player.x - (it.c + 0.5), player.y - (it.r + 0.5));
+      if (dist < 0.76) {
+        triggerInteraction({ kind: 'item', index: i, item: it });
+        break;
+      }
+    }
+
+    // Smoothly interpolate 3D Follow-Camera position toward player (zero rotational dizziness!)
+    fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 9.0);
+    fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 9.0);
+
+    // Update 3D Walk Stride Phase & World-Space 3D Footprints
     fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 9.0);
     fpsTurnBias += (targetTurnBias - fpsTurnBias) * Math.min(1, dt * 8.5);
     if (isMoving) {
-      const strideSpeed = player.crouching ? 8.2 : 10.5;
+      const strideSpeed = player.crouching ? 8.5 : 10.8;
       fpsWalkPhase += dt * strideSpeed;
       const curHalf = Math.floor(fpsWalkPhase / Math.PI);
       if (curHalf !== fpsLastStepHalf) {
@@ -2461,7 +2422,6 @@
         if (footsteps3D.length > 14) footsteps3D.shift();
       }
     } else {
-      // Smoothly relax legs toward neutral standing stance (sin(fpsWalkPhase) -> 0)
       const modPhase = fpsWalkPhase % Math.PI;
       if (modPhase > 0.05 && modPhase < Math.PI - 0.05) {
         fpsWalkPhase += (modPhase > Math.PI * 0.5 ? (Math.PI - modPhase) : -modPhase) * Math.min(1, dt * 10);
@@ -2744,13 +2704,39 @@
     const tileW = (w - padX * 2) / COLS;
     const tileH = (h - padTop - padBottom) / (ROWS + 0.48);
     const tileSize = Math.max(12, Math.min(tileW, tileH));
-    const wallH = tileSize * 0.46;
+    const wallH = tileSize * 0.50;
     const offsetX = (w - tileSize * COLS) / 2;
     const offsetY = padTop + wallH + (h - padTop - padBottom - wallH - tileSize * ROWS) / 2;
-    return { tileSize, wallH, offsetX, offsetY };
+    return { tileSize, wallH, offsetX, offsetY, isCloseUp: false };
+  }
+
+  function computeCloseUp3DLayout(w, h) {
+    const tileSize = Math.max(48, Math.min(w, h) * 0.156);
+    const wallH = tileSize * 0.62;
+    const boardW = COLS * tileSize;
+    const boardH = ROWS * tileSize;
+    // Center smoothly on the player's 3D follow-cam position (fpsCamX, fpsCamY)
+    let offsetX = w * 0.5 - fpsCamX * tileSize;
+    let offsetY = h * 0.55 - fpsCamY * tileSize;
+    // Clamp gently so outer building walls frame the screen nicely
+    const minOffX = Math.min(28, w - boardW - 28);
+    const maxOffX = Math.max(28, w - boardW - 28);
+    if (boardW + 56 > w) {
+      offsetX = Math.max(w - boardW - 36, Math.min(36, offsetX));
+    } else {
+      offsetX = (w - boardW) * 0.5;
+    }
+    if (boardH + wallH + 56 > h) {
+      offsetY = Math.max(h - boardH - 28, Math.min(wallH + 34, offsetY));
+    } else {
+      offsetY = wallH + (h - wallH - boardH) * 0.5;
+    }
+    return { tileSize, wallH, offsetX, offsetY, isCloseUp: true };
   }
 
   function orientCameraToOpenSpace() {
+    fpsCamX = player.x;
+    fpsCamY = player.y;
     const nextObj = getNextStepObjective();
     if (nextObj) {
       const dx = (nextObj.c + 0.5) - player.x;
@@ -2775,11 +2761,11 @@
       orientCameraToOpenSpace();
       if (iconEl) iconEl.textContent = '👁️';
       if (textEl) textEl.textContent = '1인칭3D';
-      showToast('👁️ [1인칭 3D 워킹 뷰] ▲앞으로 걷기 · ◀▶방향 회전으로 실제 공간을 걸어서 탈출하세요!', 'border-indigo-400');
+      showToast('👁️ [3D 실내 근접 탈출 뷰] 화면 회전 어지러움 없이 ▲▼◀▶ 방향키로 실제 건물 방과 복도를 걸어서 탈출하세요!', 'border-indigo-400');
     } else {
       if (iconEl) iconEl.textContent = '🧊';
       if (textEl) textEl.textContent = '3D입체뷰';
-      showToast('🧊 [3D 입체 방탈출 뷰] 다중 방 구조와 퍼즐 기믹을 한눈에 보는 3D 입체 시점입니다!', 'border-indigo-400');
+      showToast('🧊 [3D 전체 건물 입체 뷰] 건물 전체 방 구조와 탈출 동선을 한눈에 보는 3D 입체 시점입니다!', 'border-indigo-400');
     }
     renderCanvas();
   }
@@ -2793,7 +2779,7 @@
     const local = window.getElementLocalCoords(canvas, clientX, clientY);
     if (cameraMode3D === 'FPS_3D') {
       // Check if user tapped inside the top-right 3D radar minimap
-      const mapW = Math.min(165, Math.max(115, local.width * 0.24));
+      const mapW = Math.min(165, Math.max(115, local.width * 0.22));
       const mapH = mapW * (ROWS / COLS);
       const mapX = local.width - mapW - 10;
       const mapY = 10;
@@ -2802,11 +2788,9 @@
         const gy = ((local.y - mapY) / mapH) * ROWS;
         return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
       }
-      // Tapping in 1st-person main viewport projects a target 1.6 tiles ahead in look direction
-      const relX = (local.x / Math.max(1, local.width)) - 0.5;
-      const clickAngle = fpsCamYaw + relX * (Math.PI / 3);
-      const gx = player.x + Math.cos(clickAngle) * 1.6;
-      const gy = player.y + Math.sin(clickAngle) * 1.6;
+      const layout = computeCloseUp3DLayout(local.width, local.height);
+      const gx = (local.x - layout.offsetX) / layout.tileSize;
+      const gy = (local.y - layout.offsetY) / layout.tileSize;
       return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
     }
     const layout = computeDioramaLayout(local.width, local.height);
@@ -2875,6 +2859,7 @@
       moving = false,
       now = 0,
       dirX = 1,
+      dirY = 0,
       skinId = 'student',
       wetTowel = false,
       hasTowel = false,
@@ -2882,6 +2867,23 @@
       rightTool = 'none',
       onFire = false
     } = opts;
+
+    // When walking North (▲ Up into the building), render the 3D back-view human with backpack & safety stripes!
+    if (dirY < -0.55 && Math.abs(dirY) >= Math.abs(dirX)) {
+      drawHumanCharacter3DWalk(ctx, footX, footY, charHeight, {
+        crouching,
+        moving,
+        walkPhase: moving ? now * 9.5 : 0,
+        turnBias: dirX * 0.5,
+        skinId,
+        wetTowel,
+        hasTowel,
+        hasMask,
+        rightTool,
+        onFire
+      });
+      return;
+    }
 
     const u = Math.max(24, charHeight);
     const facing = dirX < -0.15 ? -1 : 1;
@@ -3560,476 +3562,180 @@
     ctx.restore();
   }
 
-  // --- Mode 2: Real-Space 1st-Person / Over-the-Shoulder 3D Walkthrough Engine ---
-  function renderFirstPerson3D(width, height, now, st) {
-    const nextObj = getNextStepObjective();
-    const activelyMoving = (
-      keysPressed.up || keysPressed.down || keysPressed.left || keysPressed.right ||
-      pointerMoveTarget !== null
-    );
-
-    const cosYaw = Math.cos(fpsCamYaw);
-    const sinYaw = Math.sin(fpsCamYaw);
-    const fov = Math.PI / 2.35; // 76-degree panoramic FOV
-    const focalLen = (width * 0.5) / Math.tan(fov * 0.5);
-
-    // Crouching lowers the 3D camera horizon and eye height below the ceiling smoke layer!
-    const horizon = player.crouching ? height * 0.35 : height * 0.43;
-    const camEyeZ = player.crouching ? 0.36 : 0.48;
-    const vertScale = height * 0.68;
-
-    // 1. Bright Indoor Ceiling & Base Floor
-    const ceilGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-    ceilGrad.addColorStop(0, '#1e293b');
-    ceilGrad.addColorStop(0.65, '#334155');
-    ceilGrad.addColorStop(1, '#475569');
-    ctx.fillStyle = ceilGrad;
-    ctx.fillRect(0, 0, width, horizon);
-
-    // Fast Ceiling Light Panels (rotates smoothly with camera yaw)
-    ctx.fillStyle = 'rgba(254, 249, 195, 0.22)';
-    for (let li = -1; li <= 1; li++) {
-      const lx = width * 0.5 + li * width * 0.30 - ((fpsCamYaw * 140) % (width * 0.30));
+  // --- 3D Architectural Interior Helpers (3D Beds, Desks, Wardrobes, Washbasins, Doors & Exit Portals) ---
+  function draw3DFurniturePiece(ctx, x, y, tileSize, wallH, r, c) {
+    const kind = (r + c * 3) % 3;
+    if (kind === 0) {
+      // 3D Bedroom Bed (Wooden Frame + Headboard + White Pillow + Quilted Blue Blanket)
+      const bedW = tileSize * 0.84;
+      const bedD = tileSize * 0.78;
+      const bx = x + tileSize * 0.08;
+      const by = y + tileSize * 0.14;
+      const frameH = tileSize * 0.24;
+      // Headboard at back (north edge)
+      draw3DBox(ctx, bx, by, bedW, tileSize * 0.18, wallH * 0.58, '#92400e', '#78350f', '#451a03', '#b45309');
+      // Mattress base
+      draw3DBox(ctx, bx, by + tileSize * 0.12, bedW, bedD * 0.85, frameH, '#f8fafc', '#cbd5e1', '#64748b', '#94a3b8');
+      // Quilted Blanket (covering lower 65% of mattress)
+      draw3DBox(ctx, bx + 2, by + tileSize * 0.34, bedW - 4, bedD * 0.56, frameH + 2, '#3b82f6', '#1d4ed8', '#1e3a8a', '#93c5fd');
+      // Fluffy White Pillow near headboard
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.fillRect(bx + bedW * 0.18, by - frameH + tileSize * 0.16, bedW * 0.64, tileSize * 0.15);
+      ctx.strokeRect(bx + bedW * 0.18, by - frameH + tileSize * 0.16, bedW * 0.64, tileSize * 0.15);
+    } else if (kind === 1) {
+      // 3D Wooden Study Desk with Monitor / Book & Chair
+      const dw = tileSize * 0.84;
+      const dd = tileSize * 0.72;
+      const dx = x + tileSize * 0.08;
+      const dy = y + tileSize * 0.14;
+      const dh = tileSize * 0.34;
+      draw3DBox(ctx, dx, dy, dw, dd, dh, '#d97706', '#92400e', '#451a03', '#fcd34d');
+      // Laptop / Monitor on desk top
+      draw3DBox(ctx, dx + dw * 0.24, dy + dd * 0.12, dw * 0.52, dd * 0.28, tileSize * 0.48, '#38bdf8', '#0f172a', '#1e293b', '#7dd3fc');
+    } else {
+      // 3D Wooden Cabinet / Wardrobe with Double Doors
+      const cw = tileSize * 0.82;
+      const cd = tileSize * 0.74;
+      const cx = x + tileSize * 0.09;
+      const cy = y + tileSize * 0.14;
+      const ch = wallH * 0.68;
+      draw3DBox(ctx, cx, cy, cw, cd, ch, '#b45309', '#78350f', '#451a03', '#f59e0b');
+      // Double cabinet door seam & brass handles
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.ellipse(lx, horizon * 0.36, 58, 22, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
-    floorGrad.addColorStop(0, '#334155');
-    floorGrad.addColorStop(0.45, '#475569');
-    floorGrad.addColorStop(1, '#52627a');
-    ctx.fillStyle = floorGrad;
-    ctx.fillRect(0, horizon, width, height - horizon);
-
-    // Helper: Project a 3D world floor point (wx, wy) onto the 2D screen floor plane (z = 0)
-    // Camera is positioned slightly behind the walking character so floor tiles flow naturally under their feet!
-    const camWorldX = player.x - cosYaw * 0.85;
-    const camWorldY = player.y - sinYaw * 0.85;
-
-    function projectFloorPoint(wx, wy) {
-      const dx = wx - camWorldX;
-      const dy = wy - camWorldY;
-      const depth = dx * cosYaw + dy * sinYaw;
-      const right = -dx * sinYaw + dy * cosYaw;
-      const clampedDepth = Math.max(0.22, depth);
-      return {
-        sx: width * 0.5 + (right / clampedDepth) * focalLen,
-        sy: horizon + (camEyeZ / clampedDepth) * vertScale,
-        depth
-      };
-    }
-
-    // 1.5 World-Locked 3D Floor Tile Quads (Floor tiles physically move underneath the character's shoes as you walk!)
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, horizon, width, height - horizon);
-    ctx.clip();
-
-    const pCol = Math.floor(player.x);
-    const pRow = Math.floor(player.y);
-    const tileRadius = 6;
-    ctx.lineWidth = 1;
-
-    for (let r = Math.max(0, pRow - tileRadius); r <= Math.min(ROWS - 1, pRow + tileRadius); r++) {
-      for (let c = Math.max(0, pCol - tileRadius); c <= Math.min(COLS - 1, pCol + tileRadius); c++) {
-        if (grid[r][c] === TILE.WALL) continue;
-        const p00 = projectFloorPoint(c, r);
-        const p10 = projectFloorPoint(c + 1, r);
-        const p11 = projectFloorPoint(c + 1, r + 1);
-        const p01 = projectFloorPoint(c, r + 1);
-
-        // Skip tiles completely behind the camera
-        if (p00.depth < 0.24 && p10.depth < 0.24 && p11.depth < 0.24 && p01.depth < 0.24) continue;
-        // Skip tiles whose center is too far off-screen horizontally
-        const minX = Math.min(p00.sx, p10.sx, p11.sx, p01.sx);
-        const maxX = Math.max(p00.sx, p10.sx, p11.sx, p01.sx);
-        if (maxX < -80 || minX > width + 80) continue;
-
-        const isEvenTile = ((c + r) & 1) === 0;
-        ctx.fillStyle = grid[r][c] === TILE.EXIT
-          ? 'rgba(16, 185, 129, 0.45)'
-          : (isEvenTile ? 'rgba(100, 116, 139, 0.36)' : 'rgba(51, 65, 85, 0.36)');
-        ctx.strokeStyle = 'rgba(226, 232, 240, 0.24)';
-        ctx.beginPath();
-        ctx.moveTo(p00.sx, p00.sy);
-        ctx.lineTo(p10.sx, p10.sy);
-        ctx.lineTo(p11.sx, p11.sy);
-        ctx.lineTo(p01.sx, p01.sy);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
-
-    // 2. Raycasting 3D Walls, Doors, Furniture & Exits (Fast & Crisp)
-    const numRays = Math.min(128, Math.max(84, Math.floor(width / 6)));
-    const stripW = width / numRays;
-    const zBuffer = new Float32Array(numRays);
-    const maxSight = st.isDarkStage ? (player.hasFlashlight ? 9.5 : 5.5) : 16.0;
-
-    function isRaySolid(t) {
-      return (
-        t === TILE.WALL ||
-        t === TILE.DOOR ||
-        t === TILE.LOCKED_DOOR ||
-        t === TILE.HOT_DOOR ||
-        t === TILE.DEBRIS ||
-        t === TILE.FURNITURE ||
-        t === TILE.EXIT ||
-        t === TILE.LIFELINE ||
-        t === TILE.PARTITION ||
-        t === TILE.ELEVATOR
-      );
-    }
-
-    for (let i = 0; i < numRays; i++) {
-      const camX = (2 * i) / numRays - 1;
-      const rayAngle = fpsCamYaw + camX * (fov * 0.5);
-      const rayDirX = Math.cos(rayAngle);
-      const rayDirY = Math.sin(rayAngle);
-
-      let mapX = Math.floor(player.x);
-      let mapY = Math.floor(player.y);
-      const deltaDistX = Math.abs(1 / (rayDirX || 1e-6));
-      const deltaDistY = Math.abs(1 / (rayDirY || 1e-6));
-
-      let stepX, sideDistX;
-      let stepY, sideDistY;
-      if (rayDirX < 0) {
-        stepX = -1;
-        sideDistX = (player.x - mapX) * deltaDistX;
-      } else {
-        stepX = 1;
-        sideDistX = (mapX + 1.0 - player.x) * deltaDistX;
-      }
-      if (rayDirY < 0) {
-        stepY = -1;
-        sideDistY = (player.y - mapY) * deltaDistY;
-      } else {
-        stepY = 1;
-        sideDistY = (mapY + 1.0 - player.y) * deltaDistY;
-      }
-
-      let hit = 0;
-      let side = 0;
-      let hitTile = TILE.WALL;
-      let steps = 0;
-      while (hit === 0 && steps < 28) {
-        steps++;
-        if (sideDistX < sideDistY) {
-          sideDistX += deltaDistX;
-          mapX += stepX;
-          side = 0;
-        } else {
-          sideDistY += deltaDistY;
-          mapY += stepY;
-          side = 1;
-        }
-        if (mapX < 0 || mapX >= COLS || mapY < 0 || mapY >= ROWS) {
-          hit = 1;
-          hitTile = TILE.WALL;
-          break;
-        }
-        const t = grid[mapY][mapX];
-        if (isRaySolid(t)) {
-          hit = 1;
-          hitTile = t;
-        }
-      }
-
-      const rawDist = side === 0
-        ? (mapX - player.x + (1 - stepX) / 2) / (rayDirX || 1e-6)
-        : (mapY - player.y + (1 - stepY) / 2) / (rayDirY || 1e-6);
-      const perpDist = Math.max(0.30, rawDist * Math.cos(rayAngle - fpsCamYaw));
-      zBuffer[i] = perpDist;
-
-      // True perspective wall projection aligned with the 3D floor plane (camEyeZ)
-      const fullWallH = Math.min(height * 0.78, vertScale / perpDist);
-      const blockScale = hitTile === TILE.FURNITURE ? 0.52 : (hitTile === TILE.DEBRIS ? 0.64 : 1.0);
-      const lineH = fullWallH * blockScale;
-      const wallBottom = horizon + fullWallH * camEyeZ;
-      const wallTop = wallBottom - lineH;
-
-      const minShade = st.isDarkStage ? 0.25 : 0.54;
-      const shade = Math.max(minShade, Math.min(1, 1 - (perpDist / maxSight) * 0.62)) * (side === 1 ? 0.84 : 1.0);
-      const wallAlpha = (hitTile === TILE.WALL && perpDist < 1.25)
-        ? Math.max(0.42, perpDist / 1.25)
-        : 1.0;
-
-      let rCol = 186, gCol = 200, bCol = 218;
-      if (hitTile === TILE.DOOR) { rCol = 217; gCol = 119; bCol = 6; }
-      else if (hitTile === TILE.LOCKED_DOOR) { rCol = 234; gCol = 179; bCol = 8; }
-      else if (hitTile === TILE.HOT_DOOR) { rCol = 239; gCol = 68; bCol = 68; }
-      else if (hitTile === TILE.FURNITURE) { rCol = 180; gCol = 83; bCol = 9; }
-      else if (hitTile === TILE.DEBRIS) { rCol = 194; gCol = 65; bCol = 12; }
-      else if (hitTile === TILE.EXIT) { rCol = 16; gCol = 185; bCol = 129; }
-      else if (hitTile === TILE.LIFELINE) { rCol = 45; gCol = 212; bCol = 191; }
-      else if (hitTile === TILE.PARTITION) { rCol = 250; gCol = 204; bCol = 21; }
-
-      ctx.fillStyle = `rgba(${Math.floor(rCol * shade)}, ${Math.floor(gCol * shade)}, ${Math.floor(bCol * shade)}, ${wallAlpha})`;
-      ctx.fillRect(i * stripW, wallTop, Math.ceil(stripW) + 0.5, lineH);
-
-      if (hitTile === TILE.WALL) {
-        const wainscotH = lineH * 0.32;
-        ctx.fillStyle = `rgba(${Math.floor(146 * shade)}, ${Math.floor(100 * shade)}, ${Math.floor(64 * shade)}, ${wallAlpha})`;
-        ctx.fillRect(i * stripW, wallBottom - wainscotH, Math.ceil(stripW) + 0.5, wainscotH);
-      }
-
-      ctx.fillStyle = `rgba(30, 41, 59, ${0.65 * shade * wallAlpha})`;
-      ctx.fillRect(i * stripW, wallBottom - Math.max(2, lineH * 0.05), Math.ceil(stripW) + 0.5, Math.max(2, lineH * 0.05));
-
-      if (hitTile === TILE.LOCKED_DOOR || hitTile === TILE.DOOR || hitTile === TILE.EXIT) {
-        ctx.fillStyle = hitTile === TILE.EXIT
-          ? `rgba(167, 243, 208, ${0.9 * shade})`
-          : `rgba(254, 240, 138, ${0.65 * shade})`;
-        ctx.fillRect(i * stripW, wallTop + lineH * 0.45, Math.ceil(stripW) + 0.5, Math.max(3, lineH * 0.07));
-      }
-    }
-
-    // 2.5 World-Locked 3D Footstep Ripples & World-Anchored 3D Floor Navigation Chevrons
-    ctx.save();
-    for (const fp of footsteps3D) {
-      const pt = projectFloorPoint(fp.x, fp.y);
-      if (pt.depth < 0.25 || pt.depth > 5.0 || pt.sx < 0 || pt.sx > width) continue;
-      const alpha = Math.max(0, (fp.life / fp.maxLife) * 0.65);
-      const rx = Math.max(5, 22 / pt.depth);
-      const ry = Math.max(2.5, 9 / pt.depth);
-      ctx.strokeStyle = player.crouching ? `rgba(52, 211, 153, ${alpha})` : `rgba(56, 189, 248, ${alpha})`;
-      ctx.fillStyle = `rgba(15, 23, 42, ${alpha * 0.55})`;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.ellipse(pt.sx, pt.sy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(cx + cw * 0.5, cy + cd * 0.55 - ch + 4);
+      ctx.lineTo(cx + cw * 0.5, cy + cd - 3);
       ctx.stroke();
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(cx + cw * 0.42, cy + cd * 0.55 - ch * 0.45, 2.5, 5);
+      ctx.fillRect(cx + cw * 0.55, cy + cd * 0.55 - ch * 0.45, 2.5, 5);
     }
+  }
 
-    if (nextObj && !player.onFire) {
-      const targetWX = nextObj.c + 0.5;
-      const targetWY = nextObj.r + 0.5;
-      const pathDx = targetWX - player.x;
-      const pathDy = targetWY - player.y;
-      const pathDist = Math.hypot(pathDx, pathDy);
-      if (pathDist > 0.35) {
-        const ux = pathDx / pathDist;
-        const uy = pathDy / pathDist;
-        // Anchor markers to world-space intervals along the path so the player physically walks over them!
-        const scrollOffset = (now * 1.4) % 0.75;
-        ctx.fillStyle = 'rgba(250, 204, 21, 0.88)';
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1.5;
-        for (let d = 0.45 + scrollOffset; d < Math.min(pathDist, 5.5); d += 0.75) {
-          const wx = player.x + ux * d;
-          const wy = player.y + uy * d;
-          const pt = projectFloorPoint(wx, wy);
-          if (pt.depth < 0.30 || pt.sx < 20 || pt.sx > width - 20) continue;
-          const sz = Math.max(5, Math.min(18, 20 / pt.depth));
-          ctx.beginPath();
-          ctx.moveTo(pt.sx, pt.sy - sz * 0.55);
-          ctx.lineTo(pt.sx + sz * 0.9, pt.sy + sz * 0.45);
-          ctx.lineTo(pt.sx, pt.sy + sz * 0.15);
-          ctx.lineTo(pt.sx - sz * 0.9, pt.sy + sz * 0.45);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        }
-      }
-    }
-    ctx.restore();
-
-    // 3. Collect & Depth-Sort 3D Billboards (Items, Human NPCs, Fires, Smokes, Interactive Tiles, Objective Marker)
-    const sprites = [];
-    for (const it of items) {
-      sprites.push({
-        x: it.c + 0.5,
-        y: it.r + 0.5,
-        icon: it.icon,
-        label: (it.name || '').split('(')[0],
-        kind: it.type === 'npc' ? 'npc' : 'item',
-        color: it.type === 'npc' ? '#34d399' : '#38bdf8'
-      });
-    }
-    for (const f of fires) {
-      const fLabel = f.fireType === 'oil' ? '식용유화재' : (f.fireType === 'electric' ? '전기화재' : '화염');
-      sprites.push({ x: f.c + 0.5, y: f.r + 0.5, icon: '🔥', label: fLabel, kind: 'fire', color: '#f97316' });
-    }
-    for (const s of smokes) {
-      sprites.push({ x: s.c + 0.5, y: s.r + 0.5, icon: '💨', label: '', kind: 'smoke', color: '#94a3b8' });
-    }
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const t = grid[r][c];
-        if (t === TILE.SINK) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🚰', label: '세면대', kind: 'fixture', color: '#38bdf8' });
-        else if (t === TILE.GAS_VALVE) sprites.push({ x: c + 0.5, y: r + 0.5, icon: player.gasClosed ? '✅' : '🔴', label: '가스밸브', kind: 'fixture', color: '#f87171' });
-        else if (t === TILE.BREAKER) sprites.push({ x: c + 0.5, y: r + 0.5, icon: player.breakerClosed ? '✅' : '⚡', label: '차단기', kind: 'fixture', color: '#60a5fa' });
-        else if (t === TILE.ALARM_BELL) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🔔', label: '비상벨', kind: 'fixture', color: '#facc15' });
-        else if (t === TILE.PHONE_119) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '📞', label: '119신고', kind: 'fixture', color: '#c084fc' });
-        else if (t === TILE.HAZARD) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '⚠️', label: '위험요소', kind: 'fixture', color: '#fbbf24' });
-        else if (t === TILE.DOOR) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🚪', label: '방문', kind: 'door', color: '#fcd34d' });
-        else if (t === TILE.LOCKED_DOOR) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🔒', label: '잠긴문', kind: 'door', color: '#fde047' });
-        else if (t === TILE.DEBRIS) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🪵', label: '장애물', kind: 'door', color: '#fb923c' });
-        else if (t === TILE.EXIT) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🏃', label: 'EXIT 비상구', kind: 'exit', color: '#34d399' });
-      }
-    }
-
-    if (nextObj && !player.onFire) {
-      sprites.push({
-        x: nextObj.c + 0.5,
-        y: nextObj.r + 0.5,
-        icon: '🎯',
-        label: nextObj.label || '목표',
-        kind: 'objective',
-        color: '#facc15'
-      });
-    }
-
-    for (const sp of sprites) {
-      sp.dist = Math.hypot(sp.x - player.x, sp.y - player.y);
-    }
-    sprites.sort((a, b) => b.dist - a.dist);
-
-    for (const sp of sprites) {
-      if (sp.dist < 0.2 || sp.dist > maxSight + 1.5) continue;
-      const dx = sp.x - player.x;
-      const dy = sp.y - player.y;
-      let angle = Math.atan2(dy, dx) - fpsCamYaw;
-      while (angle > Math.PI) angle -= Math.PI * 2;
-      while (angle < -Math.PI) angle += Math.PI * 2;
-
-      if (Math.abs(angle) > fov * 0.65) continue;
-      const screenX = (0.5 + angle / fov) * width;
-      const stripIdx = Math.min(numRays - 1, Math.max(0, Math.floor(screenX / stripW)));
-      const isOccluded = sp.dist > zBuffer[stripIdx] + 0.65;
-      if (isOccluded && (sp.kind === 'smoke' || sp.dist > 8.5)) {
-        continue;
-      }
-
-      const projSize = Math.min(height * 0.24, Math.max(14, (height * 0.32) / sp.dist));
-      const verticalOffset = sp.kind === 'smoke'
-        ? -projSize * 0.65
-        : (sp.kind === 'objective' ? -projSize * 0.85 : projSize * 0.14);
-      const screenY = horizon + verticalOffset;
-
-      ctx.save();
-      ctx.globalAlpha = isOccluded ? 0.55 : 1.0;
-
-      if (sp.kind === 'npc') {
-        drawHumanCharacter(ctx, screenX, screenY + projSize * 0.42, projSize * 1.25, {
-          crouching: true,
-          moving: false,
-          now,
-          dirX: -1,
-          skinId: 'npc'
-        });
-      } else {
-        ctx.font = `${Math.floor(projSize)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(sp.icon, screenX, screenY);
-      }
-
-      if (sp.label && sp.dist < 8.5) {
-        const fontSize = Math.min(18, Math.max(10, Math.floor(projSize * 0.24)));
-        ctx.font = `900 ${fontSize}px "Noto Sans KR", sans-serif`;
-        const lw = ctx.measureText(sp.label).width + 12;
-        const lh = Math.max(16, Math.floor(fontSize * 1.45));
-        const ly = screenY + projSize * 0.52;
-        ctx.fillStyle = sp.kind === 'objective' ? '#facc15' : 'rgba(15, 23, 42, 0.90)';
-        ctx.fillRect(screenX - lw / 2, ly - lh / 2, lw, lh);
-        ctx.strokeStyle = sp.color || '#38bdf8';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(screenX - lw / 2, ly - lh / 2, lw, lh);
-        ctx.fillStyle = sp.kind === 'objective' ? '#0f172a' : '#f8fafc';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(sp.label, screenX, ly);
-      }
-      ctx.restore();
-    }
-
-    // 4. Ceiling Smoke Overlay when Standing vs Crouching in 1st-Person 3D
-    const ceilingSmokeAlpha = player.crouching ? 0.12 : 0.34;
-    const smokeGrad = ctx.createLinearGradient(0, 0, 0, horizon * 1.05);
-    smokeGrad.addColorStop(0, `rgba(51, 65, 85, ${ceilingSmokeAlpha})`);
-    smokeGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
-    ctx.fillStyle = smokeGrad;
-    ctx.fillRect(0, 0, width, horizon * 1.05);
-
-    // 5. Dynamic 3D Walkthrough Human Character Stepping Across the 3D Floor Tiles
-    // When walking forward (fpsForwardSurge > 0), the character physically advances deeper into the 3D corridor
-    // and sways naturally left-to-right with each footstep!
-    const activeSkin = getSelectedSkin();
-    const charX = width * 0.50 + fpsTurnBias * (width * 0.068) + (activelyMoving ? Math.cos(fpsWalkPhase) * 6 : 0);
-    const charFloorY = height - (player.crouching ? 44 : 52) - fpsForwardSurge * 30;
-    const humanScale = Math.max(92, Math.floor(height * 0.245 * (1 - fpsForwardSurge * 0.08)));
-
-    // 5a. Rescued Companion / Dog walking beside the Player on the 3D Floor
-    if (player.rescuedNpcs > 0) {
-      const npcX = charX - humanScale * 0.72;
-      const npcY = charFloorY + 10;
-      drawHumanCharacter3DWalk(ctx, npcX, npcY, humanScale * 0.80, {
-        crouching: player.crouching,
-        moving: activelyMoving,
-        walkPhase: fpsWalkPhase + 1.2,
-        turnBias: fpsTurnBias,
-        skinId: 'npc',
-        wetTowel: player.wetTowel
-      });
-    }
-    if (player.rescuedDog) {
-      const dogX = charX + humanScale * 0.68;
-      const dogY = charFloorY + 8 - (activelyMoving ? Math.abs(Math.sin(fpsWalkPhase * 1.4)) * 6 : 0);
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.50)';
-      ctx.beginPath();
-      ctx.ellipse(dogX, charFloorY + 10, 18, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = `${Math.max(26, Math.floor(height * 0.062))}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText('🐶', dogX, dogY);
-    }
-
-    // 5b. Main 3D Walkthrough Human Character (`나`)
-    const rightTool = player.extinguisherCharges > 0
-      ? 'extinguisher'
-      : (player.hasAxe ? 'axe' : (player.waterCharges > 0 ? 'bucket' : (player.hasFlashlight ? 'flashlight' : 'none')));
-    drawHumanCharacter3DWalk(ctx, charX, charFloorY, humanScale, {
-      crouching: player.crouching,
-      moving: activelyMoving,
-      walkPhase: fpsWalkPhase,
-      turnBias: fpsTurnBias,
-      skinId: activeSkin.id || 'student',
-      wetTowel: player.wetTowel,
-      hasTowel: player.hasTowel,
-      hasMask: player.hasMask,
-      rightTool,
-      onFire: player.onFire
-    });
-
-    // 5c. Compact Floating Nameplate above Character Head
-    ctx.save();
-    const postureLabel = player.onFire
-      ? `🔥 옷에 불붙음! (구르기 필요)`
-      : (player.crouching ? `나 · 🧎 낮은자세` : `나 · ${activelyMoving ? '🏃 걸어가는중' : '🚶 서있는자세'}`);
-    ctx.font = '900 11px "Noto Sans KR", sans-serif';
+  function draw3DSinkFixture(ctx, x, y, tileSize, wallH) {
+    const sx = x + tileSize * 0.08;
+    const sy = y + tileSize * 0.14;
+    const sw = tileSize * 0.84;
+    const sd = tileSize * 0.74;
+    const sh = tileSize * 0.38;
+    // 3D Porcelain Vanity Counter
+    draw3DBox(ctx, sx, sy, sw, sd, sh, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
+    // Recessed Blue Water Basin on Top Face
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(sx + sw * 0.16, sy - sh + sd * 0.12, sw * 0.68, sd * 0.38);
+    ctx.strokeRect(sx + sw * 0.16, sy - sh + sd * 0.12, sw * 0.68, sd * 0.38);
+    // Wall Mirror & Chrome Faucet
+    ctx.fillStyle = '#bae6fd';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.fillRect(sx + sw * 0.22, sy - sh - wallH * 0.36, sw * 0.56, wallH * 0.32);
+    ctx.strokeRect(sx + sw * 0.22, sy - sh - wallH * 0.36, sw * 0.56, wallH * 0.32);
+    ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.19))}px "Noto Sans KR", sans-serif`;
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const npW = Math.max(108, ctx.measureText(postureLabel).width + 16);
-    const npH = 20;
-    const topOfHeadY = charFloorY - (player.crouching ? humanScale * 0.78 : humanScale * 0.94);
-    const npY = topOfHeadY - 14;
-    ctx.fillStyle = player.onFire ? 'rgba(220, 38, 38, 0.92)' : (player.crouching ? 'rgba(6, 95, 70, 0.90)' : 'rgba(30, 58, 138, 0.88)');
-    ctx.fillRect(charX - npW / 2, npY - npH / 2, npW, npH);
-    ctx.strokeStyle = player.onFire ? '#fca5a5' : (player.crouching ? '#6ee7b7' : '#93c5fd');
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(charX - npW / 2, npY - npH / 2, npW, npH);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(postureLabel, charX, npY + 0.5);
-    ctx.restore();
+    ctx.fillText('🚰세면대', x + tileSize * 0.5, y + tileSize * 0.76);
+  }
 
-    // 6. Top-Right Interactive 3D Radar Minimap (So player can always see the multi-room layout!)
-    const mapW = Math.min(165, Math.max(115, width * 0.24));
+  function draw3DDoorway(ctx, x, y, tileSize, wallH, t, now) {
+    const dh = wallH * 0.92;
+    if (t === TILE.OPEN_DOOR) {
+      // Threshold plate on floor
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+      ctx.fillRect(x + tileSize * 0.08, y + tileSize * 0.10, tileSize * 0.84, tileSize * 0.80);
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x + tileSize * 0.08, y + tileSize * 0.10, tileSize * 0.84, tileSize * 0.80);
+      // Left & Right 3D Door Jamb Pillars
+      draw3DBox(ctx, x + tileSize * 0.04, y + tileSize * 0.08, tileSize * 0.14, tileSize * 0.82, dh, '#fbbf24', '#78350f', '#451a03', '#fde68a');
+      draw3DBox(ctx, x + tileSize * 0.82, y + tileSize * 0.08, tileSize * 0.14, tileSize * 0.82, dh, '#fbbf24', '#78350f', '#451a03', '#fde68a');
+      // Swung-open 3D door leaf resting against left jamb
+      draw3DBox(ctx, x + tileSize * 0.14, y + tileSize * 0.06, tileSize * 0.18, tileSize * 0.76, dh * 0.88, '#f59e0b', '#92400e', '#451a03', '#fef08a');
+      ctx.fillStyle = '#6ee7b7';
+      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('열린문(통과)', x + tileSize * 0.53, y + tileSize * 0.52);
+      return;
+    }
+
+    const pulse = t === TILE.HOT_DOOR ? (0.65 + 0.35 * Math.sin(now * 3.5)) : 1;
+    const topCol = t === TILE.LOCKED_DOOR ? '#eab308' : (t === TILE.HOT_DOOR ? '#ef4444' : '#d97706');
+    const frontCol = t === TILE.LOCKED_DOOR ? '#854d0e' : (t === TILE.HOT_DOOR ? `rgba(185, 28, 28, ${pulse})` : '#92400e');
+    const strokeCol = t === TILE.LOCKED_DOOR ? '#fef08a' : (t === TILE.HOT_DOOR ? '#fca5a5' : '#fcd34d');
+
+    const dx = x + tileSize * 0.06;
+    const dy = y + tileSize * 0.14;
+    const dw = tileSize * 0.88;
+    const dd = tileSize * 0.74;
+
+    draw3DBox(ctx, dx, dy, dw, dd, dh, topCol, frontCol, '#451a03', strokeCol);
+
+    // Recessed architectural door panels & doorknob
+    const frontTopY = dy + dd * 0.55 - dh;
+    const frontH = dh + dd * 0.45;
+    ctx.strokeStyle = 'rgba(254, 243, 199, 0.42)';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(dx + dw * 0.14, frontTopY + frontH * 0.12, dw * 0.72, frontH * 0.34);
+    ctx.strokeRect(dx + dw * 0.14, frontTopY + frontH * 0.54, dw * 0.72, frontH * 0.34);
+
+    // Glowing Brass Door Handle
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(dx + dw * 0.78, frontTopY + frontH * 0.50, Math.max(2.5, tileSize * 0.055), 0, Math.PI * 2);
+    ctx.fill();
+
+    const doorIcon = t === TILE.LOCKED_DOOR ? '🔒' : (t === TILE.HOT_DOOR ? '🌡️🔥' : '🚪');
+    const doorLabel = t === TILE.LOCKED_DOOR ? '잠긴문(열쇠)' : (t === TILE.HOT_DOOR ? '고온위험문' : '방문(열기)');
+    ctx.font = `${Math.floor(tileSize * 0.30)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(doorIcon, x + tileSize * 0.5, frontTopY + frontH * 0.32);
+    ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+    ctx.fillStyle = '#fef9c3';
+    ctx.fillText(doorLabel, x + tileSize * 0.5, y + tileSize * 0.78);
+  }
+
+  function draw3DExitPortal(ctx, x, y, tileSize, wallH, now) {
+    const glow = 0.75 + 0.25 * Math.sin(now * 2.8);
+    const eh = wallH * 0.96;
+    // Glowing green emergency exit stairwell floor pad
+    ctx.fillStyle = `rgba(16, 185, 129, ${0.35 * glow})`;
+    ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+    draw3DBox(
+      ctx,
+      x + tileSize * 0.04,
+      y + tileSize * 0.08,
+      tileSize * 0.92,
+      tileSize * 0.84,
+      eh,
+      '#34d399',
+      `rgba(5, 150, 105, ${glow})`,
+      '#064e3b',
+      '#a7f3d0'
+    );
+    // Illuminated Green Emergency Exit Sign Box above Doorway
+    const signW = tileSize * 0.78;
+    const signH = Math.max(14, tileSize * 0.28);
+    const signX = x + (tileSize - signW) * 0.5;
+    const signY = y - eh + 3;
+    ctx.fillStyle = '#ecfdf5';
+    ctx.fillRect(signX, signY, signW, signH);
+    ctx.fillStyle = '#059669';
+    ctx.fillRect(signX + 2, signY + 2, signW - 4, signH - 4);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.20))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏃 EXIT 비상구', x + tileSize * 0.5, signY + signH * 0.52);
+  }
+
+  function draw3DRadarMinimapOverlay(ctx, width, height, nextObj) {
+    const mapW = Math.min(165, Math.max(115, width * 0.22));
     const mapH = mapW * (ROWS / COLS);
     const mapX = width - mapW - 10;
     const mapY = 10;
@@ -4037,11 +3743,11 @@
     const mth = mapH / ROWS;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
-    ctx.fillRect(mapX - 3, mapY - 3, mapW + 6, mapH + 20);
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
+    ctx.fillRect(mapX - 4, mapY - 4, mapW + 8, mapH + 22);
     ctx.strokeStyle = '#6366f1';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(mapX - 3, mapY - 3, mapW + 6, mapH + 20);
+    ctx.strokeRect(mapX - 4, mapY - 4, mapW + 8, mapH + 22);
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -4049,6 +3755,7 @@
         if (t === TILE.WALL) ctx.fillStyle = '#64748b';
         else if (t === TILE.EXIT) ctx.fillStyle = '#10b981';
         else if (t === TILE.LOCKED_DOOR) ctx.fillStyle = '#eab308';
+        else if (t === TILE.DOOR) ctx.fillStyle = '#d97706';
         else if (t === TILE.DEBRIS) ctx.fillStyle = '#ea580c';
         else if (t === TILE.FURNITURE) ctx.fillStyle = '#92400e';
         else ctx.fillStyle = '#1e293b';
@@ -4065,43 +3772,40 @@
     }
     const mpx = mapX + player.x * mtw;
     const mpy = mapY + player.y * mth;
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.28)';
-    ctx.beginPath();
-    ctx.moveTo(mpx, mpy);
-    ctx.arc(mpx, mpy, mtw * 2.8, fpsCamYaw - fov * 0.5, fpsCamYaw + fov * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
     ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(mpx, mpy, 3.8, 0, Math.PI * 2);
+    ctx.arc(mpx, mpy, 4.2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.stroke();
 
-    ctx.fillStyle = '#c7d2fe';
+    ctx.fillStyle = '#e0e7ff';
     ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🗺️ 3D 레이더 (터치이동)', mapX + mapW / 2, mapY + mapH + 11);
+    ctx.fillText('🗺️ 건물 전체 지도 (터치이동)', mapX + mapW / 2, mapY + mapH + 12);
     ctx.restore();
 
-    // 7. Top-Left 3D Mode & Equipped Gear Indicator Badge
+    // Bottom-Left 3D Interior Follow-Cam Status Badge (Never overlaps top toast banner!)
     const gearSummary = player.wetTowel
-      ? '🧣젖은수건'
-      : (player.hasMask ? '😷마스크' : (player.hasTowel ? '🧣수건보유' : '▲전진·◀▶회전'));
+      ? '🧣젖은수건 착용'
+      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : '문·아이템 자동상호작용'));
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    const badgeY = height - 34;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = '#818cf8';
     ctx.lineWidth = 1.5;
-    ctx.fillRect(10, 10, 238, 24);
-    ctx.strokeRect(10, 10, 238, 24);
+    ctx.fillRect(10, badgeY, 265, 24);
+    ctx.strokeRect(10, badgeY, 265, 24);
     ctx.fillStyle = '#e0e7ff';
     ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`👁️ 1인칭3D (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`, 18, 22);
+    ctx.fillText(`👁️ 3D실내근접뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`, 18, badgeY + 12);
     ctx.restore();
   }
 
-  // --- Mode 1 (Default): 3D Architectural Escape-Room Diorama Renderer ---
+  // --- Unified 3D Architectural Building Escape Renderer (Supports Close-Up 3D Follow-Cam & Full-Building 3D Cutaway) ---
   function renderCanvas() {
     const width = cssCanvasW;
     const height = cssCanvasH;
@@ -4110,19 +3814,15 @@
     const now = performance.now() * 0.004;
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
 
-    // Deep atmospheric 3D void backdrop
+    // Deep atmospheric 3D building backdrop
     const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 40, width * 0.5, height * 0.5, Math.max(width, height) * 0.75);
     bgGrad.addColorStop(0, '#1e293b');
     bgGrad.addColorStop(1, '#090d16');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    if (cameraMode3D === 'FPS_3D') {
-      renderFirstPerson3D(width, height, now, st);
-      return;
-    }
-
-    const layout = computeDioramaLayout(width, height);
+    const isCloseUp = cameraMode3D === 'FPS_3D';
+    const layout = isCloseUp ? computeCloseUp3DLayout(width, height) : computeDioramaLayout(width, height);
     const { tileSize, wallH, offsetX, offsetY } = layout;
     const boardW = COLS * tileSize;
     const boardH = ROWS * tileSize;
@@ -4152,34 +3852,56 @@
     ctx.closePath();
     ctx.fill();
 
-    // 1. Floor Pass: Draw 3D Perspective Floor Tiles, Wall Ambient Occlusion Shadows & Dynamic Lighting
+    // 1. Floor Pass: Draw 3D Architectural Room Flooring (Oak Parquet Bedrooms, Ceramic Bathrooms, Checkered Kitchens, Slate Hallways)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const x = c * tileSize;
         const y = r * tileSize;
-        const isUpperRoom = r < 4;
         const even = (c + r) % 2 === 0;
+        const isBedroom = r < 4 && c < 5;
+        const isBathroom = r < 4 && c >= 5 && c <= 8;
+        const isKitchen = r < 4 && c > 8;
 
-        // 3D Floor surface (warm wood parquet in upper rooms, bright slate hallway tiles in lower maze)
-        if (isUpperRoom) {
-          ctx.fillStyle = even ? '#3b302b' : '#312723';
+        if (isBedroom) {
+          // Warm Oak Hardwood Parquet Planks
+          ctx.fillStyle = even ? '#4a3728' : '#3f2e21';
+          ctx.fillRect(x, y, tileSize, tileSize);
+          ctx.strokeStyle = 'rgba(253, 230, 138, 0.12)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, y + tileSize * 0.5);
+          ctx.lineTo(x + tileSize, y + tileSize * 0.5);
+          ctx.stroke();
+        } else if (isBathroom) {
+          // Clean Aqua Ceramic Bathroom Tiles
+          ctx.fillStyle = even ? '#1e3a4c' : '#173040';
+          ctx.fillRect(x, y, tileSize, tileSize);
+        } else if (isKitchen) {
+          // Warm Terracotta Kitchen Checkered Tiles
+          ctx.fillStyle = even ? '#432822' : '#36201b';
+          ctx.fillRect(x, y, tileSize, tileSize);
         } else {
-          ctx.fillStyle = even ? '#29374c' : '#212d40';
+          // Polished Slate Corridor Stones with Green Photoluminescent Emergency Strip
+          ctx.fillStyle = even ? '#283548' : '#202b3b';
+          ctx.fillRect(x, y, tileSize, tileSize);
+          if (grid[r][c] !== TILE.WALL && (r === 4 || r === 6 || r === 8)) {
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+            ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.46, tileSize * 0.8, Math.max(2, tileSize * 0.07));
+          }
         }
-        ctx.fillRect(x, y, tileSize, tileSize);
 
-        // Subtle 3D floor tile bevel & plank lines
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.14)';
+        // Subtle 3D floor tile bevel
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.15)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, tileSize, tileSize);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize * 0.18);
+        ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize * 0.16);
 
         // 3D Ambient Occlusion Shadows cast by North and West Walls/Furniture
         const northTile = r > 0 ? grid[r - 1][c] : TILE.WALL;
         if (northTile === TILE.WALL || northTile === TILE.FURNITURE || northTile === TILE.DOOR || northTile === TILE.LOCKED_DOOR) {
           const nShadow = ctx.createLinearGradient(x, y, x, y + tileSize * 0.36);
-          nShadow.addColorStop(0, 'rgba(2, 6, 23, 0.45)');
+          nShadow.addColorStop(0, 'rgba(2, 6, 23, 0.46)');
           nShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
           ctx.fillStyle = nShadow;
           ctx.fillRect(x, y, tileSize, tileSize * 0.36);
@@ -4187,12 +3909,24 @@
         const westTile = c > 0 ? grid[r][c - 1] : TILE.WALL;
         if (westTile === TILE.WALL || westTile === TILE.FURNITURE) {
           const wShadow = ctx.createLinearGradient(x, y, x + tileSize * 0.24, y);
-          wShadow.addColorStop(0, 'rgba(2, 6, 23, 0.35)');
+          wShadow.addColorStop(0, 'rgba(2, 6, 23, 0.36)');
           wShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
           ctx.fillStyle = wShadow;
           ctx.fillRect(x, y, tileSize * 0.24, tileSize);
         }
       }
+    }
+
+    // 1.3 Draw 3D Floor Footstep Ripples (Visual feedback as the character walks through rooms)
+    for (const fp of footsteps3D) {
+      const alpha = Math.max(0, (fp.life / fp.maxLife) * 0.55);
+      ctx.strokeStyle = player.crouching ? `rgba(52, 211, 153, ${alpha})` : `rgba(56, 189, 248, ${alpha})`;
+      ctx.fillStyle = `rgba(15, 23, 42, ${alpha * 0.45})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(fp.x * tileSize, fp.y * tileSize + tileSize * 0.12, tileSize * 0.14, tileSize * 0.07, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     }
 
     // 1.4 Draw Glowing 3D Floor Evacuation Guide Signs
@@ -4223,7 +3957,7 @@
       const distPx = Math.hypot(tx - px, ty - py);
       if (distPx > tileSize * 0.65) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.78)';
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.82)';
         ctx.lineWidth = Math.max(2.5, tileSize * 0.08);
         ctx.setLineDash([8, 6]);
         ctx.lineDashOffset = -now * 16;
@@ -4238,6 +3972,7 @@
 
     // 2. Painter's Algorithm Row-by-Row 3D Extrusion Pass (r = 0 .. ROWS - 1)
     const activeSkin = getSelectedSkin();
+    const pCol = Math.min(COLS - 1, Math.max(0, Math.floor(player.x)));
     const pRow = Math.min(ROWS - 1, Math.max(0, Math.floor(player.y)));
     const p2Row = Math.min(ROWS - 1, Math.max(0, Math.floor(player2.y)));
     const activelyMoving = (
@@ -4247,17 +3982,36 @@
 
     for (let r = 0; r < ROWS; r++) {
       // 2A. Extruded 3D Walls, Doors, Furniture & Escape-Room Fixtures in Row r
-      // Use a low cutaway height on the front-most south wall (r === ROWS - 1) so row r=8 is 100% unobstructed!
-      const curWallH = (r === ROWS - 1) ? wallH * 0.16 : wallH;
       for (let c = 0; c < COLS; c++) {
         const t = grid[r][c];
         const x = c * tileSize;
         const y = r * tileSize;
 
         if (t === TILE.WALL) {
+          // Automatic Smart Cutaway:
+          // 1) Front-most south wall (r === ROWS - 1)
+          // 2) Wall directly south of a vertical room Door / Locked Door / Debris so doors are 100% visible!
+          // 3) Wall directly south of the player in Close-Up 3D mode
+          const northT = r > 0 ? grid[r - 1][c] : TILE.WALL;
+          const isSouthOfDoor = (
+            northT === TILE.DOOR ||
+            northT === TILE.OPEN_DOOR ||
+            northT === TILE.LOCKED_DOOR ||
+            northT === TILE.HOT_DOOR ||
+            northT === TILE.DEBRIS ||
+            northT === TILE.PARTITION
+          );
+          const isSouthOfPlayer = (r > pRow && r <= pRow + 2 && Math.abs(c - pCol) <= 2);
+          const isCutawayWall = (r === ROWS - 1) || isSouthOfDoor || (isCloseUp && isSouthOfPlayer);
+          const curWallH = isCutawayWall ? wallH * 0.16 : wallH;
           const hasRightWall = c < COLS - 1 && grid[r][c + 1] === TILE.WALL;
           const hasBottomWall = r < ROWS - 1 && grid[r + 1][c] === TILE.WALL;
           const bX = Math.max(3, tileSize * 0.14);
+
+          ctx.save();
+          if (isSouthOfPlayer && r !== ROWS - 1) {
+            ctx.globalAlpha = 0.72;
+          }
 
           // Right 3D depth face when right neighbor is not a wall
           if (!hasRightWall) {
@@ -4271,133 +4025,50 @@
             ctx.fill();
           }
 
-          // Front 3D Wall Face (visible when bottom neighbor is not a wall, or on south border)
+          // Front 3D Wall Face (Wallpaper + Warm Wooden Wainscoting + Baseboard)
           if (!hasBottomWall) {
-            const frontGrad = ctx.createLinearGradient(x, y - curWallH * 0.3, x, y + tileSize);
-            frontGrad.addColorStop(0, '#64748b');
-            frontGrad.addColorStop(0.55, '#475569');
-            frontGrad.addColorStop(1, '#334155');
+            const wallTopY = y - curWallH * 0.28;
+            const totalFrontH = tileSize + curWallH * 0.28;
+            const frontGrad = ctx.createLinearGradient(x, wallTopY, x, y + tileSize);
+            frontGrad.addColorStop(0, '#94a3b8');
+            frontGrad.addColorStop(0.58, '#64748b');
+            frontGrad.addColorStop(0.59, '#78350f');
+            frontGrad.addColorStop(1, '#451a03');
             ctx.fillStyle = frontGrad;
-            ctx.fillRect(x, y - curWallH * 0.25, tileSize, tileSize + curWallH * 0.25);
+            ctx.fillRect(x, wallTopY, tileSize, totalFrontH);
 
-            // 3D architectural wainscoting / brick mortar detail on front wall
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+            // Chair-rail molding line between upper wallpaper and lower wood wainscoting
+            ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(x, y + tileSize * 0.45);
-            ctx.lineTo(x + tileSize, y + tileSize * 0.45);
+            ctx.moveTo(x, wallTopY + totalFrontH * 0.58);
+            ctx.lineTo(x + tileSize, wallTopY + totalFrontH * 0.58);
             ctx.stroke();
 
             // Dark 3D baseboard at floor junction
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(x, y + tileSize - Math.max(3, tileSize * 0.1), tileSize, Math.max(3, tileSize * 0.1));
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(x, y + tileSize - Math.max(3, tileSize * 0.09), tileSize, Math.max(3, tileSize * 0.09));
           } else {
             ctx.fillStyle = '#475569';
             ctx.fillRect(x, y - curWallH * 0.25, tileSize, tileSize + curWallH * 0.25);
           }
 
-          // Raised 3D Roof Top Cap
+          // Raised 3D Architectural Roof Top Cap with Crown Molding
           const roofH = hasBottomWall ? tileSize : tileSize * 0.76;
-          ctx.fillStyle = '#94a3b8';
+          ctx.fillStyle = isCutawayWall ? '#64748b' : '#cbd5e1';
           ctx.fillRect(x, y - curWallH, tileSize, roofH);
-          ctx.fillStyle = '#cbd5e1';
-          ctx.fillRect(x + 2, y - curWallH + 2, tileSize - 4, Math.max(3, tileSize * 0.14));
-          ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
+          ctx.fillStyle = '#f1f5f9';
+          ctx.fillRect(x + 2, y - curWallH + 2, tileSize - 4, Math.max(3, tileSize * 0.13));
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.50)';
           ctx.lineWidth = 1;
           ctx.strokeRect(x, y - curWallH, tileSize, roofH);
+          ctx.restore();
         } else if (t === TILE.FURNITURE) {
-          // 3D Extruded Wooden Desk / Cabinet / Bed Obstacle
-          const fh = tileSize * 0.34;
-          draw3DBox(
-            ctx,
-            x + tileSize * 0.08,
-            y + tileSize * 0.12,
-            tileSize * 0.82,
-            tileSize * 0.78,
-            fh,
-            '#b45309',
-            '#78350f',
-            '#451a03',
-            '#f59e0b'
-          );
-          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🪑', x + tileSize * 0.49, y + tileSize * 0.26 - fh * 0.35);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
-          ctx.fillStyle = '#fef3c7';
-          ctx.fillText('가구', x + tileSize * 0.49, y + tileSize * 0.74);
-        } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR) {
-          // 3D Extruded Doorway Frame + Closed 3D Door Leaf
-          const dh = wallH * 0.90;
-          const pulse = t === TILE.HOT_DOOR ? (0.65 + 0.35 * Math.sin(now * 3.5)) : 1;
-          const topCol = t === TILE.LOCKED_DOOR ? '#eab308' : (t === TILE.HOT_DOOR ? '#ef4444' : '#d97706');
-          const frontCol = t === TILE.LOCKED_DOOR ? '#854d0e' : (t === TILE.HOT_DOOR ? `rgba(185, 28, 28, ${pulse})` : '#92400e');
-          const strokeCol = t === TILE.LOCKED_DOOR ? '#fef08a' : (t === TILE.HOT_DOOR ? '#fca5a5' : '#fcd34d');
-
-          draw3DBox(
-            ctx,
-            x + tileSize * 0.08,
-            y + tileSize * 0.14,
-            tileSize * 0.84,
-            tileSize * 0.74,
-            dh,
-            topCol,
-            frontCol,
-            '#451a03',
-            strokeCol
-          );
-          const doorIcon = t === TILE.LOCKED_DOOR ? '🔒' : (t === TILE.HOT_DOOR ? '🚪🌡️' : '🚪');
-          const doorLabel = t === TILE.LOCKED_DOOR ? '잠긴문' : (t === TILE.HOT_DOOR ? '뜨거운문' : '방문');
-          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(doorIcon, x + tileSize * 0.5, y + tileSize * 0.30 - dh * 0.35);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
-          ctx.fillStyle = '#fef9c3';
-          ctx.fillText(doorLabel, x + tileSize * 0.5, y + tileSize * 0.76);
-        } else if (t === TILE.OPEN_DOOR) {
-          // 3D Open Doorway Arch + Swung-Open Door Leaf
-          ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(x + tileSize * 0.08, y + tileSize * 0.12, tileSize * 0.84, tileSize * 0.78);
-          // 3D open door leaf standing on left edge
-          draw3DBox(
-            ctx,
-            x + tileSize * 0.06,
-            y + tileSize * 0.10,
-            tileSize * 0.20,
-            tileSize * 0.76,
-            wallH * 0.78,
-            '#f59e0b',
-            '#92400e',
-            '#451a03',
-            '#fde68a'
-          );
-          ctx.fillStyle = '#fcd34d';
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.fillText('열린문(닫기)', x + tileSize * 0.54, y + tileSize * 0.82);
+          draw3DFurniturePiece(ctx, x, y, tileSize, wallH, r, c);
+        } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR || t === TILE.OPEN_DOOR) {
+          draw3DDoorway(ctx, x, y, tileSize, wallH, t, now);
         } else if (t === TILE.SINK) {
-          draw3DBox(
-            ctx,
-            x + tileSize * 0.08,
-            y + tileSize * 0.12,
-            tileSize * 0.84,
-            tileSize * 0.76,
-            tileSize * 0.36,
-            '#38bdf8',
-            '#0284c7',
-            '#0369a1',
-            '#bae6fd'
-          );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🚰', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.19)}px "Noto Sans KR", sans-serif`;
-          ctx.fillStyle = '#e0f2fe';
-          ctx.fillText('세면대', x + tileSize * 0.5, y + tileSize * 0.76);
+          draw3DSinkFixture(ctx, x, y, tileSize, wallH);
         } else if (t === TILE.DEBRIS) {
           draw3DBox(
             ctx,
@@ -4405,17 +4076,17 @@
             y + tileSize * 0.12,
             tileSize * 0.88,
             tileSize * 0.78,
-            tileSize * 0.38,
+            tileSize * 0.40,
             '#d97706',
             '#713f12',
             '#422006',
             '#fde68a'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🪵', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText('🪵', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#fef08a';
           ctx.fillText('장애물(도끼)', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.GAS_VALVE) {
@@ -4425,17 +4096,17 @@
             y + tileSize * 0.12,
             tileSize * 0.80,
             tileSize * 0.76,
-            tileSize * 0.38,
+            tileSize * 0.40,
             player.gasClosed ? '#10b981' : '#ef4444',
             player.gasClosed ? '#065f46' : '#991b1b',
             '#022c22',
             '#fca5a5'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(player.gasClosed ? '✅' : '🔴', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText(player.gasClosed ? '✅' : '🔴', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#ffffff';
           ctx.fillText('가스밸브', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.BREAKER) {
@@ -4445,17 +4116,17 @@
             y + tileSize * 0.12,
             tileSize * 0.80,
             tileSize * 0.76,
-            tileSize * 0.40,
+            tileSize * 0.42,
             player.breakerClosed ? '#10b981' : '#3b82f6',
             player.breakerClosed ? '#065f46' : '#1e3a8a',
             '#172554',
             '#93c5fd'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(player.breakerClosed ? '✅' : '⚡', x + tileSize * 0.5, y + tileSize * 0.25);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText(player.breakerClosed ? '✅' : '⚡', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#ffffff';
           ctx.fillText('차단기', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.PHONE_119) {
@@ -4465,17 +4136,17 @@
             y + tileSize * 0.12,
             tileSize * 0.80,
             tileSize * 0.76,
-            tileSize * 0.38,
+            tileSize * 0.40,
             metrics.called119 ? '#10b981' : '#a855f7',
             metrics.called119 ? '#065f46' : '#581c87',
             '#3b0764',
             '#e9d5ff'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('📞', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText('📞', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#f3e8ff';
           ctx.fillText('119신고', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.LIFELINE) {
@@ -4491,11 +4162,11 @@
             '#134e4a',
             '#99f6e4'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🪢', x + tileSize * 0.5, y + tileSize * 0.22);
-          ctx.font = `bold ${Math.floor(tileSize * 0.19)}px "Noto Sans KR", sans-serif`;
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.18))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#ccfbf1';
           ctx.fillText('완강기', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.PARTITION) {
@@ -4515,7 +4186,7 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🧱', x + tileSize * 0.5, y + tileSize * 0.22);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#fef08a';
           ctx.fillText('경량칸막이', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.HAZARD) {
@@ -4526,17 +4197,17 @@
             y + tileSize * 0.12,
             tileSize * 0.84,
             tileSize * 0.76,
-            tileSize * 0.36,
+            tileSize * 0.38,
             '#fbbf24',
             `rgba(217, 119, 6, ${pulse})`,
             '#78350f',
             '#fef08a'
           );
-          ctx.font = `${Math.floor(tileSize * 0.40)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('⚠️', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText('⚠️', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#ffffff';
           ctx.fillText('위험요소', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.ALARM_BELL) {
@@ -4546,17 +4217,17 @@
             y + tileSize * 0.12,
             tileSize * 0.80,
             tileSize * 0.76,
-            tileSize * 0.38,
+            tileSize * 0.40,
             player.alarmRung ? '#10b981' : '#facc15',
             player.alarmRung ? '#065f46' : '#991b1b',
             '#450a0a',
             '#fef08a'
           );
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🔔', x + tileSize * 0.5, y + tileSize * 0.26);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.fillText('🔔', x + tileSize * 0.5, y + tileSize * 0.24);
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#fef08a';
           ctx.fillText('비상벨', x + tileSize * 0.5, y + tileSize * 0.76);
         } else if (t === TILE.ELEVATOR) {
@@ -4576,31 +4247,11 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🛗', x + tileSize * 0.5, y + tileSize * 0.20);
-          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px "Noto Sans KR", sans-serif`;
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
           ctx.fillStyle = '#fca5a5';
           ctx.fillText('승강기금지', x + tileSize * 0.5, y + tileSize * 0.78);
         } else if (t === TILE.EXIT) {
-          // 3D Glowing Emerald Exit Portal Arch
-          const glow = 0.7 + 0.3 * Math.sin(now * 2.5);
-          draw3DBox(
-            ctx,
-            x + tileSize * 0.04,
-            y + tileSize * 0.08,
-            tileSize * 0.92,
-            tileSize * 0.84,
-            wallH * 0.88,
-            '#34d399',
-            `rgba(16, 185, 129, ${glow})`,
-            '#064e3b',
-            '#a7f3d0'
-          );
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `900 ${Math.floor(tileSize * 0.22)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('EXIT', x + tileSize * 0.5, y - wallH * 0.52);
-          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
-          ctx.fillText('🏃', x + tileSize * 0.5, y + tileSize * 0.48);
+          draw3DExitPortal(ctx, x, y, tileSize, wallH, now);
         }
       }
 
@@ -4629,6 +4280,7 @@
             moving: false,
             now: now + it.c,
             dirX: -1,
+            dirY: 0,
             skinId: 'npc'
           });
         } else {
@@ -4738,6 +4390,7 @@
             moving: activelyMoving,
             now: now + 0.6,
             dirX: player.dirX,
+            dirY: player.dirY,
             skinId: 'npc',
             wetTowel: player.wetTowel
           });
@@ -4746,12 +4399,13 @@
         const rightTool = player.extinguisherCharges > 0
           ? 'extinguisher'
           : (player.hasAxe ? 'axe' : (player.waterCharges > 0 ? 'bucket' : (player.hasFlashlight ? 'flashlight' : 'none')));
-        const humanH = tileSize * 1.04;
+        const humanH = tileSize * 1.06;
         drawHumanCharacter(ctx, px, footY, humanH, {
           crouching: player.crouching,
           moving: activelyMoving,
           now,
           dirX: player.dirX,
+          dirY: player.dirY,
           skinId: activeSkin.id || 'student',
           wetTowel: player.wetTowel,
           hasTowel: player.hasTowel,
@@ -4762,12 +4416,12 @@
 
         // Bold '나' 3D Floating Tag above Human Head
         ctx.save();
-        const meTag = isCoopMode ? '1P 나' : '나';
-        ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.22))}px "Noto Sans KR", sans-serif`;
+        const meTag = isCoopMode ? '1P 나' : (isCloseUp ? (player.crouching ? '나 · 🧎낮은자세' : '나') : '나');
+        ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.21))}px "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const mw = ctx.measureText(meTag).width + 8;
-        const mh = Math.max(14, Math.floor(tileSize * 0.28));
+        const mw = ctx.measureText(meTag).width + 10;
+        const mh = Math.max(14, Math.floor(tileSize * 0.26));
         const headTopY = footY - (player.crouching ? humanH * 0.78 : humanH * 0.96);
         const my = Math.max(mh / 2 - wallH, headTopY - mh / 2 - 4);
         ctx.fillStyle = player.crouching ? '#059669' : '#2563eb';
@@ -4788,6 +4442,7 @@
           moving: keysPressed2.up || keysPressed2.down || keysPressed2.left || keysPressed2.right,
           now: now + 1.2,
           dirX: player2.dirX,
+          dirY: player2.dirY,
           skinId: 'p2'
         });
       }
@@ -4823,9 +4478,9 @@
         const ry = rl.r * tileSize - wallH * 0.72;
         const textW = ctx.measureText(rl.text).width + 10;
         const pillH = Math.max(14, Math.floor(tileSize * 0.32));
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
         ctx.fillRect(rx - textW / 2, ry - pillH / 2, textW, pillH);
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.40)';
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
         ctx.lineWidth = 1;
         ctx.strokeRect(rx - textW / 2, ry - pillH / 2, textW, pillH);
         ctx.fillStyle = '#e2e8f0';
@@ -4847,7 +4502,7 @@
 
     // 4. Touch Target Ring
     if (pointerMoveTarget) {
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.75)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(pointerMoveTarget.x * tileSize, pointerMoveTarget.y * tileSize, tileSize * 0.22, 0, Math.PI * 2);
@@ -4918,6 +4573,11 @@
     }
 
     ctx.restore();
+
+    // 8. When in Close-Up 3D Interior Follow-Cam ('FPS_3D'), draw the Top-Right Building Radar Minimap & Status Pill
+    if (isCloseUp) {
+      draw3DRadarMinimapOverlay(ctx, width, height, nextObj);
+    }
   }
 
   // --- Main Animation Loop ---
