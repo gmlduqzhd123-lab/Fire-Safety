@@ -300,18 +300,25 @@ body.landscape-console #overlayCard {
   max-height: 95% !important;
 }
 
-/* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) */
-@media (max-height: 460px) {
+/* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) so Start button is always visible */
+@media (max-height: 540px) {
   body.landscape-console #overlayCard {
-    padding: 10px 16px !important;
-    gap: 6px !important;
+    padding: 8px 14px !important;
+    gap: 4px !important;
   }
   body.landscape-console #overlayTitle {
-    font-size: 1.25rem !important;
-    line-height: 1.5rem !important;
+    font-size: 1.15rem !important;
+    line-height: 1.35rem !important;
   }
-  body.landscape-console #overlayTipsBox > div:first-child > div {
-    padding: 6px 8px !important;
+  body.landscape-console #overlayDesc {
+    font-size: 0.7rem !important;
+    line-height: 1rem !important;
+  }
+  body.landscape-console #fireStepCardsGrid {
+    display: none !important;
+  }
+  body.landscape-console #worldSelectBar > button {
+    padding: 4px 6px !important;
   }
 }
 
