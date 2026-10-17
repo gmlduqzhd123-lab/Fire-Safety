@@ -1873,7 +1873,7 @@
   function renderCanvas() {
     const width = cssCanvasW;
     const height = cssCanvasH;
-    if (!width || !height) return;
+    if (!width || !height || !grid || grid.length < ROWS) return;
 
     const tileW = width / COLS;
     const tileH = height / ROWS;
@@ -2906,7 +2906,11 @@
   });
 
   // --- Bug #3 Fix: Automatically Load Shared Custom Map from ?map= URL Parameter ---
-  window.onload = function () {
+  let appInitialized = false;
+  function initApp() {
+    if (appInitialized) return;
+    appInitialized = true;
+
     bestScoreDisplay.textContent = getSavedBestScore().toLocaleString();
     try {
       const savedName = localStorage.getItem('fire_escape_student_name');
@@ -2937,5 +2941,12 @@
     updateOverlaySelectionUI();
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = requestAnimationFrame(gameLoop);
-  };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
+  window.addEventListener('load', resizeCanvas);
 })();
