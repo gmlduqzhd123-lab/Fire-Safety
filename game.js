@@ -584,19 +584,19 @@
       if (!btn) return;
       if (idx === currentStageIdx && !customStageObj) {
         btn.className = idx === 5
-          ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-emerald-600 text-white transition'
-          : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition';
+          ? 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md bg-emerald-600 text-white transition shrink-0'
+          : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition shrink-0';
       } else {
         btn.className = idx === 5
-          ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition'
-          : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition';
+          ? 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition shrink-0'
+          : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0';
       }
     });
 
     if (btnDailyStage) {
       btnDailyStage.className = (customStageObj && customStageObj.isDailyChallenge)
-        ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-amber-600 text-white transition'
-        : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition';
+        ? 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md bg-amber-600 text-white transition shrink-0'
+        : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0';
     }
 
     updateHUD();
@@ -622,32 +622,32 @@
 
     if (player.onFire) {
       rollStatusBadge.textContent = `(${player.rollNeeded}회연타!)`;
-      btnRoll.className = 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-red-600 animate-bounce border-2 border-yellow-300 text-[11px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow-lg';
+      btnRoll.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-red-600 animate-bounce border-2 border-yellow-300 text-[10px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow-lg leading-tight';
     } else {
       rollStatusBadge.textContent = `(안전)`;
-      btnRoll.className = 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[11px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
+      btnRoll.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[10px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
     }
 
     if (st.isPreventionMode) {
       postureStatus.textContent = player.crouching ? '🧎 하층 점검' : '🔍 사전점검';
-      postureStatus.className = 'text-xs font-extrabold text-emerald-400';
+      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-emerald-400';
       convectionMarker.style.top = player.crouching ? '20px' : '12px';
       convectionHint.textContent = '화재 전 쾌적한 실내 공기';
       btnCrouch.className = player.crouching
-        ? 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[11px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow'
-        : 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
+        ? 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[10px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight'
+        : 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
     } else if (player.crouching) {
       postureStatus.textContent = '🧎 하층(안전)';
-      postureStatus.className = 'text-xs font-extrabold text-emerald-400';
+      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-emerald-400';
       convectionMarker.style.top = '20px';
       convectionHint.textContent = '바닥 신선한 공기 호흡';
-      btnCrouch.className = 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[11px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
+      btnCrouch.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[10px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
     } else {
       postureStatus.textContent = '🚶 상층(연기)';
-      postureStatus.className = 'text-xs font-extrabold text-amber-400';
+      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-amber-400';
       convectionMarker.style.top = '3px';
       convectionHint.textContent = '상층 유독가스 주의!';
-      btnCrouch.className = 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
+      btnCrouch.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
     }
 
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
@@ -1875,7 +1875,7 @@
       }
     }
 
-    // 2P Co-op Movement (Player 2 controlled by Arrow Keys when isCoopMode is ON)
+    // 2P Co-op Movement (Player 2 controlled by Arrow Keys or mobile touch pointer when isCoopMode is ON)
     if (isCoopMode) {
       let mv2X = 0;
       let mv2Y = 0;
@@ -1883,6 +1883,16 @@
       if (keysPressed2.down) mv2Y += 1;
       if (keysPressed2.left) mv2X -= 1;
       if (keysPressed2.right) mv2X += 1;
+
+      if (mv2X === 0 && mv2Y === 0 && pointerMoveTarget) {
+        const dx2 = pointerMoveTarget.x - player2.x;
+        const dy2 = pointerMoveTarget.y - player2.y;
+        const dist2 = Math.hypot(dx2, dy2);
+        if (dist2 > 0.14) {
+          mv2X = dx2 / dist2;
+          mv2Y = dy2 / dist2;
+        }
+      }
 
       if (mv2X !== 0 || mv2Y !== 0) {
         const len2 = Math.hypot(mv2X, mv2Y);
@@ -2634,12 +2644,17 @@
   // --- High-DPI Canvas Resize ---
   function resizeCanvas() {
     const isBoardZoom = document.body.classList.contains('smartboard-zoom');
+    const isMobileViewport = window.innerWidth < 640;
     const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, isBoardZoom ? 1160 : 980);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     cssCanvasW = Math.max(280, Math.floor(containerW));
     const aspectH = Math.floor(cssCanvasW * (ROWS / COLS));
-    const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
-    cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
+    if (isMobileViewport) {
+      cssCanvasH = Math.max(200, aspectH);
+    } else {
+      const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
+      cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
+    }
     canvasContainer.style.height = cssCanvasH + 'px';
     canvas.style.width = cssCanvasW + 'px';
     canvas.style.height = cssCanvasH + 'px';

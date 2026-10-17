@@ -25,6 +25,14 @@ canvas {
   touch-action: none;
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .pulse-danger {
   animation: pulseDanger 1.2s infinite ease-in-out;
 }

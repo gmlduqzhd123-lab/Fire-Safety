@@ -34,124 +34,126 @@
       </div>
 
       <!-- Stage Selector & Utility Controls -->
-      <div class="flex items-center gap-1 flex-wrap">
-        <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 flex-wrap" role="group" aria-label="스테이지 선택">
-          <button id="btnStage0" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition" title="화재 예방 사전점검 모드">🔍예방</button>
-          <button id="btnStage1" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition">1층/2층</button>
-          <button id="btnStage2" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition">거실/주방</button>
-          <button id="btnStage3" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition">최종탈출</button>
-          <button id="btnStage4" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="4단계: 초등학교 과학실">🏫과학실</button>
-          <button id="btnStage5" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="5단계: 다중이용시설 지하철·쇼핑몰">🚇다중시설</button>
-          <button id="btnStage6" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="6단계: 캠핑장·전동킥보드 배터리 화재">⛺캠핑·배터리</button>
-          <button id="btnDailyStage" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition" title="오늘의 119 돌발 재난 챌린지 (매일 자정 새 맵)">🎲오늘의챌린지</button>
+      <div class="flex items-center gap-1 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+        <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 overflow-x-auto max-w-full whitespace-nowrap no-scrollbar" role="group" aria-label="스테이지 선택">
+          <button id="btnStage0" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition shrink-0" title="화재 예방 사전점검 모드">🔍예방</button>
+          <button id="btnStage1" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition shrink-0">1층/2층</button>
+          <button id="btnStage2" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0">거실/주방</button>
+          <button id="btnStage3" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0">최종탈출</button>
+          <button id="btnStage4" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0" title="4단계: 초등학교 과학실">🏫과학실</button>
+          <button id="btnStage5" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0" title="5단계: 다중이용시설 지하철·쇼핑몰">🚇다중시설</button>
+          <button id="btnStage6" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0" title="6단계: 캠핑장·전동킥보드 배터리 화재">⛺캠핑<span class="hidden sm:inline">·배터리</span></button>
+          <button id="btnDailyStage" type="button" class="px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0" title="오늘의 119 돌발 재난 챌린지 (매일 자정 새 맵)">🎲<span class="hidden sm:inline">오늘의</span>챌린지</button>
         </div>
 
-        <button id="btnCoopToggle" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1" title="1대 기기 2인 협동 대피 모드 (1P: WASD / 2P: 방향키)">
-          <span>👥</span>
-          <span id="coopToggleText" class="hidden md:inline">2인협동:꺼짐</span>
-        </button>
+        <div class="flex items-center gap-1 flex-wrap">
+          <button id="btnCoopToggle" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1" title="1대 기기 2인 협동 대피 모드 (1P: WASD·패드 / 2P: 방향키·터치)">
+            <span>👥</span>
+            <span id="coopToggleText" class="hidden md:inline">2인협동:꺼짐</span>
+          </button>
 
-        <button id="btnClassMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 transition flex items-center gap-1" title="우리 반 안전 랭킹 & 학급 대항전 코드">
-          <span>🏫</span>
-          <span class="hidden md:inline">학급랭킹</span>
-        </button>
+          <button id="btnClassMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 transition flex items-center gap-1" title="우리 반 안전 랭킹 & 학급 대항전 코드">
+            <span>🏫</span>
+            <span class="hidden md:inline">학급랭킹</span>
+          </button>
 
-        <button id="btnTeacherMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 transition flex items-center gap-1" title="교사용 전자칠판 브리핑 & 활동지 인쇄">
-          <span>👩‍🏫</span>
-          <span class="hidden md:inline">교사모드</span>
-        </button>
+          <button id="btnTeacherMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 transition flex items-center gap-1" title="교사용 전자칠판 브리핑 & 활동지 인쇄">
+            <span>👩‍🏫</span>
+            <span class="hidden md:inline">교사모드</span>
+          </button>
 
-        <button id="btnMapEditor" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1" title="우리 집·교실 대피도 맵 에디터">
-          <span>🛠️</span>
-          <span class="hidden md:inline">맵에디터</span>
-        </button>
+          <button id="btnMapEditor" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1" title="우리 집·교실 대피도 맵 에디터">
+            <span>🛠️</span>
+            <span class="hidden md:inline">맵에디터</span>
+          </button>
 
-        <button id="btnCertModal" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1" title="명예 소방관 수료증·스킨·배지 도감">
-          <span>🏅</span>
-          <span class="hidden md:inline">수료증·스킨</span>
-        </button>
+          <button id="btnCertModal" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1" title="명예 소방관 수료증·스킨·배지 도감">
+            <span>🏅</span>
+            <span class="hidden md:inline">수료증·스킨</span>
+          </button>
 
-        <button id="btnPause" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="일시정지">
-          <span id="pauseIcon">⏸️</span>
-          <span id="pauseText" class="hidden lg:inline">일시정지</span>
-        </button>
+          <button id="btnPause" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="일시정지">
+            <span id="pauseIcon">⏸️</span>
+            <span id="pauseText" class="hidden lg:inline">일시정지</span>
+          </button>
 
-        <button id="btnRestartTop" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="다시 시작">
-          <span>🔄</span>
-          <span id="pauseRestartText" class="hidden lg:inline">재시작</span>
-        </button>
+          <button id="btnRestartTop" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="다시 시작">
+            <span>🔄</span>
+            <span id="pauseRestartText" class="hidden lg:inline">재시작</span>
+          </button>
 
-        <button id="btnSound" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition" title="소리 및 음성 안내 켜기/끄기">
-          🔊
-        </button>
+          <button id="btnSound" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition" title="소리 및 음성 안내 켜기/끄기">
+            🔊
+          </button>
 
-        <button id="btnGuide" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
-          <span>🧯</span>
-          <span>안전수칙</span>
-        </button>
+          <button id="btnGuide" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1" title="안전수칙 백과">
+            <span>🧯</span>
+            <span class="hidden sm:inline">안전수칙</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- Main Content Container -->
-  <main class="flex-1 max-w-5xl w-full mx-auto px-2 sm:px-4 py-1.5 flex flex-col gap-1.5">
+  <main class="flex-1 max-w-5xl w-full mx-auto px-1.5 sm:px-4 py-1 sm:py-1.5 flex flex-col gap-1 sm:gap-1.5">
 
     <!-- HUD: Vitals, Convection Layer Gauge, Inventory & Mission -->
-    <section class="grid grid-cols-1 md:grid-cols-12 gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-2 shadow-lg">
+    <section class="grid grid-cols-1 md:grid-cols-12 gap-1 sm:gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1.5 sm:p-2 shadow-lg">
       <!-- Health & Oxygen Bars -->
       <div class="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-1.5 items-center">
-        <div class="flex items-center gap-1.5">
-          <span class="text-[11px] sm:text-xs font-bold text-red-400 w-12 sm:w-14 shrink-0 flex items-center gap-0.5">❤️ 체력</span>
-          <div class="flex-1 h-3 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
+        <div class="flex items-center gap-1">
+          <span class="text-[11px] sm:text-xs font-bold text-red-400 w-11 sm:w-14 shrink-0 flex items-center gap-0.5">❤️ 체력</span>
+          <div class="flex-1 h-2.5 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
             <div id="hpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-150" style="width: 100%;"></div>
           </div>
-          <span id="hpValue" class="text-[11px] sm:text-xs font-mono font-bold text-slate-300 w-8 sm:w-9 text-right">100%</span>
+          <span id="hpValue" class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 w-7 sm:w-9 text-right">100%</span>
         </div>
 
-        <div class="flex items-center gap-1.5">
-          <span class="text-[11px] sm:text-xs font-bold text-sky-400 w-12 sm:w-14 shrink-0 flex items-center gap-0.5">💨 산소</span>
-          <div class="flex-1 h-3 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
+        <div class="flex items-center gap-1">
+          <span class="text-[11px] sm:text-xs font-bold text-sky-400 w-11 sm:w-14 shrink-0 flex items-center gap-0.5">💨 산소</span>
+          <div class="flex-1 h-2.5 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
             <div id="o2Bar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
           </div>
-          <span id="o2Value" class="text-[11px] sm:text-xs font-mono font-bold text-slate-300 w-8 sm:w-9 text-right">100%</span>
+          <span id="o2Value" class="text-[10px] sm:text-xs font-mono font-bold text-slate-300 w-7 sm:w-9 text-right">100%</span>
         </div>
       </div>
 
       <!-- Convection & Smoke Vertical Cross-Section Gauge + Posture/Score -->
-      <div class="md:col-span-4 flex items-center justify-between bg-slate-950/70 rounded-lg px-2.5 py-1 border border-slate-800/80 gap-2">
-        <div class="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded border border-slate-800" title="과학 대류 현상: 뜨거운 연기는 위로 올라가고 바닥에는 신선한 공기가 남습니다">
-          <div class="w-4 h-8 rounded overflow-hidden flex flex-col border border-slate-700 relative shrink-0">
+      <div class="md:col-span-4 flex items-center justify-between bg-slate-950/70 rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-1 border border-slate-800/80 gap-1.5 sm:gap-2">
+        <div class="flex items-center gap-1.5 bg-slate-900 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded border border-slate-800" title="과학 대류 현상: 뜨거운 연기는 위로 올라가고 바닥에는 신선한 공기가 남습니다">
+          <div class="w-3.5 h-7 sm:w-4 sm:h-8 rounded overflow-hidden flex flex-col border border-slate-700 relative shrink-0">
             <div class="h-1/2 bg-gradient-to-b from-slate-500 to-orange-500/60 flex items-center justify-center text-[8px]">💨</div>
             <div class="h-1/2 bg-gradient-to-b from-sky-900/60 to-emerald-600/60 flex items-center justify-center text-[8px]">🌬️</div>
             <div id="convectionMarker" class="absolute left-0 right-0 h-1.5 bg-yellow-300 border border-black transition-all duration-200" style="top: 3px;"></div>
           </div>
           <div class="text-[10px] leading-tight">
-            <div class="text-slate-400 font-semibold">대류·공기층</div>
-            <div id="postureStatus" class="text-xs font-extrabold text-amber-400">🚶 상층(위험)</div>
+            <div class="text-slate-400 font-semibold hidden sm:block">대류·공기층</div>
+            <div id="postureStatus" class="text-[11px] sm:text-xs font-extrabold text-amber-400">🚶 상층(위험)</div>
             <div id="convectionHint" class="text-[9px] text-slate-400">고온 연기층 호흡중</div>
           </div>
         </div>
 
-        <div class="h-6 w-px bg-slate-800"></div>
+        <div class="h-5 sm:h-6 w-px bg-slate-800"></div>
         <div class="text-center">
-          <div class="text-[10px] text-slate-400">시간</div>
-          <div id="timerDisplay" class="text-xs font-mono font-extrabold text-white">00:00</div>
+          <div class="text-[9px] sm:text-[10px] text-slate-400">시간</div>
+          <div id="timerDisplay" class="text-[11px] sm:text-xs font-mono font-extrabold text-white">00:00</div>
         </div>
-        <div class="h-6 w-px bg-slate-800"></div>
+        <div class="h-5 sm:h-6 w-px bg-slate-800"></div>
         <div class="text-center">
-          <div class="text-[10px] text-slate-400">점수 / 최고</div>
-          <div class="text-xs font-mono font-extrabold text-emerald-400"><span id="scoreDisplay">0</span> <span class="text-slate-500">/</span> <span id="bestScoreDisplay" class="text-slate-400">0</span></div>
+          <div class="text-[9px] sm:text-[10px] text-slate-400">점수 / 최고</div>
+          <div class="text-[11px] sm:text-xs font-mono font-extrabold text-emerald-400"><span id="scoreDisplay">0</span> <span class="text-slate-500">/</span> <span id="bestScoreDisplay" class="text-slate-400">0</span></div>
         </div>
       </div>
 
       <!-- Inventory Items -->
-      <div class="md:col-span-4 flex flex-col justify-between bg-slate-950/70 rounded-lg px-2.5 py-1 border border-slate-800/80">
-        <div class="flex items-center justify-between mb-0.5">
+      <div class="md:col-span-4 flex flex-col justify-between bg-slate-950/70 rounded-lg px-2 py-0.5 sm:px-2.5 sm:py-1 border border-slate-800/80">
+        <div class="flex items-center justify-between">
           <span class="text-[10px] sm:text-[11px] font-bold text-slate-400">보유 장비 · 상태</span>
-          <span id="missionShort" class="text-[10px] sm:text-[11px] font-semibold text-orange-300 truncate max-w-[205px]">목표: 비상 계단으로 탈출!</span>
+          <span id="missionShort" class="text-[10px] sm:text-[11px] font-semibold text-orange-300 truncate max-w-[215px]">목표: 비상 계단으로 탈출!</span>
         </div>
-        <div id="inventoryList" class="flex items-center gap-1 overflow-x-auto py-0.5 min-h-[24px]">
-          <span class="text-[11px] text-slate-500 italic">아이템 없음 (화면 터치 또는 방향키로 탐색)</span>
+        <div id="inventoryList" class="flex items-center gap-1 overflow-x-auto py-0.5 min-h-[20px] sm:min-h-[24px]">
+          <span class="text-[10px] sm:text-[11px] text-slate-500 italic">아이템 없음 (화면 터치 또는 방향키로 탐색)</span>
         </div>
       </div>
     </section>
@@ -161,7 +163,7 @@
       <canvas id="gameCanvas" class="w-full h-full cursor-pointer"></canvas>
 
       <!-- Map Legend Pill (Top Left) -->
-      <div class="pointer-events-none absolute top-1.5 left-1.5 z-10 flex flex-wrap items-center gap-1 sm:gap-1.5 bg-slate-950/85 border border-slate-800 px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] text-slate-300 max-w-[96%]">
+      <div class="pointer-events-none hidden sm:flex absolute top-1.5 left-1.5 z-10 flex-wrap items-center gap-1 sm:gap-1.5 bg-slate-950/85 border border-slate-800 px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] text-slate-300 max-w-[96%]">
         <span>🔥일반/🍳식용유/⚡전기</span>
         <span>🧱경량칸막이</span>
         <span>🚪방화문닫기</span>
@@ -273,16 +275,16 @@
     </div>
 
     <!-- Bottom Touch & Keyboard Controls Bar -->
-    <section class="bg-slate-900/95 border border-slate-800 rounded-xl p-2 flex flex-wrap items-center justify-between gap-1.5">
+    <section class="bg-slate-900/95 border border-slate-800 rounded-xl p-1.5 sm:p-2 flex items-center justify-between gap-1.5">
       <!-- D-Pad for Mobile / Touch / Mouse -->
-      <div class="flex items-center gap-2">
-        <div class="grid grid-cols-3 gap-1 w-28 h-24 sm:w-32 sm:h-28 shrink-0" aria-label="방향 조작 패드">
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="grid grid-cols-3 gap-1 w-24 h-20 sm:w-32 sm:h-28 shrink-0" aria-label="방향 조작 패드">
           <div></div>
-          <button id="btnUp" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▲</button>
+          <button id="btnUp" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-xs sm:text-base font-bold text-white shadow">▲</button>
           <div></div>
-          <button id="btnLeft" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">◀</button>
-          <button id="btnDown" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▼</button>
-          <button id="btnRight" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▶</button>
+          <button id="btnLeft" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-xs sm:text-base font-bold text-white shadow">◀</button>
+          <button id="btnDown" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-xs sm:text-base font-bold text-white shadow">▼</button>
+          <button id="btnRight" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-xs sm:text-base font-bold text-white shadow">▶</button>
         </div>
 
         <div class="hidden xl:flex flex-col text-[11px] text-slate-400 space-y-1">
@@ -292,30 +294,33 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex items-center gap-1 sm:gap-1.5 ml-auto flex-wrap justify-end">
-        <button id="btnRoll" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[11px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow" title="옷에 불이 붙었을 때 멈추고 엎드려 구르기 (단축키 F)">
-          <span class="text-base sm:text-lg">🔄</span>
-          <span>구르기 <span id="rollStatusBadge" class="text-[9px] text-rose-300">(안전)</span></span>
+      <div class="grid grid-cols-5 sm:flex items-stretch sm:items-center gap-1 sm:gap-1.5 flex-1 sm:flex-initial sm:ml-auto justify-end">
+        <button id="btnRoll" type="button" class="btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[10px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight" title="옷에 불이 붙었을 때 멈추고 엎드려 구르기 (단축키 F)">
+          <span class="text-sm sm:text-lg">🔄</span>
+          <span class="truncate">구르기</span>
+          <span id="rollStatusBadge" class="text-[8px] sm:text-[9px] text-rose-300 truncate">(안전)</span>
         </button>
 
-        <button id="btnCrouch" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow">
-          <span class="text-base sm:text-lg">🧎</span>
-          <span>낮은 자세</span>
+        <button id="btnCrouch" type="button" class="btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight">
+          <span class="text-sm sm:text-lg">🧎</span>
+          <span class="truncate">낮은자세</span>
         </button>
 
-        <button id="btnWaterBucket" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-blue-950/70 hover:bg-blue-900/80 border border-blue-500/40 text-[11px] sm:text-xs font-bold text-blue-200 flex flex-col items-center justify-center min-w-[62px] sm:min-w-[72px] shadow" title="물양동이 (냉각 소화 - 일반 화재용)">
-          <span class="text-base sm:text-lg">🪣</span>
-          <span>물양동이 <span id="waterAmmoBadge" class="text-[10px] text-blue-300">(0)</span></span>
+        <button id="btnWaterBucket" type="button" class="btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-blue-950/70 hover:bg-blue-900/80 border border-blue-500/40 text-[10px] sm:text-xs font-bold text-blue-200 flex flex-col items-center justify-center min-w-0 sm:min-w-[72px] shadow leading-tight" title="물양동이 (냉각 소화 - 일반 화재용)">
+          <span class="text-sm sm:text-lg">🪣</span>
+          <span class="truncate">물양동이</span>
+          <span id="waterAmmoBadge" class="text-[8px] sm:text-[10px] text-blue-300">(0)</span>
         </button>
 
-        <button id="btnExtinguish" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-sky-900/60 hover:bg-sky-800/70 border border-sky-500/40 text-[11px] sm:text-xs font-bold text-sky-200 flex flex-col items-center justify-center min-w-[62px] sm:min-w-[72px] shadow" title="분말/K급 소화기 (질식 소화 - 모든 화재용)">
-          <span class="text-base sm:text-lg">🧯</span>
-          <span>소화기 <span id="extAmmoBadge" class="text-[10px] text-sky-400">(0)</span></span>
+        <button id="btnExtinguish" type="button" class="btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-sky-900/60 hover:bg-sky-800/70 border border-sky-500/40 text-[10px] sm:text-xs font-bold text-sky-200 flex flex-col items-center justify-center min-w-0 sm:min-w-[72px] shadow leading-tight" title="분말/K급 소화기 (질식 소화 - 모든 화재용)">
+          <span class="text-sm sm:text-lg">🧯</span>
+          <span class="truncate">소화기</span>
+          <span id="extAmmoBadge" class="text-[8px] sm:text-[10px] text-sky-400">(0)</span>
         </button>
 
-        <button id="btnAction" type="button" class="btn-control px-2.5 sm:px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-[11px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-[68px] sm:min-w-[78px] shadow-lg shadow-orange-600/30">
-          <span class="text-base sm:text-lg">✋</span>
-          <span>상호작용</span>
+        <button id="btnAction" type="button" class="btn-control px-1 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-[10px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[78px] shadow-lg shadow-orange-600/30 leading-tight">
+          <span class="text-sm sm:text-lg">✋</span>
+          <span class="truncate">상호작용</span>
         </button>
       </div>
     </section>
