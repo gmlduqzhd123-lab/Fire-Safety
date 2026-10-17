@@ -2603,7 +2603,408 @@
     }
   }
 
-  // --- Mode 2: Real-Time 1st-Person 3D Escape Room Raycaster + Z-Buffer Engine (with Visible 3D Player Character) ---
+  // --- Helper: Draw Realistic Articulated 3D-Shaded Human Character ---
+  function drawLimbSegment(ctx, x1, y1, x2, y2, radius, fillStyle, strokeStyle) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+    const len = Math.hypot(dx, dy);
+    ctx.save();
+    ctx.translate(x1, y1);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.arc(len, 0, radius * 0.88, -Math.PI * 0.5, Math.PI * 0.5);
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+    if (strokeStyle) {
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = Math.max(1, radius * 0.22);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawHumanCharacter(ctx, footX, footY, charHeight, opts = {}) {
+    const {
+      crouching = false,
+      moving = false,
+      now = 0,
+      dirX = 1,
+      skinId = 'student',
+      wetTowel = false,
+      hasTowel = false,
+      hasMask = false,
+      rightTool = 'none',
+      onFire = false
+    } = opts;
+
+    const u = Math.max(24, charHeight);
+    const facing = dirX < -0.15 ? -1 : 1;
+    const walkPhase = moving ? now * 9.5 : now * 2.2;
+    const stride = moving ? Math.sin(walkPhase) : Math.sin(walkPhase) * 0.12;
+    const bounce = moving ? Math.abs(Math.cos(walkPhase)) * (u * 0.035) : Math.sin(walkPhase) * (u * 0.012);
+
+    // Outfit palette based on character role/skin
+    let jacketMain = '#2563eb';
+    let jacketDark = '#1d4ed8';
+    let stripeCol = '#facc15';
+    let pantsCol = '#1e293b';
+    let pantsBackCol = '#0f172a';
+    let shoeCol = '#ef4444';
+    let hairCol = '#27170e';
+    let helmetCol = null;
+
+    if (skinId === 'firefighter') {
+      jacketMain = '#ea580c';
+      jacketDark = '#9a3412';
+      stripeCol = '#fde047';
+      pantsCol = '#1e293b';
+      shoeCol = '#fbbf24';
+      helmetCol = '#dc2626';
+    } else if (skinId === 'safety_officer') {
+      jacketMain = '#10b981';
+      jacketDark = '#047857';
+      stripeCol = '#fef08a';
+      pantsCol = '#1e3a8a';
+      shoeCol = '#38bdf8';
+      helmetCol = '#f8fafc';
+    } else if (skinId === 'master') {
+      jacketMain = '#4f46e5';
+      jacketDark = '#312e81';
+      stripeCol = '#38bdf8';
+      pantsCol = '#1e1b4b';
+      shoeCol = '#f59e0b';
+    } else if (skinId === 'npc') {
+      jacketMain = '#14b8a6';
+      jacketDark = '#0f766e';
+      stripeCol = '#a7f3d0';
+      pantsCol = '#334155';
+      shoeCol = '#38bdf8';
+      hairCol = '#3f2314';
+    } else if (skinId === 'p2') {
+      jacketMain = '#ec4899';
+      jacketDark = '#be185d';
+      stripeCol = '#fbcfe8';
+      pantsCol = '#1e293b';
+      shoeCol = '#f43f5e';
+    }
+
+    ctx.save();
+    ctx.translate(footX, footY - bounce);
+
+    // Posture kinematics (Standing vs Low Fire-Escape Crouch)
+    const hipY = crouching ? -u * 0.30 : -u * 0.44;
+    const hipX = crouching ? -facing * u * 0.06 : 0;
+    const torsoLen = u * 0.28;
+    const torsoLean = crouching ? facing * 0.46 : facing * (moving ? 0.10 : 0.04);
+    const shoulderX = hipX + Math.sin(torsoLean) * torsoLen;
+    const shoulderY = hipY - Math.cos(torsoLean) * torsoLen;
+    const headX = shoulderX + facing * (crouching ? u * 0.05 : u * 0.02);
+    const headY = shoulderY - u * 0.145;
+    const headR = u * 0.125;
+    const limbR = Math.max(2.2, u * 0.048);
+
+    // 1. Back Leg (Thigh -> Knee -> Ankle -> Shoe)
+    const backStep = -stride;
+    const backKneeX = hipX + facing * (crouching ? u * 0.11 : u * 0.04) + backStep * u * 0.08;
+    const backKneeY = crouching ? -u * 0.16 : -u * 0.23;
+    const backFootX = hipX - facing * u * 0.04 + backStep * u * 0.13;
+    const backFootY = -u * 0.03 + (backStep < 0 ? backStep * u * 0.03 : 0);
+
+    drawLimbSegment(ctx, hipX, hipY, backKneeX, backKneeY, limbR, pantsBackCol, '#020617');
+    drawLimbSegment(ctx, backKneeX, backKneeY, backFootX, backFootY, limbR * 0.88, pantsBackCol, '#020617');
+
+    // Back Shoe
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.ellipse(backFootX + facing * u * 0.03, backFootY + u * 0.015, u * 0.065, u * 0.032, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Back Arm
+    const backArmSwing = stride * 0.45;
+    const backElbowX = shoulderX - facing * u * 0.04 + Math.sin(backArmSwing) * u * 0.10;
+    const backElbowY = shoulderY + u * 0.12;
+    const backHandX = backElbowX + facing * u * 0.06 + Math.sin(backArmSwing) * u * 0.08;
+    const backHandY = backElbowY + u * 0.10;
+    drawLimbSegment(ctx, shoulderX, shoulderY + u * 0.02, backElbowX, backElbowY, limbR * 0.82, jacketDark, '#0f172a');
+    drawLimbSegment(ctx, backElbowX, backElbowY, backHandX, backHandY, limbR * 0.72, jacketDark, '#0f172a');
+    ctx.fillStyle = '#fdba74';
+    ctx.beginPath();
+    ctx.arc(backHandX, backHandY, limbR * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Articulated Human Torso (3D Shaded Jacket + Reflective Safety Stripe)
+    ctx.save();
+    ctx.translate(hipX, hipY);
+    ctx.rotate(torsoLean);
+    const torsoW = u * 0.21;
+    const tGrad = ctx.createLinearGradient(-torsoW * 0.5, -torsoLen, torsoW * 0.5, 0);
+    tGrad.addColorStop(0, jacketMain);
+    tGrad.addColorStop(1, jacketDark);
+    ctx.fillStyle = tGrad;
+    ctx.beginPath();
+    ctx.moveTo(-torsoW * 0.45, 0);
+    ctx.lineTo(-torsoW * 0.56, -torsoLen * 0.92);
+    ctx.quadraticCurveTo(0, -torsoLen * 1.06, torsoW * 0.56, -torsoLen * 0.92);
+    ctx.lineTo(torsoW * 0.45, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = Math.max(1.2, u * 0.018);
+    ctx.stroke();
+
+    // High-visibility safety reflective stripes on torso
+    ctx.fillStyle = stripeCol;
+    ctx.fillRect(-torsoW * 0.48, -torsoLen * 0.44, torsoW * 0.96, torsoLen * 0.14);
+    ctx.fillRect(-torsoW * 0.22, -torsoLen * 0.90, torsoW * 0.12, torsoLen * 0.48);
+    ctx.fillRect(torsoW * 0.10, -torsoLen * 0.90, torsoW * 0.12, torsoLen * 0.48);
+
+    // Belt
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-torsoW * 0.46, -torsoLen * 0.10, torsoW * 0.92, torsoLen * 0.10);
+    ctx.restore();
+
+    // 4. Front Leg (Thigh -> Knee -> Ankle -> Sneaker)
+    const frontStep = stride;
+    const frontKneeX = hipX + facing * (crouching ? u * 0.14 : u * 0.05) + frontStep * u * 0.09;
+    const frontKneeY = crouching ? -u * 0.15 : -u * 0.22;
+    const frontFootX = hipX + facing * u * 0.03 + frontStep * u * 0.14;
+    const frontFootY = -u * 0.025 - (frontStep > 0 ? frontStep * u * 0.03 : 0);
+
+    drawLimbSegment(ctx, hipX, hipY, frontKneeX, frontKneeY, limbR * 1.04, pantsCol, '#0f172a');
+    drawLimbSegment(ctx, frontKneeX, frontKneeY, frontFootX, frontFootY, limbR * 0.92, pantsCol, '#0f172a');
+
+    // Front Sneaker with white sole
+    ctx.fillStyle = shoeCol;
+    ctx.beginPath();
+    ctx.ellipse(frontFootX + facing * u * 0.035, frontFootY + u * 0.01, u * 0.072, u * 0.036, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(1.2, u * 0.018);
+    ctx.stroke();
+
+    // 5. Human Neck, Head, Ears, Eyes, Hair/Helmet & Respiratory Protection
+    // Neck
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(headX - u * 0.035, headY + headR * 0.65, u * 0.07, u * 0.065);
+
+    // Head sphere with warm human skin shading
+    const skinGrad = ctx.createRadialGradient(
+      headX - facing * headR * 0.2, headY - headR * 0.25, headR * 0.15,
+      headX, headY, headR
+    );
+    skinGrad.addColorStop(0, '#ffedd5');
+    skinGrad.addColorStop(0.55, '#fed7aa');
+    skinGrad.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = skinGrad;
+    ctx.beginPath();
+    ctx.arc(headX, headY, headR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = Math.max(1.1, u * 0.016);
+    ctx.stroke();
+
+    // Ear
+    ctx.fillStyle = '#fdba74';
+    ctx.beginPath();
+    ctx.arc(headX - facing * headR * 0.78, headY + headR * 0.05, headR * 0.24, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Hair or Safety Helmet (drawn around top of head so eyes & eyebrows are 100% visible!)
+    if (helmetCol) {
+      ctx.fillStyle = helmetCol;
+      ctx.beginPath();
+      ctx.arc(headX, headY - headR * 0.25, headR * 1.10, Math.PI, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = Math.max(1.5, u * 0.022);
+      ctx.stroke();
+      // Helmet brim
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(headX - headR * 1.22, headY - headR * 0.32, headR * 2.44, headR * 0.18);
+    } else {
+      ctx.fillStyle = hairCol;
+      // Top crown hair cap (stays cleanly above eyebrows & forehead)
+      ctx.beginPath();
+      ctx.arc(headX - facing * headR * 0.06, headY - headR * 0.14, headR * 1.04, Math.PI * 1.12, Math.PI * 1.92);
+      ctx.fill();
+      // Back hair / sideburn on back side of head
+      ctx.beginPath();
+      ctx.ellipse(headX - facing * headR * 0.78, headY - headR * 0.12, headR * 0.28, headR * 0.52, -facing * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Expressive Human Eyes & Eyebrows
+    const eyeCenterX = headX + facing * headR * 0.34;
+    const eyeY = headY - headR * 0.02;
+    const eyeOffset = headR * 0.26;
+
+    // White sclera
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.ellipse(eyeCenterX - eyeOffset * 0.5, eyeY, headR * 0.16, headR * 0.19, 0, 0, Math.PI * 2);
+    ctx.ellipse(eyeCenterX + eyeOffset * 0.5, eyeY, headR * 0.16, headR * 0.19, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dark pupils
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(eyeCenterX - eyeOffset * 0.5 + facing * headR * 0.04, eyeY, headR * 0.095, 0, Math.PI * 2);
+    ctx.arc(eyeCenterX + eyeOffset * 0.5 + facing * headR * 0.04, eyeY, headR * 0.095, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye catchlights
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(eyeCenterX - eyeOffset * 0.5 - headR * 0.02, eyeY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
+    ctx.arc(eyeCenterX + eyeOffset * 0.5 - headR * 0.02, eyeY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyebrows
+    ctx.strokeStyle = hairCol;
+    ctx.lineWidth = Math.max(1.3, u * 0.020);
+    ctx.beginPath();
+    ctx.moveTo(eyeCenterX - eyeOffset * 0.9, eyeY - headR * 0.24);
+    ctx.lineTo(eyeCenterX - eyeOffset * 0.15, eyeY - headR * 0.27);
+    ctx.moveTo(eyeCenterX + eyeOffset * 0.15, eyeY - headR * 0.27);
+    ctx.lineTo(eyeCenterX + eyeOffset * 0.9, eyeY - headR * 0.24);
+    ctx.stroke();
+
+    // Blush, Nose & Mouth (visible when not covered by towel/mask)
+    if (!wetTowel && !hasTowel && !hasMask) {
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.32)';
+      ctx.beginPath();
+      ctx.arc(headX + facing * headR * 0.08, headY + headR * 0.20, headR * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = Math.max(1.2, u * 0.016);
+      ctx.beginPath();
+      ctx.arc(headX + facing * headR * 0.30, headY + headR * 0.30, headR * 0.16, 0.15, Math.PI - 0.15);
+      ctx.stroke();
+    }
+
+    // 3D Gas Mask worn on face
+    if (hasMask) {
+      const mx = headX + facing * headR * 0.36;
+      const my = headY + headR * 0.32;
+      ctx.fillStyle = '#0f766e';
+      ctx.beginPath();
+      ctx.ellipse(mx, my, headR * 0.58, headR * 0.42, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#5eead4';
+      ctx.lineWidth = Math.max(1.2, u * 0.018);
+      ctx.stroke();
+      // Filter cartridge
+      ctx.fillStyle = '#facc15';
+      ctx.beginPath();
+      ctx.arc(mx + facing * headR * 0.35, my + headR * 0.08, headR * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 6. Front Arm + Held Wet Towel on Mouth/Nose OR Held Rescue Tool
+    let frontElbowX, frontElbowY, frontHandX, frontHandY;
+    if ((wetTowel || hasTowel) && !hasMask) {
+      // Realistic Fire-Safety Posture: Front hand holds the Wet Towel right over nose & mouth!
+      frontElbowX = shoulderX + facing * u * 0.13;
+      frontElbowY = shoulderY + u * 0.06;
+      frontHandX = headX + facing * headR * 0.48;
+      frontHandY = headY + headR * 0.34;
+    } else {
+      const frontSwing = -stride * 0.45;
+      frontElbowX = shoulderX + facing * u * 0.06 + Math.sin(frontSwing) * u * 0.10;
+      frontElbowY = shoulderY + u * 0.12;
+      frontHandX = frontElbowX + facing * u * 0.11 + Math.sin(frontSwing) * u * 0.08;
+      frontHandY = frontElbowY + u * 0.06;
+    }
+
+    drawLimbSegment(ctx, shoulderX, shoulderY + u * 0.03, frontElbowX, frontElbowY, limbR * 0.88, jacketMain, '#0f172a');
+    drawLimbSegment(ctx, frontElbowX, frontElbowY, frontHandX, frontHandY, limbR * 0.78, jacketMain, '#0f172a');
+
+    // Folded Cloth Towel held across nose & mouth
+    if ((wetTowel || hasTowel) && !hasMask) {
+      ctx.fillStyle = wetTowel ? '#38bdf8' : '#facc15';
+      ctx.strokeStyle = wetTowel ? '#bae6fd' : '#fef08a';
+      ctx.lineWidth = Math.max(1.2, u * 0.018);
+      const twW = headR * 1.15;
+      const twH = headR * 0.68;
+      ctx.fillRect(frontHandX - twW * 0.55, frontHandY - twH * 0.55, twW, twH);
+      ctx.strokeRect(frontHandX - twW * 0.55, frontHandY - twH * 0.55, twW, twH);
+      if (wetTowel) {
+        ctx.fillStyle = '#e0f2fe';
+        ctx.beginPath();
+        ctx.arc(frontHandX + facing * headR * 0.35, frontHandY + headR * 0.45, headR * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Human Hand
+    ctx.fillStyle = '#fed7aa';
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(frontHandX, frontHandY, limbR * 0.82, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // 7. Render 3D Equipped Tool (Extinguisher, Axe, Bucket, Flashlight, Key)
+    const toolAnchorX = ((wetTowel || hasTowel) && !hasMask) ? backHandX + facing * u * 0.14 : frontHandX + facing * u * 0.08;
+    const toolAnchorY = ((wetTowel || hasTowel) && !hasMask) ? backHandY : frontHandY;
+
+    if (rightTool === 'extinguisher') {
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#fca5a5';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(toolAnchorX - u * 0.05, toolAnchorY - u * 0.08, u * 0.10, u * 0.20);
+      ctx.strokeRect(toolAnchorX - u * 0.05, toolAnchorY - u * 0.08, u * 0.10, u * 0.20);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(toolAnchorX - u * 0.03, toolAnchorY - u * 0.12, u * 0.06, u * 0.04);
+    } else if (rightTool === 'axe') {
+      ctx.save();
+      ctx.translate(toolAnchorX, toolAnchorY);
+      ctx.rotate(facing * 0.35);
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(-u * 0.02, -u * 0.18, u * 0.04, u * 0.26);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.beginPath();
+      ctx.moveTo(0, -u * 0.17);
+      ctx.lineTo(facing * u * 0.13, -u * 0.22);
+      ctx.lineTo(facing * u * 0.13, -u * 0.09);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = Math.max(1.5, u * 0.02);
+      ctx.stroke();
+      ctx.restore();
+    } else if (rightTool === 'bucket') {
+      ctx.fillStyle = '#0284c7';
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(toolAnchorX - u * 0.06, toolAnchorY - u * 0.02, u * 0.12, u * 0.13);
+      ctx.strokeRect(toolAnchorX - u * 0.06, toolAnchorY - u * 0.02, u * 0.12, u * 0.13);
+    } else if (rightTool === 'flashlight') {
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.35)';
+      ctx.beginPath();
+      ctx.moveTo(toolAnchorX, toolAnchorY);
+      ctx.lineTo(toolAnchorX + facing * u * 0.55, toolAnchorY - u * 0.22);
+      ctx.lineTo(toolAnchorX + facing * u * 0.55, toolAnchorY + u * 0.22);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    if (onFire) {
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.55)';
+      ctx.beginPath();
+      ctx.arc(0, -u * 0.45, u * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // --- Mode 2: High-Visibility 1st-Person / Over-the-Shoulder 3D Escape Room Engine ---
   function renderFirstPerson3D(width, height, now, st) {
     const nextObj = getNextStepObjective();
     const activelyMoving = (
@@ -2611,26 +3012,40 @@
       pointerMoveTarget !== null
     );
 
-    // Smart camera orientation: if stopped and staring straight into a plain wall, face adjacent interactable or nextObj
-    if (!activelyMoving) {
-      const lookC = Math.floor(player.x + (player.dirX || 1) * 0.85);
-      const lookR = Math.floor(player.y + (player.dirY || 0) * 0.85);
-      const facingTile = (grid[lookR] && typeof grid[lookR][lookC] === 'number') ? grid[lookR][lookC] : TILE.WALL;
-      const adjTarget = getInteractTarget();
-      if (adjTarget && facingTile === TILE.WALL) {
-        const tx = (adjTarget.kind === 'item' ? adjTarget.item.c : adjTarget.c) + 0.5;
-        const ty = (adjTarget.kind === 'item' ? adjTarget.item.r : adjTarget.r) + 0.5;
-        const dx = tx - player.x;
-        const dy = ty - player.y;
-        const len = Math.hypot(dx, dy) || 1;
-        player.dirX = dx / len;
-        player.dirY = dy / len;
-      } else if (facingTile === TILE.WALL && nextObj) {
-        const dx = (nextObj.c + 0.5) - player.x;
-        const dy = (nextObj.r + 0.5) - player.y;
-        const len = Math.hypot(dx, dy) || 1;
-        player.dirX = dx / len;
-        player.dirY = dy / len;
+    // Helper: Measure how far the ray in direction (dx, dy) travels before hitting a plain WALL
+    function getWallClearance(dx, dy) {
+      for (let d = 0.4; d <= 2.4; d += 0.35) {
+        const tc = Math.floor(player.x + dx * d);
+        const tr = Math.floor(player.y + dy * d);
+        if (tc < 0 || tc >= COLS || tr < 0 || tr >= ROWS) return d;
+        const t = grid[tr][tc];
+        if (t === TILE.WALL) return d;
+        if (t !== TILE.FLOOR && t !== TILE.OPEN_DOOR) return 5.0; // Interactive door/furniture/exit is interesting!
+      }
+      return 5.0;
+    }
+
+    // Smart camera orientation: NEVER leave the camera staring into a blank wall (< 1.8 tiles away)!
+    const curClearance = getWallClearance(player.dirX || 1, player.dirY || 0);
+    const adjTarget = getInteractTarget();
+    if (adjTarget && curClearance < 1.8) {
+      const tx = (adjTarget.kind === 'item' ? adjTarget.item.c : adjTarget.c) + 0.5;
+      const ty = (adjTarget.kind === 'item' ? adjTarget.item.r : adjTarget.r) + 0.5;
+      const dx = tx - player.x;
+      const dy = ty - player.y;
+      const len = Math.hypot(dx, dy) || 1;
+      player.dirX = dx / len;
+      player.dirY = dy / len;
+    } else if (curClearance < 1.75 && nextObj) {
+      // Turn toward the open corridor or next objective so the room stays clearly visible
+      const objDx = (nextObj.c + 0.5) - player.x;
+      const objDy = (nextObj.r + 0.5) - player.y;
+      const objLen = Math.hypot(objDx, objDy) || 1;
+      const ndx = objDx / objLen;
+      const ndy = objDy / objLen;
+      if (getWallClearance(ndx, ndy) > curClearance + 0.25 || !activelyMoving) {
+        player.dirX = ndx;
+        player.dirY = ndy;
       }
     }
 
@@ -2639,45 +3054,64 @@
     let diff = targetYaw - fpsCamYaw;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
-    fpsCamYaw += diff * 0.22;
+    fpsCamYaw += diff * 0.24;
 
     // Crouching lowers the 3D camera horizon below the ceiling smoke layer!
-    const horizon = player.crouching ? height * 0.37 : height * 0.50;
+    const horizon = player.crouching ? height * 0.34 : height * 0.44;
 
-    // 1. 3D Ceiling (with dark smoke billows) & 3D Perspective Floor
+    // 1. Bright, High-Visibility 3D Ceiling (with Warm Ceiling Lights) & Warm Perspective Floor
     const ceilGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-    ceilGrad.addColorStop(0, '#020617');
-    ceilGrad.addColorStop(0.65, '#0f172a');
-    ceilGrad.addColorStop(1, '#1e293b');
+    ceilGrad.addColorStop(0, '#1e293b');
+    ceilGrad.addColorStop(0.6, '#334155');
+    ceilGrad.addColorStop(1, '#475569');
     ctx.fillStyle = ceilGrad;
     ctx.fillRect(0, 0, width, horizon);
 
+    // Glowing Indoor LED Ceiling Light Panels
+    ctx.save();
+    for (let li = -1; li <= 1; li++) {
+      const lx = width * 0.5 + li * width * 0.28 - ((fpsCamYaw * 120) % (width * 0.28));
+      const ly = horizon * 0.35;
+      const lGrad = ctx.createRadialGradient(lx, ly, 4, lx, ly, 75);
+      lGrad.addColorStop(0, 'rgba(254, 249, 195, 0.55)');
+      lGrad.addColorStop(1, 'rgba(254, 249, 195, 0)');
+      ctx.fillStyle = lGrad;
+      ctx.fillRect(lx - 75, 0, 150, horizon);
+    }
+    ctx.restore();
+
     const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
-    floorGrad.addColorStop(0, '#0f172a');
-    floorGrad.addColorStop(0.4, '#1e293b');
-    floorGrad.addColorStop(1, '#334155');
+    floorGrad.addColorStop(0, '#334155');
+    floorGrad.addColorStop(0.45, '#475569');
+    floorGrad.addColorStop(1, '#64748b');
     ctx.fillStyle = floorGrad;
     ctx.fillRect(0, horizon, width, height - horizon);
 
-    // Perspective floor grid lines
+    // Bright Perspective Floor Tile Grid (Horizontal & Radial Perspective Lines)
     ctx.save();
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.18)';
     ctx.lineWidth = 1;
     for (let i = 1; i <= 7; i++) {
-      const fy = horizon + Math.pow(i / 7, 1.7) * (height - horizon);
+      const fy = horizon + Math.pow(i / 7, 1.55) * (height - horizon);
       ctx.beginPath();
       ctx.moveTo(0, fy);
       ctx.lineTo(width, fy);
       ctx.stroke();
     }
+    for (let r = -5; r <= 5; r++) {
+      ctx.beginPath();
+      ctx.moveTo(width * 0.5 + r * (width * 0.06), horizon);
+      ctx.lineTo(width * 0.5 + r * (width * 0.24), height);
+      ctx.stroke();
+    }
     ctx.restore();
 
-    // 2. Raycasting 3D Walls, Doors, Furniture & Exits
+    // 2. Raycasting 3D Walls, Doors, Furniture & Exits (with Bright Indoor Colors & Close-Wall Cutaway)
     const numRays = Math.min(160, Math.max(96, Math.floor(width / 5)));
     const stripW = width / numRays;
-    const fov = Math.PI / 2.7;
+    const fov = Math.PI / 2.35; // Wider 76-degree panoramic FOV so the room is easy to see!
     const zBuffer = new Float32Array(numRays);
-    const maxSight = st.isDarkStage ? (player.hasFlashlight ? 7.5 : 3.4) : 13.5;
+    const maxSight = st.isDarkStage ? (player.hasFlashlight ? 9.5 : 5.5) : 16.0;
 
     function isRaySolid(t) {
       return (
@@ -2752,44 +3186,70 @@
       const rawDist = side === 0
         ? (mapX - player.x + (1 - stepX) / 2) / (rayDirX || 1e-6)
         : (mapY - player.y + (1 - stepY) / 2) / (rayDirY || 1e-6);
-      const perpDist = Math.max(0.15, rawDist * Math.cos(rayAngle - fpsCamYaw));
+      const perpDist = Math.max(0.28, rawDist * Math.cos(rayAngle - fpsCamYaw));
       zBuffer[i] = perpDist;
 
-      const fullWallH = Math.min(height * 1.8, (height * 0.92) / perpDist);
-      const blockScale = hitTile === TILE.FURNITURE ? 0.55 : (hitTile === TILE.DEBRIS ? 0.68 : 1.0);
+      // Cap wall height so close walls never black out the entire screen
+      const fullWallH = Math.min(height * 0.72, (height * 0.68) / perpDist);
+      const blockScale = hitTile === TILE.FURNITURE ? 0.52 : (hitTile === TILE.DEBRIS ? 0.64 : 1.0);
       const lineH = fullWallH * blockScale;
-      const wallBottom = horizon + fullWallH * (player.crouching ? 0.35 : 0.5);
+      const wallBottom = horizon + fullWallH * (player.crouching ? 0.36 : 0.48);
       const wallTop = wallBottom - lineH;
 
-      const shade = Math.max(0.12, Math.min(1, 1 - perpDist / maxSight)) * (side === 1 ? 0.76 : 1.0);
-      let rCol = 71, gCol = 85, bCol = 105;
-      if (hitTile === TILE.DOOR) { rCol = 180; gCol = 83; bCol = 9; }
-      else if (hitTile === TILE.LOCKED_DOOR) { rCol = 202; gCol = 138; bCol = 4; }
-      else if (hitTile === TILE.HOT_DOOR) { rCol = 220; gCol = 38; bCol = 38; }
-      else if (hitTile === TILE.FURNITURE) { rCol = 120; gCol = 53; bCol = 15; }
-      else if (hitTile === TILE.DEBRIS) { rCol = 146; gCol = 64; bCol = 14; }
-      else if (hitTile === TILE.EXIT) { rCol = 16; gCol = 185; bCol = 129; }
-      else if (hitTile === TILE.LIFELINE) { rCol = 20; gCol = 184; bCol = 166; }
-      else if (hitTile === TILE.PARTITION) { rCol = 234; gCol = 179; bCol = 8; }
+      // High minimum brightness so indoor walls are crisp and clearly visible
+      const minShade = st.isDarkStage ? 0.25 : 0.52;
+      const shade = Math.max(minShade, Math.min(1, 1 - (perpDist / maxSight) * 0.65)) * (side === 1 ? 0.84 : 1.0);
+      // Cutaway transparency when a plain wall is very close (< 1.35 tiles)
+      const wallAlpha = (hitTile === TILE.WALL && perpDist < 1.35)
+        ? Math.max(0.45, perpDist / 1.35)
+        : 1.0;
 
-      ctx.fillStyle = `rgb(${Math.floor(rCol * shade)}, ${Math.floor(gCol * shade)}, ${Math.floor(bCol * shade)})`;
+      // Bright warm cream/slate plaster upper wall + wood wainscoting lower wall
+      let rCol = 186, gCol = 200, bCol = 218;
+      if (hitTile === TILE.DOOR) { rCol = 217; gCol = 119; bCol = 6; }
+      else if (hitTile === TILE.LOCKED_DOOR) { rCol = 234; gCol = 179; bCol = 8; }
+      else if (hitTile === TILE.HOT_DOOR) { rCol = 239; gCol = 68; bCol = 68; }
+      else if (hitTile === TILE.FURNITURE) { rCol = 180; gCol = 83; bCol = 9; }
+      else if (hitTile === TILE.DEBRIS) { rCol = 194; gCol = 65; bCol = 12; }
+      else if (hitTile === TILE.EXIT) { rCol = 16; gCol = 185; bCol = 129; }
+      else if (hitTile === TILE.LIFELINE) { rCol = 45; gCol = 212; bCol = 191; }
+      else if (hitTile === TILE.PARTITION) { rCol = 250; gCol = 204; bCol = 21; }
+
+      ctx.fillStyle = `rgba(${Math.floor(rCol * shade)}, ${Math.floor(gCol * shade)}, ${Math.floor(bCol * shade)}, ${wallAlpha})`;
       ctx.fillRect(i * stripW, wallTop, Math.ceil(stripW) + 0.5, lineH);
 
-      // 3D architectural trim lines (top cornice & baseboard)
-      ctx.fillStyle = `rgba(15, 23, 42, ${0.55 * shade})`;
-      ctx.fillRect(i * stripW, wallBottom - Math.max(2, lineH * 0.08), Math.ceil(stripW) + 0.5, Math.max(2, lineH * 0.08));
+      // Warm wood wainscoting on lower 32% of normal walls for rich 3D room depth
+      if (hitTile === TILE.WALL) {
+        const wainscotH = lineH * 0.32;
+        ctx.fillStyle = `rgba(${Math.floor(146 * shade)}, ${Math.floor(100 * shade)}, ${Math.floor(64 * shade)}, ${wallAlpha})`;
+        ctx.fillRect(i * stripW, wallBottom - wainscotH, Math.ceil(stripW) + 0.5, wainscotH);
+      }
+
+      // Top crown molding & bottom baseboard trim
+      ctx.fillStyle = `rgba(248, 250, 252, ${0.45 * shade * wallAlpha})`;
+      ctx.fillRect(i * stripW, wallTop, Math.ceil(stripW) + 0.5, Math.max(2, lineH * 0.05));
+      ctx.fillStyle = `rgba(30, 41, 59, ${0.65 * shade * wallAlpha})`;
+      ctx.fillRect(i * stripW, wallBottom - Math.max(2, lineH * 0.06), Math.ceil(stripW) + 0.5, Math.max(2, lineH * 0.06));
+
       if (hitTile === TILE.LOCKED_DOOR || hitTile === TILE.DOOR || hitTile === TILE.EXIT) {
         ctx.fillStyle = hitTile === TILE.EXIT
-          ? `rgba(167, 243, 208, ${0.8 * shade})`
-          : `rgba(253, 224, 71, ${0.45 * shade})`;
-        ctx.fillRect(i * stripW, wallTop + lineH * 0.45, Math.ceil(stripW) + 0.5, Math.max(2, lineH * 0.06));
+          ? `rgba(167, 243, 208, ${0.9 * shade})`
+          : `rgba(254, 240, 138, ${0.65 * shade})`;
+        ctx.fillRect(i * stripW, wallTop + lineH * 0.45, Math.ceil(stripW) + 0.5, Math.max(3, lineH * 0.07));
       }
     }
 
-    // 3. Collect & Depth-Sort 3D Billboards (Items, Fires, Smokes, Interactive Tiles, Objective Marker)
+    // 3. Collect & Depth-Sort 3D Billboards (Items, Human NPCs, Fires, Smokes, Interactive Tiles, Objective Marker)
     const sprites = [];
     for (const it of items) {
-      sprites.push({ x: it.c + 0.5, y: it.r + 0.5, icon: it.icon, label: (it.name || '').split('(')[0], kind: 'item', color: '#38bdf8' });
+      sprites.push({
+        x: it.c + 0.5,
+        y: it.r + 0.5,
+        icon: it.icon,
+        label: (it.name || '').split('(')[0],
+        kind: it.type === 'npc' ? 'npc' : 'item',
+        color: it.type === 'npc' ? '#34d399' : '#38bdf8'
+      });
     }
     for (const f of fires) {
       const fLabel = f.fireType === 'oil' ? '식용유화재' : (f.fireType === 'electric' ? '전기화재' : '화염');
@@ -2807,6 +3267,7 @@
         else if (t === TILE.ALARM_BELL) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🔔', label: '비상벨', kind: 'fixture', color: '#facc15' });
         else if (t === TILE.PHONE_119) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '📞', label: '119신고', kind: 'fixture', color: '#c084fc' });
         else if (t === TILE.HAZARD) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '⚠️', label: '위험요소', kind: 'fixture', color: '#fbbf24' });
+        else if (t === TILE.DOOR) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🚪', label: '방문', kind: 'door', color: '#fcd34d' });
         else if (t === TILE.LOCKED_DOOR) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🔒', label: '잠긴문', kind: 'door', color: '#fde047' });
         else if (t === TILE.DEBRIS) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🪵', label: '장애물', kind: 'door', color: '#fb923c' });
         else if (t === TILE.EXIT) sprites.push({ x: c + 0.5, y: r + 0.5, icon: '🏃', label: 'EXIT 비상구', kind: 'exit', color: '#34d399' });
@@ -2840,8 +3301,9 @@
       if (Math.abs(angle) > fov * 0.65) continue;
       const screenX = (0.5 + angle / fov) * width;
       const stripIdx = Math.min(numRays - 1, Math.max(0, Math.floor(screenX / stripW)));
-      const zTolerance = (sp.kind === 'door' || sp.kind === 'exit') ? 0.68 : 0.45;
-      if (sp.kind !== 'objective' && sp.dist > zBuffer[stripIdx] + zTolerance) {
+      const isOccluded = sp.dist > zBuffer[stripIdx] + 0.65;
+      // Cutaway visibility: allow important items/doors/fixtures/objectives within 8 tiles to show through walls at reduced opacity so player never loses sight of rooms!
+      if (isOccluded && (sp.kind === 'smoke' || sp.dist > 8.5)) {
         continue;
       }
 
@@ -2852,50 +3314,82 @@
       const screenY = horizon + verticalOffset;
 
       ctx.save();
-      ctx.font = `${Math.floor(projSize)}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(sp.icon, screenX, screenY);
+      ctx.globalAlpha = isOccluded ? 0.55 : 1.0;
 
-      if (sp.label && sp.dist < 7.5) {
+      if (sp.kind === 'npc') {
+        drawHumanCharacter(ctx, screenX, screenY + projSize * 0.42, projSize * 1.25, {
+          crouching: true,
+          moving: false,
+          now,
+          dirX: -1,
+          skinId: 'npc'
+        });
+      } else {
+        ctx.font = `${Math.floor(projSize)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(sp.icon, screenX, screenY);
+      }
+
+      if (sp.label && sp.dist < 8.5) {
         const fontSize = Math.min(18, Math.max(10, Math.floor(projSize * 0.24)));
         ctx.font = `900 ${fontSize}px "Noto Sans KR", sans-serif`;
         const lw = ctx.measureText(sp.label).width + 12;
         const lh = Math.max(16, Math.floor(fontSize * 1.45));
         const ly = screenY + projSize * 0.52;
-        ctx.fillStyle = sp.kind === 'objective' ? '#facc15' : 'rgba(2, 6, 23, 0.88)';
+        ctx.fillStyle = sp.kind === 'objective' ? '#facc15' : 'rgba(15, 23, 42, 0.90)';
         ctx.fillRect(screenX - lw / 2, ly - lh / 2, lw, lh);
         ctx.strokeStyle = sp.color || '#38bdf8';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(screenX - lw / 2, ly - lh / 2, lw, lh);
         ctx.fillStyle = sp.kind === 'objective' ? '#0f172a' : '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(sp.label, screenX, ly);
       }
       ctx.restore();
     }
 
     // 4. Ceiling Smoke Overlay when Standing vs Crouching in 1st-Person 3D
-    const ceilingSmokeAlpha = player.crouching ? 0.18 : 0.48;
-    const smokeGrad = ctx.createLinearGradient(0, 0, 0, horizon * 1.15);
+    const ceilingSmokeAlpha = player.crouching ? 0.12 : 0.34;
+    const smokeGrad = ctx.createLinearGradient(0, 0, 0, horizon * 1.05);
     smokeGrad.addColorStop(0, `rgba(51, 65, 85, ${ceilingSmokeAlpha})`);
     smokeGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
     ctx.fillStyle = smokeGrad;
-    ctx.fillRect(0, 0, width, horizon * 1.15);
+    ctx.fillRect(0, 0, width, horizon * 1.05);
 
-    // 5. Visible 3D Player Character Avatar (`나`) + Posture + Equipped Gear + Companions in Foreground
+    // 4.5 Glowing 3D Floor Navigation Path Line Leading from Player's Feet to Objective
+    const charX = width * 0.50;
+    const charFloorY = height - (player.crouching ? 24 : 28);
+    if (nextObj && !player.onFire) {
+      const objDx = (nextObj.c + 0.5) - player.x;
+      const objDy = (nextObj.r + 0.5) - player.y;
+      let objAngle = Math.atan2(objDy, objDx) - fpsCamYaw;
+      while (objAngle > Math.PI) objAngle -= Math.PI * 2;
+      while (objAngle < -Math.PI) objAngle += Math.PI * 2;
+      const targetScreenX = Math.max(40, Math.min(width - 40, (0.5 + objAngle / fov) * width));
+      const targetScreenY = horizon + (height - horizon) * 0.25;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 8]);
+      ctx.lineDashOffset = -now * 24;
+      ctx.beginPath();
+      ctx.moveTo(charX, charFloorY - 8);
+      ctx.lineTo(targetScreenX, targetScreenY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // 5. Realistic Articulated Human Player Character (`나`) + Posture + Equipped Gear + Companions in Foreground
     ctx.save();
-    const walkFreq = activelyMoving ? 8.5 : 2.5;
-    const walkAmp = activelyMoving ? 5.5 : 2.0;
-    const bobX = Math.sin(now * walkFreq) * walkAmp;
-    const bobY = Math.abs(Math.cos(now * walkFreq)) * (walkAmp * 0.85);
     const activeSkin = getSelectedSkin();
-
-    const charX = width * 0.50 + bobX;
-    const charFloorY = height - (player.crouching ? 22 : 28) + bobY;
-    const ringRadiusX = Math.max(44, width * 0.055);
+    const ringRadiusX = Math.max(48, width * 0.058);
 
     // 5a. 3D Floor Shadow & Glowing 3D Safety Pedestal Disc beneath Player's Feet
-    ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
     ctx.beginPath();
     ctx.ellipse(charX, charFloorY + 5, ringRadiusX * 1.18, 15, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -2904,8 +3398,8 @@
       ? '#ef4444'
       : (player.crouching ? '#10b981' : '#38bdf8');
     const discFill = player.onFire
-      ? 'rgba(220, 38, 38, 0.32)'
-      : (player.crouching ? 'rgba(16, 185, 129, 0.28)' : 'rgba(37, 99, 235, 0.28)');
+      ? 'rgba(220, 38, 38, 0.30)'
+      : (player.crouching ? 'rgba(16, 185, 129, 0.26)' : 'rgba(56, 189, 248, 0.24)');
     ctx.fillStyle = discFill;
     ctx.beginPath();
     ctx.ellipse(charX, charFloorY, ringRadiusX, 12, 0, 0, Math.PI * 2);
@@ -2914,33 +3408,35 @@
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    //Protective respiratory dome/ring when Wet Towel or Gas Mask is active
     if (player.wetTowel || player.hasMask) {
       ctx.strokeStyle = player.hasMask ? '#2dd4bf' : '#7dd3fc';
       ctx.lineWidth = 2;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      ctx.ellipse(charX, charFloorY, ringRadiusX * 1.22, 16, 0, 0, Math.PI * 2);
+      ctx.ellipse(charX, charFloorY, ringRadiusX * 1.24, 16, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
-    // 5b. Rescued Companion / Pet walking beside the 3D Player Character on the 3D Floor
+    // 5b. Rescued Human Companion / Pet walking beside the Player on the 3D Floor
+    const humanScale = Math.max(96, Math.floor(height * 0.24));
     if (player.rescuedNpcs > 0) {
-      const npcX = charX - ringRadiusX * 2.1;
-      const npcY = charFloorY - 4;
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+      const npcX = charX - ringRadiusX * 2.15;
+      const npcY = charFloorY - 2;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.55)';
       ctx.beginPath();
-      ctx.ellipse(npcX, npcY + 4, 24, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(npcX, npcY + 2, 26, 8, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#34d399';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.font = `${Math.max(32, Math.floor(height * 0.075))}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText('🧒', npcX, npcY + 2);
+      drawHumanCharacter(ctx, npcX, npcY, humanScale * 0.78, {
+        crouching: player.crouching,
+        moving: activelyMoving,
+        now: now + 0.8,
+        dirX: player.dirX,
+        skinId: 'npc',
+        wetTowel: player.wetTowel
+      });
       ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#064e3b';
       ctx.fillRect(npcX - 28, npcY + 6, 56, 15);
@@ -2952,15 +3448,12 @@
     }
 
     if (player.rescuedDog) {
-      const dogX = charX + ringRadiusX * 2.1;
+      const dogX = charX + ringRadiusX * 2.15;
       const dogY = charFloorY - 4;
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.55)';
       ctx.beginPath();
       ctx.ellipse(dogX, dogY + 4, 22, 8, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#fbbf24';
-      ctx.lineWidth = 2;
-      ctx.stroke();
       ctx.font = `${Math.max(28, Math.floor(height * 0.068))}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -2976,55 +3469,34 @@
       ctx.fillText('초코동행', dogX, dogY + 13.5);
     }
 
-    // 5c. Main 3D Player Character Figure (`🏃` Standing / `🧎` Crouching / `🔥` On Fire) Standing on Floor
-    const avatarSize = player.crouching
-      ? Math.max(48, Math.floor(height * 0.115))
-      : Math.max(62, Math.floor(height * 0.145));
-    const avatarBottomY = charFloorY + 4;
-    const mainAvatarIcon = player.onFire ? '🔥' : (player.crouching ? '🧎' : '🏃');
+    // 5c. Main Articulated Human Player Character (`나`)
+    const rightTool = player.extinguisherCharges > 0
+      ? 'extinguisher'
+      : (player.hasAxe ? 'axe' : (player.waterCharges > 0 ? 'bucket' : (player.hasFlashlight ? 'flashlight' : 'none')));
+    drawHumanCharacter(ctx, charX, charFloorY, humanScale, {
+      crouching: player.crouching,
+      moving: activelyMoving,
+      now,
+      dirX: player.dirX,
+      skinId: activeSkin.id || 'student',
+      wetTowel: player.wetTowel,
+      hasTowel: player.hasTowel,
+      hasMask: player.hasMask,
+      rightTool,
+      onFire: player.onFire
+    });
 
-    // Subtle 3D protective aura glow behind character body
-    const bodyGlow = ctx.createRadialGradient(
-      charX, avatarBottomY - avatarSize * 0.5, 4,
-      charX, avatarBottomY - avatarSize * 0.5, avatarSize * 0.75
-    );
-    bodyGlow.addColorStop(0, player.crouching ? 'rgba(16, 185, 129, 0.32)' : 'rgba(56, 189, 248, 0.28)');
-    bodyGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
-    ctx.fillStyle = bodyGlow;
-    ctx.beginPath();
-    ctx.arc(charX, avatarBottomY - avatarSize * 0.5, avatarSize * 0.75, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.font = `${avatarSize}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.fillText(mainAvatarIcon, charX + 3, avatarBottomY + 3);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(mainAvatarIcon, charX, avatarBottomY);
-
-    // Respiratory gear worn on character (Wet Towel / Gas Mask)
-    if (player.hasMask || player.wetTowel || player.hasTowel) {
-      const respIcon = player.hasMask ? '😷' : '🧣';
-      ctx.font = `${Math.max(20, Math.floor(avatarSize * 0.38))}px sans-serif`;
-      ctx.textBaseline = 'middle';
-      ctx.fillText(respIcon, charX + avatarSize * 0.42, avatarBottomY - avatarSize * 0.68);
-      if (player.wetTowel && !player.hasMask) {
-        ctx.font = `${Math.max(14, Math.floor(avatarSize * 0.26))}px sans-serif`;
-        ctx.fillText('💧', charX + avatarSize * 0.58, avatarBottomY - avatarSize * 0.82);
-      }
-    }
-
-    // 5d. Floating 3D Player Nameplate (`🧒 나 · 🚶 서있는자세` / `🧎 낮은자세 이동중`) above character head
-    const skinEmoji = activeSkin.icon || '🧒';
+    // 5d. Floating 3D Player Nameplate (`나 · 서있는자세` / `낮은자세 이동중`) above human character head
     const postureLabel = player.onFire
       ? `🔥 옷에 불붙음! (구르기 필요)`
-      : (player.crouching ? `${skinEmoji} 나 · 🧎 낮은자세 이동중` : `${skinEmoji} 나 · 🚶 서있는자세`);
+      : (player.crouching ? `나 (${activeSkin.name}) · 🧎 낮은자세 이동중` : `나 (${activeSkin.name}) · 🚶 서있는자세`);
     ctx.font = '900 12px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const npW = Math.max(118, ctx.measureText(postureLabel).width + 18);
+    const npW = Math.max(132, ctx.measureText(postureLabel).width + 18);
     const npH = 22;
-    const npY = avatarBottomY - avatarSize - 14;
+    const topOfHeadY = charFloorY - (player.crouching ? humanScale * 0.76 : humanScale * 0.94);
+    const npY = topOfHeadY - 16;
     ctx.fillStyle = player.onFire ? '#dc2626' : (player.crouching ? '#065f46' : '#1e3a8a');
     ctx.fillRect(charX - npW / 2, npY - npH / 2, npW, npH);
     ctx.strokeStyle = player.onFire ? '#fca5a5' : (player.crouching ? '#6ee7b7' : '#93c5fd');
@@ -3033,28 +3505,20 @@
     ctx.fillStyle = '#ffffff';
     ctx.fillText(postureLabel, charX, npY + 0.5);
 
-    // 5e. Left & Right 3D Hands + Held Item Icons Flanking the Player Character
-    const leftHandIcon = player.keys > 0 ? '🔑' : (player.hasMask ? '😷' : (player.wetTowel || player.hasTowel ? '🧣' : '🤚'));
+    // 5e. Left & Right Hand Status Badges Flanking the Human Character
     const leftHandText = player.keys > 0
       ? `🔑 비상열쇠 (${player.keys}개)`
-      : (player.hasMask ? '😷 방연마스크 보호' : (player.wetTowel ? '🧣 젖은 수건 보호중' : (player.hasTowel ? '🧣 마른 수건 보유' : '🤚 왼손: 온도감지')));
-    const rightHandIcon = player.extinguisherCharges > 0 ? '🧯' : (player.hasAxe ? '🪓' : (player.waterCharges > 0 ? '🪣' : (player.hasFlashlight ? '🔦' : '🤚')));
+      : (player.hasMask ? '😷 방연마스크 착용중' : (player.wetTowel ? '🧣 젖은 수건 코·입 보호중' : (player.hasTowel ? '🧣 마른 수건 보유' : '🤚 왼손: 문 온도감지')));
     const rightHandText = player.extinguisherCharges > 0
       ? `🧯 소화기 (${player.extinguisherCharges}회)`
       : (player.hasAxe ? '🪓 소방 도끼 장착' : (player.waterCharges > 0 ? `🪣 물양동이 (${player.waterCharges}회)` : (player.hasFlashlight ? '🔦 손전등 점등' : '🤚 오른손: 행동준비')));
 
-    const handCardW = 124;
+    const handCardW = 136;
     const handCardH = 26;
     const handY = charFloorY - 12;
-    const leftHandX = Math.max(handCardW * 0.55 + 8, charX - ringRadiusX - handCardW * 0.55 - 10);
-    const rightHandX = Math.min(width - handCardW * 0.55 - 8, charX + ringRadiusX + handCardW * 0.55 + 10);
+    const leftHandX = Math.max(handCardW * 0.55 + 8, charX - ringRadiusX - handCardW * 0.55 - 12);
+    const rightHandX = Math.min(width - handCardW * 0.55 - 8, charX + ringRadiusX + handCardW * 0.55 + 12);
 
-    // 3D Held Tool Icons floating right beside the player's left & right hands
-    ctx.font = '24px sans-serif';
-    ctx.fillText(leftHandIcon, charX - avatarSize * 0.55, avatarBottomY - avatarSize * 0.38);
-    ctx.fillText(rightHandIcon, charX + avatarSize * 0.55, avatarBottomY - avatarSize * 0.38);
-
-    // Left Hand Label Badge
     ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
     ctx.strokeStyle = player.wetTowel || player.hasMask ? '#38bdf8' : 'rgba(148, 163, 184, 0.65)';
     ctx.lineWidth = 1.5;
@@ -3064,7 +3528,6 @@
     ctx.fillStyle = '#e0f2fe';
     ctx.fillText(leftHandText, leftHandX, handY + 0.5);
 
-    // Right Hand Label Badge
     ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
     ctx.strokeStyle = (player.extinguisherCharges > 0 || player.hasAxe) ? '#fb923c' : 'rgba(56, 189, 248, 0.65)';
     ctx.lineWidth = 1.5;
@@ -3092,12 +3555,12 @@
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const t = grid[r][c];
-        if (t === TILE.WALL) ctx.fillStyle = '#475569';
+        if (t === TILE.WALL) ctx.fillStyle = '#64748b';
         else if (t === TILE.EXIT) ctx.fillStyle = '#10b981';
         else if (t === TILE.LOCKED_DOOR) ctx.fillStyle = '#eab308';
         else if (t === TILE.DEBRIS) ctx.fillStyle = '#ea580c';
-        else if (t === TILE.FURNITURE) ctx.fillStyle = '#78350f';
-        else ctx.fillStyle = '#0f172a';
+        else if (t === TILE.FURNITURE) ctx.fillStyle = '#92400e';
+        else ctx.fillStyle = '#1e293b';
         ctx.fillRect(mapX + c * mtw, mapY + r * mth, mtw - 0.4, mth - 0.4);
       }
     }
@@ -3109,19 +3572,18 @@
       ctx.lineTo(mapX + (nextObj.c + 0.5) * mtw, mapY + (nextObj.r + 0.5) * mth);
       ctx.stroke();
     }
-    // View cone on minimap
     const mpx = mapX + player.x * mtw;
     const mpy = mapY + player.y * mth;
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+    ctx.fillStyle = 'rgba(250, 204, 21, 0.28)';
     ctx.beginPath();
     ctx.moveTo(mpx, mpy);
     ctx.arc(mpx, mpy, mtw * 2.8, fpsCamYaw - fov * 0.5, fpsCamYaw + fov * 0.5);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(mpx, mpy, 3.5, 0, Math.PI * 2);
+    ctx.arc(mpx, mpy, 3.8, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = '#c7d2fe';
@@ -3132,7 +3594,7 @@
 
     // 7. Top-Left 3D Mode Indicator Badge
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.strokeStyle = '#818cf8';
     ctx.lineWidth = 1.5;
     ctx.fillRect(10, 10, 196, 24);
@@ -3156,8 +3618,8 @@
 
     // Deep atmospheric 3D void backdrop
     const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 40, width * 0.5, height * 0.5, Math.max(width, height) * 0.75);
-    bgGrad.addColorStop(0, '#111827');
-    bgGrad.addColorStop(1, '#030712');
+    bgGrad.addColorStop(0, '#1e293b');
+    bgGrad.addColorStop(1, '#090d16');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
@@ -3204,37 +3666,37 @@
         const isUpperRoom = r < 4;
         const even = (c + r) % 2 === 0;
 
-        // 3D Floor surface (warm wood parquet in upper rooms, slate hallway tiles in lower maze)
+        // 3D Floor surface (warm wood parquet in upper rooms, bright slate hallway tiles in lower maze)
         if (isUpperRoom) {
-          ctx.fillStyle = even ? '#1e293b' : '#172033';
+          ctx.fillStyle = even ? '#3b302b' : '#312723';
         } else {
-          ctx.fillStyle = even ? '#182234' : '#131c2e';
+          ctx.fillStyle = even ? '#29374c' : '#212d40';
         }
         ctx.fillRect(x, y, tileSize, tileSize);
 
         // Subtle 3D floor tile bevel & plank lines
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.14)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, tileSize, tileSize);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
         ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize * 0.18);
 
         // 3D Ambient Occlusion Shadows cast by North and West Walls/Furniture
         const northTile = r > 0 ? grid[r - 1][c] : TILE.WALL;
         if (northTile === TILE.WALL || northTile === TILE.FURNITURE || northTile === TILE.DOOR || northTile === TILE.LOCKED_DOOR) {
-          const nShadow = ctx.createLinearGradient(x, y, x, y + tileSize * 0.42);
-          nShadow.addColorStop(0, 'rgba(2, 6, 23, 0.62)');
+          const nShadow = ctx.createLinearGradient(x, y, x, y + tileSize * 0.36);
+          nShadow.addColorStop(0, 'rgba(2, 6, 23, 0.45)');
           nShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
           ctx.fillStyle = nShadow;
-          ctx.fillRect(x, y, tileSize, tileSize * 0.42);
+          ctx.fillRect(x, y, tileSize, tileSize * 0.36);
         }
         const westTile = c > 0 ? grid[r][c - 1] : TILE.WALL;
         if (westTile === TILE.WALL || westTile === TILE.FURNITURE) {
-          const wShadow = ctx.createLinearGradient(x, y, x + tileSize * 0.28, y);
-          wShadow.addColorStop(0, 'rgba(2, 6, 23, 0.45)');
+          const wShadow = ctx.createLinearGradient(x, y, x + tileSize * 0.24, y);
+          wShadow.addColorStop(0, 'rgba(2, 6, 23, 0.35)');
           wShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
           ctx.fillStyle = wShadow;
-          ctx.fillRect(x, y, tileSize * 0.28, tileSize);
+          ctx.fillRect(x, y, tileSize * 0.24, tileSize);
         }
       }
     }
@@ -3284,6 +3746,10 @@
     const activeSkin = getSelectedSkin();
     const pRow = Math.min(ROWS - 1, Math.max(0, Math.floor(player.y)));
     const p2Row = Math.min(ROWS - 1, Math.max(0, Math.floor(player2.y)));
+    const activelyMoving = (
+      keysPressed.up || keysPressed.down || keysPressed.left || keysPressed.right ||
+      pointerMoveTarget !== null
+    );
 
     for (let r = 0; r < ROWS; r++) {
       // 2A. Extruded 3D Walls, Doors, Furniture & Escape-Room Fixtures in Row r
@@ -3301,7 +3767,7 @@
 
           // Right 3D depth face when right neighbor is not a wall
           if (!hasRightWall) {
-            ctx.fillStyle = '#0f172a';
+            ctx.fillStyle = '#1e293b';
             ctx.beginPath();
             ctx.moveTo(x + tileSize, y - curWallH);
             ctx.lineTo(x + tileSize + bX, y - curWallH + bX * 0.55);
@@ -3314,9 +3780,9 @@
           // Front 3D Wall Face (visible when bottom neighbor is not a wall, or on south border)
           if (!hasBottomWall) {
             const frontGrad = ctx.createLinearGradient(x, y - curWallH * 0.3, x, y + tileSize);
-            frontGrad.addColorStop(0, '#475569');
-            frontGrad.addColorStop(0.55, '#334155');
-            frontGrad.addColorStop(1, '#1e293b');
+            frontGrad.addColorStop(0, '#64748b');
+            frontGrad.addColorStop(0.55, '#475569');
+            frontGrad.addColorStop(1, '#334155');
             ctx.fillStyle = frontGrad;
             ctx.fillRect(x, y - curWallH * 0.25, tileSize, tileSize + curWallH * 0.25);
 
@@ -3329,20 +3795,20 @@
             ctx.stroke();
 
             // Dark 3D baseboard at floor junction
-            ctx.fillStyle = '#0f172a';
+            ctx.fillStyle = '#1e293b';
             ctx.fillRect(x, y + tileSize - Math.max(3, tileSize * 0.1), tileSize, Math.max(3, tileSize * 0.1));
           } else {
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = '#475569';
             ctx.fillRect(x, y - curWallH * 0.25, tileSize, tileSize + curWallH * 0.25);
           }
 
           // Raised 3D Roof Top Cap
           const roofH = hasBottomWall ? tileSize : tileSize * 0.76;
-          ctx.fillStyle = '#64748b';
-          ctx.fillRect(x, y - curWallH, tileSize, roofH);
           ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(x, y - curWallH, tileSize, roofH);
+          ctx.fillStyle = '#cbd5e1';
           ctx.fillRect(x + 2, y - curWallH + 2, tileSize - 4, Math.max(3, tileSize * 0.14));
-          ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+          ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
           ctx.lineWidth = 1;
           ctx.strokeRect(x, y - curWallH, tileSize, roofH);
         } else if (t === TILE.FURNITURE) {
@@ -3644,7 +4110,7 @@
         }
       }
 
-      // 2B. 3D Floating Pickup Items on Pedestals in Row r
+      // 2B. 3D Floating Pickup Items & Trapped Human NPCs in Row r
       for (const it of items) {
         if (it.r !== r) continue;
         const ix = (it.c + 0.5) * tileSize;
@@ -3658,20 +4124,35 @@
         ctx.ellipse(ix, baseY + tileSize * 0.08, tileSize * 0.28, tileSize * 0.13, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 3D Floating Item Orb
-        const ringColor = it.type === 'toy' ? '#fb7185' : (it.type === 'npc' || it.type === 'dog' ? '#4ade80' : (it.type === 'key' ? '#facc15' : '#38bdf8'));
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-        ctx.beginPath();
-        ctx.arc(ix, iy, tileSize * 0.31, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = ringColor;
-        ctx.lineWidth = 2.2;
-        ctx.stroke();
+        if (it.type === 'npc') {
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(ix, baseY + tileSize * 0.08, tileSize * 0.30, tileSize * 0.14, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          drawHumanCharacter(ctx, ix, baseY + tileSize * 0.08, tileSize * 0.88, {
+            crouching: true,
+            moving: false,
+            now: now + it.c,
+            dirX: -1,
+            skinId: 'npc'
+          });
+        } else {
+          // 3D Floating Item Orb
+          const ringColor = it.type === 'toy' ? '#fb7185' : (it.type === 'dog' ? '#4ade80' : (it.type === 'key' ? '#facc15' : '#38bdf8'));
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+          ctx.beginPath();
+          ctx.arc(ix, iy, tileSize * 0.31, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = ringColor;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
 
-        ctx.font = `${Math.floor(tileSize * 0.40)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(it.icon, ix, iy);
+          ctx.font = `${Math.floor(tileSize * 0.40)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(it.icon, ix, iy);
+        }
 
         const shortName = (it.name || '').split('(')[0].trim();
         if (shortName) {
@@ -3679,9 +4160,11 @@
           const tw = ctx.measureText(shortName).width + 6;
           const th = Math.max(11, Math.floor(tileSize * 0.23));
           ctx.fillStyle = 'rgba(2, 6, 23, 0.92)';
-          ctx.fillRect(ix - tw / 2, baseY + tileSize * 0.02, tw, th);
+          ctx.fillRect(ix - tw / 2, baseY + tileSize * 0.06, tw, th);
           ctx.fillStyle = '#f0f9ff';
-          ctx.fillText(shortName, ix, baseY + tileSize * 0.02 + th / 2);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(shortName, ix, baseY + tileSize * 0.06 + th / 2);
         }
       }
 
@@ -3721,57 +4204,26 @@
         }
       }
 
-      // 2D. 3D Extruded Player 1 Avatar ('나') & Rescued Companions in Row r
+      // 2D. Realistic Articulated Human Player 1 ('나') & Rescued Companions in Row r
       if (pRow === r) {
-        const pRad = 0.32 * tileSize * (player.crouching ? 0.85 : 1.0);
-        const charLift = player.crouching ? tileSize * 0.14 : tileSize * 0.28;
+        const pRad = 0.32 * tileSize;
+        const footY = py + tileSize * 0.16;
 
-        // 3D Floor Shadow under Player
-        ctx.fillStyle = 'rgba(2, 6, 23, 0.72)';
+        // 3D Floor Shadow & Glowing Safety Ring under Player
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.68)';
         ctx.beginPath();
-        ctx.ellipse(px, py + tileSize * 0.12, pRad * 1.05, pRad * 0.52, 0, 0, Math.PI * 2);
+        ctx.ellipse(px, footY, pRad * 1.15, pRad * 0.45, 0, 0, Math.PI * 2);
         ctx.fill();
-
-        // 3D Extruded Character Body Cylinder / Pedestal
-        const bodyCol = player.onFire ? '#b91c1c' : (player.crouching ? '#047857' : '#1d4ed8');
-        ctx.fillStyle = bodyCol;
-        ctx.fillRect(px - pRad * 0.78, py - charLift, pRad * 1.56, charLift + tileSize * 0.06);
-
-        // 3D Character Head/Top Sphere
-        ctx.fillStyle = player.onFire ? '#ef4444' : (player.crouching ? '#10b981' : '#3b82f6');
-        ctx.beginPath();
-        ctx.arc(px, py - charLift, pRad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#fde047';
+        ctx.strokeStyle = player.onFire ? '#ef4444' : (player.crouching ? '#10b981' : '#fde047');
+        ctx.lineWidth = 2.2;
         ctx.stroke();
 
-        // Direction indicator dot
-        ctx.fillStyle = '#fde047';
-        ctx.beginPath();
-        ctx.arc(
-          px + player.dirX * (pRad * 0.75),
-          (py - charLift) + player.dirY * (pRad * 0.75),
-          Math.max(3, tileSize * 0.08),
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-
-        ctx.font = `${Math.floor(tileSize * (player.crouching ? 0.44 : 0.50))}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const p1Icon = player.onFire
-          ? '🔥'
-          : (activeSkin && activeSkin.id !== 'student' ? activeSkin.icon : (player.crouching ? '🧎' : '🏃'));
-        ctx.fillText(p1Icon, px, py - charLift);
-
         if (player.wetTowel || player.hasMask) {
-          ctx.strokeStyle = player.hasMask ? 'rgba(45, 212, 191, 0.92)' : 'rgba(56, 189, 248, 0.85)';
-          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = player.hasMask ? 'rgba(45, 212, 191, 0.92)' : 'rgba(56, 189, 248, 0.90)';
+          ctx.lineWidth = 2;
           ctx.setLineDash([4, 3]);
           ctx.beginPath();
-          ctx.arc(px, py - charLift, pRad + 4, 0, Math.PI * 2);
+          ctx.ellipse(px, footY, pRad * 1.38, pRad * 0.58, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.setLineDash([]);
         }
@@ -3780,23 +4232,51 @@
           const dogX = px - player.dirX * tileSize * 0.55;
           const dogY = py - player.dirY * tileSize * 0.55 - tileSize * 0.14;
           ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
           ctx.fillText('🐶', dogX, dogY);
         }
         if (player.rescuedNpcs > 0) {
-          const npcX = px - player.dirX * tileSize * 0.82;
-          const npcY = py - player.dirY * tileSize * 0.82 - tileSize * 0.16;
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
-          ctx.fillText('🧒', npcX, npcY);
+          const npcX = px - player.dirX * tileSize * 0.78;
+          const npcY = footY - player.dirY * tileSize * 0.65;
+          drawHumanCharacter(ctx, npcX, npcY, tileSize * 0.85, {
+            crouching: player.crouching,
+            moving: activelyMoving,
+            now: now + 0.6,
+            dirX: player.dirX,
+            skinId: 'npc',
+            wetTowel: player.wetTowel
+          });
         }
 
-        // Bold '나' 3D Floating Tag
+        const rightTool = player.extinguisherCharges > 0
+          ? 'extinguisher'
+          : (player.hasAxe ? 'axe' : (player.waterCharges > 0 ? 'bucket' : (player.hasFlashlight ? 'flashlight' : 'none')));
+        const humanH = tileSize * 1.04;
+        drawHumanCharacter(ctx, px, footY, humanH, {
+          crouching: player.crouching,
+          moving: activelyMoving,
+          now,
+          dirX: player.dirX,
+          skinId: activeSkin.id || 'student',
+          wetTowel: player.wetTowel,
+          hasTowel: player.hasTowel,
+          hasMask: player.hasMask,
+          rightTool,
+          onFire: player.onFire
+        });
+
+        // Bold '나' 3D Floating Tag above Human Head
         ctx.save();
         const meTag = isCoopMode ? '1P 나' : '나';
         ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.22))}px "Noto Sans KR", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         const mw = ctx.measureText(meTag).width + 8;
         const mh = Math.max(14, Math.floor(tileSize * 0.28));
-        const my = Math.max(mh / 2 - wallH, py - charLift - pRad - mh / 2 - 3);
-        ctx.fillStyle = '#2563eb';
+        const headTopY = footY - (player.crouching ? humanH * 0.78 : humanH * 0.96);
+        const my = Math.max(mh / 2 - wallH, headTopY - mh / 2 - 4);
+        ctx.fillStyle = player.crouching ? '#059669' : '#2563eb';
         ctx.fillRect(px - mw / 2, my - mh / 2, mw, mh);
         ctx.strokeStyle = '#fde047';
         ctx.lineWidth = 1.5;
@@ -3808,20 +4288,14 @@
 
       if (isCoopMode && p2Row === r) {
         const p2x = player2.x * tileSize;
-        const p2y = player2.y * tileSize;
-        const p2Rad = 0.30 * tileSize * (player2.crouching ? 0.82 : 1.0);
-        const p2Lift = player2.crouching ? tileSize * 0.14 : tileSize * 0.26;
-        ctx.fillStyle = player2.crouching ? '#059669' : '#ec4899';
-        ctx.beginPath();
-        ctx.arc(p2x, p2y - p2Lift, p2Rad, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#fbcfe8';
-        ctx.stroke();
-        ctx.font = `${Math.floor(tileSize * 0.42)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(player2.crouching ? '🧎' : '👩‍🚒', p2x, p2y - p2Lift);
+        const p2y = player2.y * tileSize + tileSize * 0.16;
+        drawHumanCharacter(ctx, p2x, p2y, tileSize * 0.98, {
+          crouching: player2.crouching,
+          moving: keysPressed2.up || keysPressed2.down || keysPressed2.left || keysPressed2.right,
+          now: now + 1.2,
+          dirX: player2.dirX,
+          skinId: 'p2'
+        });
       }
 
       // 2E. 3D Elevated Ceiling Smoke Plumes in Row r (Floating near roof level)
