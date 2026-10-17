@@ -68,6 +68,16 @@
             <span id="camera3DText" class="text-[11px] sm:text-xs">3D입체뷰</span>
           </button>
 
+          <button id="btnFlashlightTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-yellow-500/20 hover:bg-yellow-500/35 border border-yellow-400/60 text-yellow-200 transition flex items-center gap-1 shadow-sm" title="3D 손전등 스포트라이트 켜기/끄기 (단축키 F)">
+            <span id="flashlightTopIcon">🔦</span>
+            <span id="flashlightTopText" class="text-[11px] sm:text-xs hidden lg:inline">손전등(F)</span>
+          </button>
+
+          <button id="btnPuzzleTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/60 text-cyan-200 transition flex items-center gap-1 shadow-sm" title="3D 방탈출 정밀 장치 조사: 금고·배선·방향자물쇠·서가정렬 (단축키 Q)">
+            <span>🔐</span>
+            <span class="text-[11px] sm:text-xs">퍼즐조사</span>
+          </button>
+
           <button id="btnNotebookTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-amber-200 transition flex items-center gap-1 shadow-sm" title="기록 수첩 · 2단계 힌트 · 소지품 (단축키 H / I)">
             <span>📓</span>
             <span class="text-[11px] sm:text-xs">수첩·힌트</span>
@@ -809,31 +819,33 @@
     </div>
   </div>
 
-  <!-- PRD F06 & Section 16: Interactive Object Inspection & Escape-Room Puzzle Modal (Safe Code Lock & Color+Letter Wiring) -->
+  <!-- PRD F06, Section 5 & Section 16: Interactive Object Inspection & 4-Type Escape-Room Puzzle Modal -->
   <div id="puzzleModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto" role="dialog" aria-labelledby="puzzleModalTitle">
-    <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+    <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">방탈출 정밀 장치 조사 (PRD F06 · T05 · T10)</span>
-          <h3 id="puzzleModalTitle" class="text-base sm:text-lg font-extrabold text-white mt-0.5">🔐 비상 금고 잠금장치 & 배전판 배선 퍼즐</h3>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">3D 방탈출 정밀 장치 조사 (PRD F06 · T05 · T10 · 16절)</span>
+          <h3 id="puzzleModalTitle" class="text-base sm:text-lg font-extrabold text-white mt-0.5">🔐 3D 방탈출 정밀 조사 & 4종 잠금장치 퍼즐</h3>
         </div>
         <button id="btnClosePuzzleModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
       </div>
 
-      <!-- Puzzle Switcher: [🔢 디지털 금고 잠금장치] | [⚡ 배전판 배선 연결 (색상+문자)] -->
-      <div class="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-extrabold">
-        <button id="btnSelectSafePuzzle" type="button" class="py-1.5 rounded-lg bg-cyan-600 text-white transition">🔢 디지털 금고 잠금장치</button>
-        <button id="btnSelectWirePuzzle" type="button" class="py-1.5 rounded-lg text-slate-300 hover:text-white transition">⚡ 배전판 배선 (색상+문자)</button>
+      <!-- Puzzle Switcher (4 Signature PRD Escape Room Puzzles): [🔢 디지털 금고] | [⚡ 배전판 배선] | [🧭 방향 자물쇠] | [📚 매뉴얼 청구기호] -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-extrabold">
+        <button id="btnSelectSafePuzzle" type="button" class="py-1.5 px-2 rounded-lg bg-cyan-600 text-white transition">🔢 금고 (614)</button>
+        <button id="btnSelectWirePuzzle" type="button" class="py-1.5 px-2 rounded-lg text-slate-300 hover:text-white transition">⚡ 배전판 배선</button>
+        <button id="btnSelectDirLockPuzzle" type="button" class="py-1.5 px-2 rounded-lg text-slate-300 hover:text-white transition">🧭 방향 자물쇠</button>
+        <button id="btnSelectBookSortPuzzle" type="button" class="py-1.5 px-2 rounded-lg text-slate-300 hover:text-white transition">📚 매뉴얼 정렬</button>
       </div>
 
       <!-- Puzzle 1: Numeric Safe Lock (String compare, leading-zero safe, empty input excluded from penalty, 3rd wrong = 30s active elapsed lock) -->
       <div id="safePuzzleBox" class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
         <div class="flex items-center justify-between">
-          <span class="font-extrabold text-amber-300">🔢 비상 열쇠 보관함 디지털 잠금장치 (3자리: 614)</span>
+          <span class="font-extrabold text-amber-300">🔢 비상 열쇠 보관함 디지털 잠금장치 (단서 코드: 614 / 3322 / 0119)</span>
           <span id="safeWrongBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px]">오답: 0 / 3회</span>
         </div>
         <p class="text-slate-300 text-[11px] leading-relaxed">
-          단서 메모: <em>"우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>입니다. (비상 직통번호 <strong>0119</strong> 입력도 가능)"</em><br/>
+          단서 메모: <em>"안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>, 열쇠 보관함은 <strong>3322</strong>, 긴급 직통번호는 <strong>0119</strong>입니다."</em><br/>
           <span class="text-slate-400">※ 빈 입력이나 자릿수 부족은 오답 횟수에 포함되지 않으며, 3회 오답 시 활성 플레이 시간 30초 동안 잠깁니다.</span>
         </p>
         <div class="flex items-center gap-2">
@@ -858,7 +870,7 @@
       <div id="wirePuzzleBox" class="hidden p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
         <div class="font-extrabold text-emerald-300">⚡ 비상 배전판 배선 복구 (색상 + 문자 병기 · 버튼 선택 방식)</div>
         <p class="text-slate-300 text-[11px] leading-relaxed">
-          배전판 점검표 단서: <strong>[빨강 선 → B단자] · [파랑 선 → D단자] · [노랑 선 → A단자] · [초록 선 → C단자]</strong>로 맞추어 비상 유도등 전원을 복구하세요!
+          배전판 점검표 단서: <strong>[빨강 선 → B단자] · [파랑 선 → D단자] · [노랑 선 → A단자] · [초록 선 → C단자]</strong>로 맞추어 비상 유도등 조명과 환기 전원을 복구하세요!
         </p>
         <div class="space-y-1.5">
           <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
@@ -898,8 +910,41 @@
             </select>
           </div>
         </div>
-        <button id="btnSubmitWirePuzzle" type="button" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm transition">⚡ 배선 연결 확정 및 전원 차단/복구</button>
+        <button id="btnSubmitWirePuzzle" type="button" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm transition">⚡ 배선 연결 확정 및 3D 실내 조명·전원 복구</button>
         <div id="wireFeedbackMsg" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-emerald-200 font-bold text-center">단자를 선택한 뒤 버튼을 누르세요.</div>
+      </div>
+
+      <!-- Puzzle 3: PRD Section 16 Direction Lock (위·오른쪽·오른쪽·아래·왼쪽·위 -> Unlocks Mask & 3D Flashlight) -->
+      <div id="dirLockPuzzleBox" class="hidden p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
+        <div class="font-extrabold text-sky-300">🧭 비상 방연장비함 방향 자물쇠 (PRD 16절: 대피 동선 화살표 암호)</div>
+        <p class="text-slate-300 text-[11px] leading-relaxed">
+          복도 유도등 시집 단서: <strong>[위(▲) → 오른쪽(▶) → 오른쪽(▶) → 아래(▼) → 왼쪽(◀) → 위(▲)]</strong> 순서로 방향 버튼을 누른 뒤 [잠금 해제]를 누르면 <strong>방연마스크(😷)와 3D 손전등(🔦)</strong>이 지급됩니다!
+        </p>
+        <div id="dirLockSeqDisplay" class="p-2.5 rounded-xl bg-slate-900 border border-sky-500/40 font-mono font-black text-sm text-sky-200 text-center tracking-wider min-h-[2.4rem] flex items-center justify-center">
+          (방향 버튼을 순서대로 누르세요: 0 / 6)
+        </div>
+        <div class="grid grid-cols-5 gap-1.5">
+          <button type="button" data-dir-token="위" class="dir-lock-btn py-2 rounded-xl bg-slate-800 hover:bg-sky-700 text-white font-extrabold">▲ 위</button>
+          <button type="button" data-dir-token="오른쪽" class="dir-lock-btn py-2 rounded-xl bg-slate-800 hover:bg-sky-700 text-white font-extrabold">▶ 오른쪽</button>
+          <button type="button" data-dir-token="아래" class="dir-lock-btn py-2 rounded-xl bg-slate-800 hover:bg-sky-700 text-white font-extrabold">▼ 아래</button>
+          <button type="button" data-dir-token="왼쪽" class="dir-lock-btn py-2 rounded-xl bg-slate-800 hover:bg-sky-700 text-white font-extrabold">◀ 왼쪽</button>
+          <button id="btnDirLockClear" type="button" class="py-2 rounded-xl bg-rose-950/80 hover:bg-rose-800 text-rose-200 font-bold">초기화</button>
+        </div>
+        <button id="btnSubmitDirLock" type="button" class="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition">🔓 방향 자물쇠 해제 (방연마스크 😷 + 3D 손전등 🔦 획득)</button>
+        <div id="dirLockFeedbackMsg" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-sky-200 font-bold text-center">6개 방향을 순서대로 입력해 주세요.</div>
+      </div>
+
+      <!-- Puzzle 4: PRD Section 16 Call-Number Decimal Sorting (425.12 -> 425.2 -> 430 -> 440 -> 450 -> 480) -->
+      <div id="bookSortPuzzleBox" class="hidden p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5 text-xs">
+        <div class="font-extrabold text-purple-300">📚 안전 서가 매뉴얼 청구기호 정렬 (PRD 9절·16절: 드래그 대체 버튼 지원)</div>
+        <p class="text-slate-300 text-[11px] leading-relaxed">
+          서가 분류 규칙: <strong>소수 크기를 비교하여 오름차순(425.12 → 425.2 → 430 → 440 → 450 → 480)</strong>으로 정렬하면 서가 비밀 격벽이 열리며 <strong>비상 소방도끼(🪓)와 소화기 충전(+1)</strong>을 획득합니다!
+        </p>
+        <div id="bookSortListContainer" class="space-y-1.5"></div>
+        <div class="flex gap-2">
+          <button id="btnSubmitBookSort" type="button" class="flex-1 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs sm:text-sm transition">📚 매뉴얼 순서 확정 및 비밀 격벽 개방</button>
+        </div>
+        <div id="bookSortFeedbackMsg" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-purple-200 font-bold text-center">[◀ 앞 / 뒤 ▶] 버튼으로 425.12부터 480까지 오름차순 정렬하세요.</div>
       </div>
     </div>
   </div>

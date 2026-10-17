@@ -341,6 +341,10 @@
   let safeLockUntil = 0; // Active elapsedSeconds timestamp until which safe keypad is locked (30s after 3rd wrong attempt)
   let safeSolved = false;
   let wireSolved = false;
+  let dirLockSolved = false;
+  let dirLockBuffer = [];
+  let bookSortSolved = false;
+  let bookSortOrder = ['430', '425.2', '480', '425.12', '450', '440'];
   let runOptions = {
     mode: 'standard', // 'standard' | 'relaxed' | 'practice'
     hazardLimitSeconds: 300
@@ -637,6 +641,10 @@
     safeLockUntil = 0;
     safeSolved = false;
     wireSolved = false;
+    dirLockSolved = false;
+    dirLockBuffer = [];
+    bookSortSolved = false;
+    bookSortOrder = ['430', '425.2', '480', '425.12', '450', '440'];
 
     stageBadge.textContent = st.name;
     missionShort.textContent = st.mission;
@@ -1878,6 +1886,7 @@
         showToast('🐶 반려견 초코를 구출했습니다! 함께 비상구로 탈출하세요!');
       }
       updateHUD();
+      if (cameraMode3D === 'FPS_3D') orientCameraToOpenSpace();
       if (typeof saveCampaignState === 'function') saveCampaignState();
       return;
     }
@@ -2049,6 +2058,7 @@
         }
       }
       updateHUD();
+      if (cameraMode3D === 'FPS_3D') orientCameraToOpenSpace();
       if (typeof saveCampaignState === 'function') saveCampaignState();
     }
   }
@@ -3863,17 +3873,23 @@
       ctx.fillRect(bx + bedW * 0.18, by - frameH + tileSize * 0.16, bedW * 0.64, tileSize * 0.15);
       ctx.strokeRect(bx + bedW * 0.18, by - frameH + tileSize * 0.16, bedW * 0.64, tileSize * 0.15);
     } else if (kind === 1) {
-      // 3D Wooden Study Desk with Monitor / Book & Chair
+      // 3D Wooden Study Desk with Monitor & Escape-Room Digital Safe (🔐 614)
       const dw = tileSize * 0.84;
       const dd = tileSize * 0.72;
       const dx = x + tileSize * 0.08;
       const dy = y + tileSize * 0.14;
       const dh = tileSize * 0.34;
       draw3DBox(ctx, dx, dy, dw, dd, dh, '#d97706', '#92400e', '#451a03', '#fcd34d');
-      // Laptop / Monitor on desk top
-      draw3DBox(ctx, dx + dw * 0.24, dy + dd * 0.12, dw * 0.52, dd * 0.28, tileSize * 0.48, '#38bdf8', '#0f172a', '#1e293b', '#7dd3fc');
+      // 3D Digital Safe & Monitor on desk top
+      draw3DBox(ctx, dx + dw * 0.14, dy + dd * 0.14, dw * 0.38, dd * 0.32, tileSize * 0.42, '#475569', '#1e293b', '#0f172a', '#fde047');
+      draw3DBox(ctx, dx + dw * 0.56, dy + dd * 0.12, dw * 0.32, dd * 0.28, tileSize * 0.44, '#38bdf8', '#0f172a', '#1e293b', '#7dd3fc');
+      ctx.font = `bold ${Math.max(8, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      ctx.fillStyle = safeSolved ? '#4ade80' : '#fde047';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(safeSolved ? '🔓금고해제' : '🔐금고·614', x + tileSize * 0.5, y + tileSize * 0.78);
     } else {
-      // 3D Wooden Cabinet / Wardrobe with Double Doors
+      // 3D Wooden Archive Bookshelf & Direction-Lock Cabinet with Double Doors
       const cw = tileSize * 0.82;
       const cd = tileSize * 0.74;
       const cx = x + tileSize * 0.09;
@@ -3890,6 +3906,11 @@
       ctx.fillStyle = '#fde047';
       ctx.fillRect(cx + cw * 0.42, cy + cd * 0.55 - ch * 0.45, 2.5, 5);
       ctx.fillRect(cx + cw * 0.55, cy + cd * 0.55 - ch * 0.45, 2.5, 5);
+      ctx.font = `bold ${Math.max(8, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      ctx.fillStyle = (bookSortSolved && dirLockSolved) ? '#4ade80' : '#a78bfa';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((bookSortSolved && dirLockSolved) ? '📚보관함해제' : '📚서가·🧭자물쇠', x + tileSize * 0.5, y + tileSize * 0.78);
     }
   }
 
@@ -4093,6 +4114,14 @@
   }
 
   // --- True 1st-Person / Over-the-Shoulder 3D Perspective Building Escape Engine ('FPS_3D') ---
+  // Incorporates ESCAPE PRD v1.0 F05, F06, Section 5 & Section 9:
+  // 1) Exact 3D Near-Plane Sutherland-Hodgman Polygon Clipping (zero missing floor tiles, zero giant exploding polygons)
+  // 2) Per-Column Z-Buffer Occlusion Clipping for 3D Multi-Part Furniture & Escape-Room Puzzle Stations
+  // 3) Dynamic Distance Attenuation, 3D Flashlight Spotlight Cone (F), Fire Point-Lights & Wall Architecture
+  // 4) Center Raycast Reticle (⌖) with Real-Time Target Name, Distance (m) & Required Action HUD
+  // 5) 1st-Person 3D Held Equipment (Flashlight / Wet Towel / Extinguisher / Axe) + Ground-Locked 3D Avatar
+  let flashlightSpotEnabled = true;
+
   function renderFirstPerson3D(width, height, now, st) {
     const fov = Math.PI * 0.44;
     const tanHalfFov = Math.tan(fov * 0.5);
@@ -4102,10 +4131,10 @@
     // Position 3D camera eye slightly behind the player inside open room space (never inside a wall)
     let camWorldX = player.x;
     let camWorldY = player.y;
-    for (let d = 0.06; d <= 0.62; d += 0.06) {
+    for (let d = 0.06; d <= 0.54; d += 0.06) {
       const tx = player.x - cosYaw * d;
       const ty = player.y - sinYaw * d;
-      if (canMoveTo(tx, ty, 0.14)) {
+      if (canMoveTo(tx, ty, 0.16)) {
         camWorldX = tx;
         camWorldY = ty;
       } else {
@@ -4113,162 +4142,234 @@
       }
     }
 
-    const camEyeZ = player.crouching ? 0.36 : 0.48;
-    const walkBobY = Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 1.8);
-    const horizon = (player.crouching ? height * 0.38 : height * 0.43) + walkBobY;
-    const vertScale = height * 0.72;
+    const reduceMot = !!(appSettings && appSettings.reduceMotion);
+    const brightMul = Math.max(0.75, Math.min(1.85, ((appSettings && appSettings.brightness) || 100) / 100));
+    const camEyeZ = player.crouching ? 0.32 : 0.50;
+    const walkBobY = reduceMot ? 0 : Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 1.6);
+    const horizon = (player.crouching ? height * 0.39 : height * 0.44) + walkBobY;
+    const vertScale = height * 0.74;
+    const halfW = width * 0.5;
 
-    // Unified 3D World-to-Screen Projection (wz=0 is floor, wz=1.0 is ceiling)
-    function project3DPoint(wx, wy, wz = 0) {
+    function toCamSpace(wx, wy, wz = 0) {
       const dx = wx - camWorldX;
       const dy = wy - camWorldY;
-      const depth = dx * cosYaw + dy * sinYaw;
-      if (depth <= 0.12) return null;
-      const right = -dx * sinYaw + dy * cosYaw;
       return {
-        x: width * 0.5 + (right / (depth * tanHalfFov)) * (width * 0.5),
-        y: horizon + ((camEyeZ - wz) * vertScale) / depth,
-        depth
+        right: -dx * sinYaw + dy * cosYaw,
+        up: wz - camEyeZ,
+        depth: dx * cosYaw + dy * sinYaw
       };
     }
 
-    // 1. 3D Ceiling & Perspective Floor Base Backdrop
+    function projectCamPoint(cp) {
+      const d = Math.max(0.08, cp.depth);
+      return {
+        x: halfW + (cp.right / (d * tanHalfFov)) * halfW,
+        y: horizon - (cp.up * vertScale) / d,
+        depth: d
+      };
+    }
+
+    function project3DPoint(wx, wy, wz = 0, minDepth = 0.12) {
+      const cp = toCamSpace(wx, wy, wz);
+      if (cp.depth <= minDepth) return null;
+      return projectCamPoint(cp);
+    }
+
+    // Sutherland-Hodgman 3D Near-Plane Polygon Clipper (Eliminates missing floor tiles & polygon explosions!)
+    function projectClipped3DPolygon(worldPts, nearZ = 0.11) {
+      const camPts = worldPts.map(([wx, wy, wz]) => toCamSpace(wx, wy, wz));
+      const clipped = [];
+      for (let i = 0; i < camPts.length; i++) {
+        const curr = camPts[i];
+        const prev = camPts[(i + camPts.length - 1) % camPts.length];
+        const currIn = curr.depth >= nearZ;
+        const prevIn = prev.depth >= nearZ;
+        if (currIn !== prevIn) {
+          const t = (nearZ - prev.depth) / (curr.depth - prev.depth);
+          clipped.push({
+            right: prev.right + (curr.right - prev.right) * t,
+            up: prev.up + (curr.up - prev.up) * t,
+            depth: nearZ
+          });
+        }
+        if (currIn) clipped.push(curr);
+      }
+      if (clipped.length < 3) return null;
+      return clipped.map(projectCamPoint);
+    }
+
+    function shadeHexColor(hex, factor) {
+      const f = Math.max(0.18, Math.min(1.65, factor * brightMul));
+      const n = parseInt(hex.slice(1), 16);
+      const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * f)));
+      const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * f)));
+      const b = Math.min(255, Math.max(0, Math.round((n & 255) * f)));
+      return `rgb(${r},${g},${b})`;
+    }
+
+    // 1. 3D Ceiling & Perspective Floor Base Backdrop with Power/Lighting Atmosphere
+    const powerRestored = !!(player.breakerClosed || wireSolved);
     const ceilGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-    ceilGrad.addColorStop(0, '#0f172a');
-    ceilGrad.addColorStop(0.65, '#1e293b');
+    ceilGrad.addColorStop(0, powerRestored ? '#0f172a' : '#090d16');
+    ceilGrad.addColorStop(0.65, powerRestored ? '#1e293b' : '#111827');
     ceilGrad.addColorStop(1, '#334155');
     ctx.fillStyle = ceilGrad;
     ctx.fillRect(0, 0, width, horizon);
 
-    // Perspective Ceiling Acoustic Grid & Warm Recessed Ceiling Lights
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
-    ctx.lineWidth = 1;
-    for (let p = 1; p <= 6; p++) {
-      const cy = horizon - Math.pow(p / 6, 1.65) * horizon * 0.92;
-      ctx.beginPath();
-      ctx.moveTo(0, cy);
-      ctx.lineTo(width, cy);
-      ctx.stroke();
-    }
-
     const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
     floorGrad.addColorStop(0, '#1e293b');
-    floorGrad.addColorStop(0.35, '#273549');
-    floorGrad.addColorStop(1, '#0f172a');
+    floorGrad.addColorStop(0.4, '#334155');
+    floorGrad.addColorStop(1, '#1e293b');
     ctx.fillStyle = floorGrad;
     ctx.fillRect(0, horizon, width, height - horizon);
 
-    // 2. World-Locked 3D Perspective Floor Tile Quads & Ceiling Light Fixtures
-    const floorQuads = [];
+    // 2. Near-Plane Clipped 3D Perspective Floor Quads & Ceiling Acoustic Panels (100% Continuous Floor!)
+    const floorTiles = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (grid[r][c] === TILE.WALL) continue;
-        const distSq = (c + 0.5 - camWorldX) ** 2 + (r + 0.5 - camWorldY) ** 2;
-        if (distSq > 110) continue;
-
-        // Recessed 3D Ceiling Light Panel on every even tile
-        if ((r % 2 === 1) && (c % 3 === 1)) {
-          const lp = project3DPoint(c + 0.5, r + 0.5, 1.0);
-          if (lp && lp.depth > 0.4 && lp.depth < 9.5 && lp.y > 0 && lp.y < horizon - 4) {
-            const lw = Math.max(8, (width * 0.14) / lp.depth);
-            const lh = Math.max(3, lw * 0.28);
-            ctx.fillStyle = st.isDarkStage ? 'rgba(56, 189, 248, 0.22)' : 'rgba(254, 249, 195, 0.78)';
-            ctx.fillRect(lp.x - lw * 0.5, lp.y - lh * 0.5, lw, lh);
-          }
-        }
-
-        const p0 = project3DPoint(c, r, 0);
-        const p1 = project3DPoint(c + 1, r, 0);
-        const p2 = project3DPoint(c + 1, r + 1, 0);
-        const p3 = project3DPoint(c, r + 1, 0);
-        if (!p0 || !p1 || !p2 || !p3) continue;
-        const avgDepth = (p0.depth + p1.depth + p2.depth + p3.depth) * 0.25;
-        floorQuads.push({ r, c, p0, p1, p2, p3, avgDepth });
+        const dx = c + 0.5 - camWorldX;
+        const dy = r + 0.5 - camWorldY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > 120) continue;
+        const centerDepth = dx * cosYaw + dy * sinYaw;
+        if (centerDepth < -0.75) continue;
+        floorTiles.push({ r, c, distSq, centerDepth });
       }
     }
 
-    floorQuads.sort((a, b) => b.avgDepth - a.avgDepth);
+    floorTiles.sort((a, b) => b.distSq - a.distSq);
 
-    for (const fq of floorQuads) {
-      const { r, c, p0, p1, p2, p3 } = fq;
+    for (const ft of floorTiles) {
+      const { r, c, distSq } = ft;
+      const dist = Math.sqrt(distSq);
+      const poly = projectClipped3DPolygon(
+        [[c, r, 0], [c + 1, r, 0], [c + 1, r + 1, 0], [c, r + 1, 0]],
+        0.09
+      );
+      if (!poly) continue;
+
       const even = (r + c) % 2 === 0;
       const t = grid[r][c];
-      let fillCol = even ? '#334155' : '#273549';
-      let strokeCol = 'rgba(148, 163, 184, 0.35)';
+      const depthShade = Math.max(0.38, Math.min(1.18, 1.12 / (1 + dist * 0.14)));
+
+      let baseHex = even ? '#3b4c63' : '#2e3d52';
+      let strokeCol = 'rgba(148, 163, 184, 0.34)';
 
       if (t === TILE.EXIT) {
-        fillCol = 'rgba(16, 185, 129, 0.65)';
-        strokeCol = '#6ee7b7';
+        baseHex = '#10b981';
+        strokeCol = '#a7f3d0';
       } else if (c <= 3 && r <= 3) {
         // Warm Oak Parquet Bedroom Floor
-        fillCol = even ? '#78350f' : '#652b0d';
-        strokeCol = 'rgba(251, 191, 36, 0.32)';
+        baseHex = even ? '#854d0e' : '#713f12';
+        strokeCol = 'rgba(253, 224, 71, 0.28)';
       } else if (c >= 4 && c <= 7 && r <= 3) {
         // Clean Aqua Ceramic Bathroom Tile
-        fillCol = even ? '#155e75' : '#0e4f63';
-        strokeCol = 'rgba(103, 232, 249, 0.38)';
+        baseHex = even ? '#0e7490' : '#155e75';
+        strokeCol = 'rgba(103, 232, 249, 0.35)';
       } else if (c <= 5 && r >= 5) {
-        // Terracotta Kitchen Floor
-        fillCol = even ? '#5b232c' : '#4a1b23';
-        strokeCol = 'rgba(253, 164, 175, 0.30)';
+        // Warm Terracotta Kitchen/Lab Tile
+        baseHex = even ? '#7f1d1d' : '#651a1a';
+        strokeCol = 'rgba(253, 164, 175, 0.28)';
       }
 
-      ctx.fillStyle = fillCol;
+      ctx.fillStyle = shadeHexColor(baseHex, depthShade);
       ctx.beginPath();
-      ctx.moveTo(p0.x, p0.y);
-      ctx.lineTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.lineTo(p3.x, p3.y);
+      ctx.moveTo(poly[0].x, poly[0].y);
+      for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = Math.max(0.8, Math.min(2.2, 3.0 / fq.avgDepth));
+      ctx.lineWidth = Math.max(0.8, Math.min(2.0, 2.6 / Math.max(0.4, dist)));
       ctx.stroke();
 
-      // Glowing Green Photoluminescent Emergency Guide Strip on Corridor Floors
+      // Wood Parquet Plank Sub-Line or Corridor Photoluminescent Guide Strip
       if (r === 4 || c === 8) {
-        const gc0 = project3DPoint(c + 0.42, r + 0.42, 0);
-        const gc1 = project3DPoint(c + 0.58, r + 0.58, 0);
-        if (gc0 && gc1) {
-          ctx.strokeStyle = 'rgba(52, 211, 153, 0.55)';
-          ctx.lineWidth = Math.max(1.5, 4.0 / fq.avgDepth);
+        const stripPoly = projectClipped3DPolygon(
+          [[c + 0.38, r + 0.38, 0.005], [c + 0.62, r + 0.38, 0.005], [c + 0.62, r + 0.62, 0.005], [c + 0.38, r + 0.62, 0.005]],
+          0.10
+        );
+        if (stripPoly) {
+          ctx.fillStyle = 'rgba(52, 211, 153, 0.65)';
           ctx.beginPath();
-          ctx.moveTo(gc0.x, gc0.y);
-          ctx.lineTo(gc1.x, gc1.y);
+          ctx.moveTo(stripPoly[0].x, stripPoly[0].y);
+          for (let k = 1; k < stripPoly.length; k++) ctx.lineTo(stripPoly[k].x, stripPoly[k].y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Recessed 3D Ceiling LED Light Panel & Emergency Strobe above open rooms
+      if ((r % 2 === 1) && (c % 2 === 1) && dist < 9.5) {
+        const ceilPoly = projectClipped3DPolygon(
+          [[c + 0.22, r + 0.22, 0.99], [c + 0.78, r + 0.22, 0.99], [c + 0.78, r + 0.78, 0.99], [c + 0.22, r + 0.78, 0.99]],
+          0.18
+        );
+        if (ceilPoly) {
+          ctx.fillStyle = st.isDarkStage
+            ? 'rgba(56, 189, 248, 0.32)'
+            : (powerRestored ? 'rgba(254, 249, 195, 0.88)' : 'rgba(253, 224, 71, 0.68)');
+          ctx.beginPath();
+          ctx.moveTo(ceilPoly[0].x, ceilPoly[0].y);
+          for (let k = 1; k < ceilPoly.length; k++) ctx.lineTo(ceilPoly[k].x, ceilPoly[k].y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       }
     }
 
-    // 2B. Golden 3D Escape Route Chevrons & World-Space 3D Footprints on the Floor
+    // 2B. Discrete 3D Glowing Floor Guide Pads & World-Space 3D Footprints (Never clips into a giant yellow polygon under the camera!)
     const nextObj = getNextStepObjective();
     const routePath = nextObj
       ? computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r)
       : [];
 
     if (routePath && routePath.length >= 2) {
-      for (let i = 0; i < routePath.length - 1; i++) {
+      for (let i = 1; i < routePath.length; i++) {
+        const prev = routePath[i - 1];
         const curr = routePath[i];
-        const next = routePath[i + 1];
-        const fp = project3DPoint(curr.c + 0.5, curr.r + 0.5, 0.02);
-        const tp = project3DPoint(next.c + 0.5, next.r + 0.5, 0.02);
-        if (fp && tp && fp.depth < 8.5) {
-          ctx.strokeStyle = 'rgba(250, 204, 21, 0.82)';
-          ctx.lineWidth = Math.max(2, 6 / fp.depth);
+        const cp = toCamSpace(curr.c + 0.5, curr.r + 0.5, 0.015);
+        if (cp.depth < 0.65 || cp.depth > 9.5) continue;
+        const padPoly = projectClipped3DPolygon(
+          [
+            [curr.c + 0.32, curr.r + 0.32, 0.012],
+            [curr.c + 0.68, curr.r + 0.32, 0.012],
+            [curr.c + 0.68, curr.r + 0.68, 0.012],
+            [curr.c + 0.32, curr.r + 0.68, 0.012]
+          ],
+          0.35
+        );
+        if (padPoly) {
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.38)';
+          ctx.strokeStyle = 'rgba(250, 204, 21, 0.88)';
+          ctx.lineWidth = Math.max(1, 2.2 / cp.depth);
           ctx.beginPath();
-          ctx.moveTo(fp.x, fp.y);
-          ctx.lineTo(tp.x, tp.y);
-          ctx.stroke();
-          ctx.fillStyle = '#fef08a';
-          ctx.beginPath();
-          ctx.arc(tp.x, tp.y, Math.max(2.5, 5 / tp.depth), 0, Math.PI * 2);
+          ctx.moveTo(padPoly[0].x, padPoly[0].y);
+          for (let k = 1; k < padPoly.length; k++) ctx.lineTo(padPoly[k].x, padPoly[k].y);
+          ctx.closePath();
           ctx.fill();
+          ctx.stroke();
+
+          const centerPt = project3DPoint(curr.c + 0.5, curr.r + 0.5, 0.02, 0.35);
+          if (centerPt) {
+            const dc = curr.c - prev.c;
+            const dr = curr.r - prev.r;
+            const arrowChar = dc > 0 ? '▶' : (dc < 0 ? '◀' : (dr > 0 ? '▼' : '▲'));
+            ctx.font = `900 ${Math.max(10, Math.min(18, Math.floor(22 / cp.depth)))}px sans-serif`;
+            ctx.fillStyle = '#fde047';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(arrowChar, centerPt.x, centerPt.y);
+          }
         }
       }
     }
 
     for (const fs of footsteps3D) {
-      const fp = project3DPoint(fs.x, fs.y, 0.01);
+      const fp = project3DPoint(fs.x, fs.y, 0.01, 0.25);
       if (!fp || fp.depth > 5.0) continue;
       const alpha = Math.max(0, (fs.life / fs.maxLife) * 0.55);
       const rx = Math.max(2.5, 8 / fp.depth);
@@ -4279,9 +4380,12 @@
       ctx.fill();
     }
 
-    // 3. Solid, Full-Height 3D Architectural Walls & Doors Raycasting Pass (Zero Floating Walls, Zero Comb-Stripes!)
-    const numRays = Math.min(480, Math.max(240, Math.floor(width * 0.45)));
+    // 3. High-Resolution 1px 3D Architectural Wall Shader with Distance Lighting, Flashlight Cone & Escape-Room Wall Fixtures
+    const qSetting = (appSettings && appSettings.graphicsQuality) || 'auto';
+    const rayBudget = qSetting === 'low' ? 320 : 960;
+    const numRays = Math.min(rayBudget, Math.max(240, Math.floor(width)));
     const zBuffer = new Float32Array(numRays);
+    const visibleWallFixtures = new Map();
 
     function isFullHeightWallTile(t) {
       return (
@@ -4353,176 +4457,291 @@
       const perpDist = Math.max(0.14, rawDist * Math.cos(rayAngle - fpsCamYaw));
       zBuffer[i] = perpDist;
 
-      // Exact Unclamped Perspective Wall Top & Bottom (100% Anchored to the 3D Floor Plane!)
       const projH = vertScale / perpDist;
       const wallBottom = horizon + projH * camEyeZ;
       const wallTop = wallBottom - projH;
 
-      // Exact Non-Overlapping Integer Strip Coordinates (Eliminates Vertical Comb-Stripes!)
       const x0 = Math.floor((i * width) / numRays);
-      const x1 = Math.floor(((i + 1) * width) / numRays);
+      const x1 = Math.ceil(((i + 1) * width) / numRays);
       const sw = Math.max(1, x1 - x0);
 
-      // Exact Horizontal Texture Coordinate wallX in [0, 1) on the Hit Tile Face
       let wallX = side === 0 ? (camWorldY + rawDist * rayDirY) : (camWorldX + rawDist * rayDirX);
       wallX -= Math.floor(wallX);
 
       const isSideLit = side === 0;
-      const isEdgeSeam = wallX < 0.045 || wallX > 0.955;
+      const isEdgeSeam = wallX < 0.035 || wallX > 0.965;
+
+      // Dynamic Distance Shading + 3D Flashlight Cone (F) + Power Recovery Boost
+      let lightFactor = (isSideLit ? 1.02 : 0.84) / (1 + perpDist * 0.14);
+      if (powerRestored) lightFactor *= 1.10;
+      if (st.isDarkStage && !powerRestored) lightFactor *= 0.62;
+      if (flashlightSpotEnabled || player.hasFlashlight) {
+        const coneDist = Math.abs(camX);
+        if (coneDist < 0.45) {
+          const spotStrength = (1 - (coneDist / 0.45) ** 2) * (player.hasFlashlight ? 0.36 : 0.20);
+          lightFactor += spotStrength / (1 + perpDist * 0.12);
+        }
+      }
+      lightFactor = Math.min(1.06, lightFactor);
 
       if (hitTile === TILE.DOOR || hitTile === TILE.LOCKED_DOOR || hitTile === TILE.HOT_DOOR) {
-        // 3D Architectural Door Frame + Recessed Wood Panels + Brass Doorknob
-        const isFrameJamb = wallX < 0.12 || wallX > 0.88;
+        // 3D Architectural Door Frame + Glass Vision Window + Recessed Wood Panels + Brass Handle
+        const isFrameJamb = wallX < 0.11 || wallX > 0.89;
         if (isFrameJamb) {
-          ctx.fillStyle = isSideLit ? '#5c2808' : '#451a03';
+          ctx.fillStyle = shadeHexColor('#5c2808', lightFactor);
           ctx.fillRect(x0, wallTop, sw, projH);
         } else {
-          let leafCol = isSideLit ? '#d97706' : '#b45309';
-          if (hitTile === TILE.LOCKED_DOOR) leafCol = isSideLit ? '#eab308' : '#ca8a04';
-          else if (hitTile === TILE.HOT_DOOR) leafCol = isSideLit ? '#ef4444' : '#b91c1c';
+          let leafHex = '#b45309';
+          if (hitTile === TILE.LOCKED_DOOR) leafHex = '#ca8a04';
+          else if (hitTile === TILE.HOT_DOOR) leafHex = '#dc2626';
 
-          // Top Transom Frame
-          ctx.fillStyle = '#451a03';
-          ctx.fillRect(x0, wallTop, sw, projH * 0.09);
+          ctx.fillStyle = shadeHexColor('#451a03', lightFactor);
+          ctx.fillRect(x0, wallTop, sw, projH * 0.08);
 
-          // Main Door Leaf
-          ctx.fillStyle = leafCol;
-          ctx.fillRect(x0, wallTop + projH * 0.09, sw, projH * 0.91);
+          ctx.fillStyle = shadeHexColor(leafHex, lightFactor);
+          ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.92);
 
-          // Recessed Upper & Lower Door Panels
-          if (wallX > 0.22 && wallX < 0.78) {
-            const panelCol = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#854d0e' : '#78350f');
-            ctx.fillStyle = panelCol;
-            ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.28);
-            ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.30);
+          // Upper Glass Observation Window with Muntin Frame & Lower Recessed Panel
+          if (wallX > 0.24 && wallX < 0.76) {
+            const isWindowBorder = wallX < 0.27 || wallX > 0.73 || Math.abs(wallX - 0.5) < 0.018;
+            ctx.fillStyle = isWindowBorder
+              ? shadeHexColor('#451a03', lightFactor)
+              : (hitTile === TILE.HOT_DOOR
+                ? shadeHexColor('#fca5a5', lightFactor * 1.15)
+                : shadeHexColor('#38bdf8', lightFactor * 0.92));
+            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.24);
+
+            const panelHex = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#713f12' : '#78350f');
+            ctx.fillStyle = shadeHexColor(panelHex, lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.52, sw, projH * 0.34);
           }
 
-          // 3D Brass Doorknob / Lock Plate
-          if (wallX >= 0.71 && wallX <= 0.82) {
+          // 3D Brass Lever Handle & Keyhole Plate
+          if (wallX >= 0.72 && wallX <= 0.83) {
             ctx.fillStyle = '#fde047';
-            ctx.fillRect(x0, wallTop + projH * 0.47, sw, projH * 0.07);
+            ctx.fillRect(x0, wallTop + projH * 0.45, sw, projH * 0.055);
           }
         }
       } else if (hitTile === TILE.EXIT) {
         // 3D Illuminated Emergency Exit Portal
         const isFrame = wallX < 0.10 || wallX > 0.90;
-        ctx.fillStyle = isFrame ? '#064e3b' : (isSideLit ? '#10b981' : '#059669');
+        ctx.fillStyle = shadeHexColor(isFrame ? '#064e3b' : '#10b981', lightFactor * 1.15);
         ctx.fillRect(x0, wallTop, sw, projH);
 
-        // Overhead Glowing White/Green EXIT Sign Box
         if (wallX > 0.18 && wallX < 0.82) {
           ctx.fillStyle = '#ecfdf5';
           ctx.fillRect(x0, wallTop + projH * 0.06, sw, projH * 0.16);
           ctx.fillStyle = '#047857';
           ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.12);
-          // Glowing Inner Exit Doorway
           ctx.fillStyle = '#6ee7b7';
           ctx.fillRect(x0, wallTop + projH * 0.28, sw, projH * 0.68);
         }
       } else if (hitTile === TILE.ELEVATOR) {
-        // Brushed Steel Elevator Doors (Do Not Enter)
-        ctx.fillStyle = isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : (isSideLit ? '#64748b' : '#475569');
+        ctx.fillStyle = shadeHexColor(isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : '#64748b', lightFactor);
         ctx.fillRect(x0, wallTop, sw, projH);
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.07);
       } else if (hitTile === TILE.PARTITION || hitTile === TILE.LIFELINE) {
-        const baseCol = hitTile === TILE.LIFELINE ? (isSideLit ? '#0284c7' : '#0369a1') : (isSideLit ? '#ea580c' : '#c2410c');
-        ctx.fillStyle = baseCol;
+        const baseHex = hitTile === TILE.LIFELINE ? '#0284c7' : '#ea580c';
+        ctx.fillStyle = shadeHexColor(baseHex, lightFactor);
         ctx.fillRect(x0, wallTop, sw, projH);
         if (wallX > 0.15 && wallX < 0.85) {
-          ctx.fillStyle = hitTile === TILE.LIFELINE ? '#bae6fd' : '#fdba74';
+          ctx.fillStyle = shadeHexColor(hitTile === TILE.LIFELINE ? '#bae6fd' : '#fdba74', lightFactor);
           ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.52);
         }
       } else {
-        // Standard 3D Building Interior Wall (Crown Molding + Upper Plaster + Photoluminescent Safety Line + Lower Wood Wainscoting + Baseboard)
-        const upperCol = isEdgeSeam
-          ? '#334155'
-          : (isSideLit ? '#94a3b8' : '#64748b');
-        const lowerCol = isEdgeSeam
-          ? '#1e293b'
-          : (isSideLit ? '#475569' : '#334155');
+        // Clean, Modern 3D Escape-Room Wall Architecture (Acoustic Slate Panels + Framed Wainscoting + Emergency Guide Ribbon)
+        const wallFeature = (mapX * 7 + mapY * 13) % 4;
+        const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.014;
+        const upperHex = isPanelJoint ? '#334155' : '#64748b';
+        const lowerHex = isEdgeSeam ? '#0f172a' : '#334155';
 
-        // Upper Plaster Wall
-        ctx.fillStyle = upperCol;
+        // Upper Acoustic Slate Wall + Horizontal Perspective Courses
+        ctx.fillStyle = shadeHexColor(upperHex, lightFactor);
         ctx.fillRect(x0, wallTop, sw, projH * 0.62);
+        ctx.fillStyle = shadeHexColor('#475569', lightFactor * 0.88);
+        ctx.fillRect(x0, wallTop + projH * 0.22, sw, Math.max(1.5, projH * 0.012));
+        ctx.fillRect(x0, wallTop + projH * 0.42, sw, Math.max(1.5, projH * 0.012));
 
-        // Ceiling Crown Molding
-        ctx.fillStyle = isSideLit ? '#e2e8f0' : '#cbd5e1';
-        ctx.fillRect(x0, wallTop, sw, projH * 0.055);
+        // Ceiling Crown Molding & Ambient Occlusion Strip
+        ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
+        ctx.fillRect(x0, wallTop, sw, projH * 0.045);
+        ctx.fillStyle = shadeHexColor('#1e293b', lightFactor * 0.85);
+        ctx.fillRect(x0, wallTop + projH * 0.045, sw, projH * 0.015);
+
+        // 3D Recessed Architectural Wall Fixtures on Every Wall Segment
+        if (wallX > 0.22 && wallX < 0.78) {
+          const isFixtureBorder = wallX < 0.25 || wallX > 0.75;
+          if (wallFeature === 0) {
+            // Framed Safety Blueprint Board (Dark Slate Frame + Deep Blueprint Interior)
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#0f172a' : '#0c4a6e', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.30);
+            if (wallX > 0.46 && wallX < 0.54 && perpDist < 5.2) {
+              const fKey = `${mapX},${mapY},${side}`;
+              if (!visibleWallFixtures.has(fKey)) {
+                visibleWallFixtures.set(fKey, { x: x0, y: wallTop + projH * 0.30, depth: perpDist, label: '🗺️ 피난안내도(614)' });
+              }
+            }
+          } else if (wallFeature === 1) {
+            // Exterior / Corridor Night Window with Aluminum Mullion Crossbars
+            const isMullion = isFixtureBorder || Math.abs(wallX - 0.50) < 0.02;
+            ctx.fillStyle = shadeHexColor(isMullion ? '#1e293b' : '#1e3a8a', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.32);
+            if (!isMullion) {
+              ctx.fillStyle = shadeHexColor('#38bdf8', lightFactor * 0.90);
+              ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.06);
+            }
+          } else if (wallFeature === 2) {
+            // Recessed Wall Archive Bookshelf (자정의 서가 단서 책장)
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#451a03' : '#291507', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
+            if (!isFixtureBorder) {
+              const bookBand = Math.floor(wallX * 14) % 4;
+              const bookHex = bookBand === 0 ? '#dc2626' : (bookBand === 1 ? '#2563eb' : (bookBand === 2 ? '#059669' : '#d97706'));
+              ctx.fillStyle = shadeHexColor(bookHex, lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.18, sw, projH * 0.11);
+              ctx.fillRect(x0, wallTop + projH * 0.33, sw, projH * 0.11);
+            }
+            if (wallX > 0.46 && wallX < 0.54 && perpDist < 5.0) {
+              const fKey = `${mapX},${mapY},${side}`;
+              if (!visibleWallFixtures.has(fKey)) {
+                visibleWallFixtures.set(fKey, { x: x0, y: wallTop + projH * 0.31, depth: perpDist, label: '📚 매뉴얼서가(425.12)' });
+              }
+            }
+          } else {
+            // Framed Acoustic Wall Relief + Emergency Wall Sconce
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#1e293b' : '#475569', lightFactor * 0.94);
+            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.30);
+            if (wallX > 0.43 && wallX < 0.57) {
+              ctx.fillStyle = shadeHexColor('#38bdf8', Math.max(0.85, lightFactor));
+              ctx.fillRect(x0, wallTop + projH * 0.24, sw, projH * 0.08);
+            }
+          }
+        }
 
         // Lower Wainscoting Wall
-        ctx.fillStyle = lowerCol;
+        ctx.fillStyle = shadeHexColor(lowerHex, lightFactor);
         ctx.fillRect(x0, wallTop + projH * 0.62, sw, projH * 0.38);
 
-        // Recessed Wainscoting Panel Detail
-        if (wallX > 0.18 && wallX < 0.82) {
-          ctx.fillStyle = isSideLit ? '#3b495e' : '#283548';
+        if (wallX > 0.16 && wallX < 0.84) {
+          ctx.fillStyle = shadeHexColor('#1e293b', lightFactor * 0.94);
           ctx.fillRect(x0, wallTop + projH * 0.68, sw, projH * 0.20);
         }
 
-        // Photoluminescent Green Emergency Wall Guide Stripe & Golden Trim
-        ctx.fillStyle = '#10b981';
-        ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.042);
-        ctx.fillStyle = '#fde047';
+        // Photoluminescent Green Emergency Wall Guide Ribbon & Golden Trim
+        ctx.fillStyle = shadeHexColor('#10b981', Math.max(0.75, lightFactor));
+        ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.035);
+        ctx.fillStyle = shadeHexColor('#fde047', Math.max(0.75, lightFactor));
         ctx.fillRect(x0, wallTop + projH * 0.58, sw, projH * 0.012);
 
-        // Dark Architectural Floor Baseboard (Anchors Wall Crisp to Floor!)
+        // Dark Architectural Floor Baseboard
         ctx.fillStyle = '#0f172a';
-        ctx.fillRect(x0, wallBottom - projH * 0.075, sw, projH * 0.075);
+        ctx.fillRect(x0, wallBottom - projH * 0.065, sw, projH * 0.065);
       }
     }
 
-    // 4. True 3D Perspective Floor Boxes (3D Beds, Desks, Wardrobes, Porcelain Sinks, Open Doorway Arches, Valves) & 3D Billboards
+    // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints & Archive Bookshelves)
+    for (const wf of visibleWallFixtures.values()) {
+      if (wf.x < 60 || wf.x > width - 60) continue;
+      ctx.save();
+      ctx.font = `bold ${Math.max(10, Math.min(14, Math.floor(19 / wf.depth)))}px "Noto Sans KR", sans-serif`;
+      const tw = ctx.measureText(wf.label).width + 10;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1;
+      ctx.fillRect(wf.x - tw * 0.5, wf.y - 9, tw, 18);
+      ctx.strokeRect(wf.x - tw * 0.5, wf.y - 9, tw, 18);
+      ctx.fillStyle = '#e0f2fe';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(wf.label, wf.x, wf.y);
+      ctx.restore();
+    }
+
+    // 4. Per-Column Z-Buffer Clipped + Near-Plane Clipped Multi-Part 3D Room Furniture & Escape-Room Stations
+    // (Completely eliminates the giant flat brown polygon bug and prevents furniture from bleeding through walls!)
     function isPointVisibleInZBuffer(screenX, depth) {
       const rayIdx = Math.max(0, Math.min(numRays - 1, Math.floor((screenX / width) * numRays)));
-      return depth < zBuffer[rayIdx] + 0.28;
+      return depth < zBuffer[rayIdx] + 0.22;
     }
 
     function draw3DPerspectiveBox(wx0, wy0, wx1, wy1, wz0, wz1, topCol, sideColLit, sideColShade, strokeCol) {
-      const centerP = project3DPoint((wx0 + wx1) * 0.5, (wy0 + wy1) * 0.5, (wz0 + wz1) * 0.5);
-      if (!centerP || centerP.depth <= 0.18 || centerP.depth > 10.5) return;
-      if (!isPointVisibleInZBuffer(centerP.x, centerP.depth - 0.15)) return;
+      const cx = (wx0 + wx1) * 0.5;
+      const cy = (wy0 + wy1) * 0.5;
+      const cz = (wz0 + wz1) * 0.5;
+      const centerCam = toCamSpace(cx, cy, cz);
+      // Do not draw boxes behind or intersecting the camera lens (< 0.36m) to prevent screen-filling flat polygons
+      if (centerCam.depth <= 0.36 || centerCam.depth > 10.5) return;
 
-      const b00 = project3DPoint(wx0, wy0, wz0);
-      const b10 = project3DPoint(wx1, wy0, wz0);
-      const b11 = project3DPoint(wx1, wy1, wz0);
-      const b01 = project3DPoint(wx0, wy1, wz0);
+      const faces = [];
+      if (camWorldY < wy0) {
+        faces.push({ pts: [[wx0, wy0, wz0], [wx1, wy0, wz0], [wx1, wy0, wz1], [wx0, wy0, wz1]], col: sideColShade });
+      }
+      if (camWorldY > wy1) {
+        faces.push({ pts: [[wx0, wy1, wz0], [wx1, wy1, wz0], [wx1, wy1, wz1], [wx0, wy1, wz1]], col: sideColShade });
+      }
+      if (camWorldX < wx0) {
+        faces.push({ pts: [[wx0, wy0, wz0], [wx0, wy1, wz0], [wx0, wy1, wz1], [wx0, wy0, wz1]], col: sideColLit });
+      }
+      if (camWorldX > wx1) {
+        faces.push({ pts: [[wx1, wy0, wz0], [wx1, wy1, wz0], [wx1, wy1, wz1], [wx1, wy0, wz1]], col: sideColLit });
+      }
+      if (camEyeZ >= wz1 - 0.04) {
+        faces.push({ pts: [[wx0, wy0, wz1], [wx1, wy0, wz1], [wx1, wy1, wz1], [wx0, wy1, wz1]], col: topCol });
+      }
 
-      const t00 = project3DPoint(wx0, wy0, wz1);
-      const t10 = project3DPoint(wx1, wy0, wz1);
-      const t11 = project3DPoint(wx1, wy1, wz1);
-      const t01 = project3DPoint(wx0, wy1, wz1);
+      if (faces.length === 0) return;
 
-      if (!b00 || !b10 || !b11 || !b01 || !t00 || !t10 || !t11 || !t01) return;
+      // Build a per-column Z-buffer visibility clip path so walls ALWAYS occlude furniture behind them!
+      let minScreenX = width;
+      let maxScreenX = 0;
+      const projectedFaces = [];
+      for (const f of faces) {
+        const poly = projectClipped3DPolygon(f.pts, 0.28);
+        if (!poly) continue;
+        for (const p of poly) {
+          if (p.x < minScreenX) minScreenX = p.x;
+          if (p.x > maxScreenX) maxScreenX = p.x;
+        }
+        projectedFaces.push({ poly, col: f.col });
+      }
+      if (projectedFaces.length === 0) return;
 
-      function fillQuad(pA, pB, pC, pD, fillStyle) {
-        ctx.fillStyle = fillStyle;
+      const startRay = Math.max(0, Math.floor((minScreenX / width) * numRays));
+      const endRay = Math.min(numRays - 1, Math.ceil((maxScreenX / width) * numRays));
+      let anyVisibleCol = false;
+
+      ctx.save();
+      ctx.beginPath();
+      for (let rIdx = startRay; rIdx <= endRay; rIdx++) {
+        if (centerCam.depth < zBuffer[rIdx] + 0.20) {
+          anyVisibleCol = true;
+          const rx0 = Math.floor((rIdx * width) / numRays);
+          const rx1 = Math.ceil(((rIdx + 1) * width) / numRays);
+          ctx.rect(rx0, 0, Math.max(1, rx1 - rx0), height);
+        }
+      }
+      if (!anyVisibleCol) {
+        ctx.restore();
+        return;
+      }
+      ctx.clip();
+
+      const distFactor = Math.max(0.45, Math.min(1.15, 1.08 / (1 + centerCam.depth * 0.12)));
+      for (const pf of projectedFaces) {
+        ctx.fillStyle = pf.col.startsWith('#') ? shadeHexColor(pf.col, distFactor) : pf.col;
         ctx.beginPath();
-        ctx.moveTo(pA.x, pA.y);
-        ctx.lineTo(pB.x, pB.y);
-        ctx.lineTo(pC.x, pC.y);
-        ctx.lineTo(pD.x, pD.y);
+        ctx.moveTo(pf.poly[0].x, pf.poly[0].y);
+        for (let k = 1; k < pf.poly.length; k++) ctx.lineTo(pf.poly[k].x, pf.poly[k].y);
         ctx.closePath();
         ctx.fill();
         if (strokeCol) {
           ctx.strokeStyle = strokeCol;
-          ctx.lineWidth = 1;
+          ctx.lineWidth = 1.1;
           ctx.stroke();
         }
       }
-
-      // Draw the vertical side faces that face the camera eye (camWorldX, camWorldY)
-      if (camWorldY < wy0) fillQuad(b00, b10, t10, t00, sideColShade);
-      if (camWorldY > wy1) fillQuad(b01, b11, t11, t01, sideColShade);
-      if (camWorldX < wx0) fillQuad(b00, b01, t01, t00, sideColLit);
-      if (camWorldX > wx1) fillQuad(b10, b11, t11, t10, sideColLit);
-
-      // Draw the top horizontal face (if camera eye is above wz1, or if it's a low furniture box)
-      if (camEyeZ >= wz1 - 0.05) {
-        fillQuad(t00, t10, t11, t01, topCol);
-      } else if (camEyeZ <= wz0 + 0.05) {
-        fillQuad(b00, b10, b11, b01, sideColShade);
-      }
+      ctx.restore();
     }
 
     // Collect all 3D room objects, open doors, items, fires, smokes, and door labels for back-to-front depth sorting
@@ -4532,30 +4751,30 @@
       for (let c = 0; c < COLS; c++) {
         const t = grid[r][c];
         if (t === TILE.FLOOR || t === TILE.WALL) continue;
-        const p = project3DPoint(c + 0.5, r + 0.5, 0.25);
-        if (!p || p.depth > 10.5) continue;
-        objects3D.push({ kind: 'tileObj', r, c, t, depth: p.depth });
+        const cp = toCamSpace(c + 0.5, r + 0.5, 0.25);
+        if (cp.depth <= 0.15 || cp.depth > 10.5) continue;
+        objects3D.push({ kind: 'tileObj', r, c, t, depth: cp.depth });
       }
     }
 
     for (const it of items) {
-      const p = project3DPoint(it.c + 0.5, it.r + 0.5, 0.20);
-      if (p && p.depth <= 10.5) {
-        objects3D.push({ kind: 'item', it, depth: p.depth });
+      const cp = toCamSpace(it.c + 0.5, it.r + 0.5, 0.20);
+      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+        objects3D.push({ kind: 'item', it, depth: cp.depth });
       }
     }
 
     for (const f of fires) {
-      const p = project3DPoint(f.c + 0.5, f.r + 0.5, 0.25);
-      if (p && p.depth <= 10.5) {
-        objects3D.push({ kind: 'fire', f, depth: p.depth });
+      const cp = toCamSpace(f.c + 0.5, f.r + 0.5, 0.25);
+      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+        objects3D.push({ kind: 'fire', f, depth: cp.depth });
       }
     }
 
     for (const s of smokes) {
-      const p = project3DPoint(s.c + 0.5, s.r + 0.5, 0.72);
-      if (p && p.depth <= 10.5) {
-        objects3D.push({ kind: 'smoke', s, depth: p.depth });
+      const cp = toCamSpace(s.c + 0.5, s.r + 0.5, 0.75);
+      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+        objects3D.push({ kind: 'smoke', s, depth: cp.depth });
       }
     }
 
@@ -4568,33 +4787,40 @@
           const fKind = (r + c * 3) % 3;
           if (fKind === 0) {
             // 3D Bedroom Bed on Floor (Mattress + Blue Blanket + Wooden Headboard + White Pillow)
-            draw3DPerspectiveBox(c + 0.10, r + 0.12, c + 0.90, r + 0.88, 0, 0.24, '#3b82f6', '#1d4ed8', '#1e3a8a', '#93c5fd');
-            draw3DPerspectiveBox(c + 0.10, r + 0.10, c + 0.90, r + 0.26, 0, 0.48, '#92400e', '#78350f', '#451a03', '#fbbf24');
-            draw3DPerspectiveBox(c + 0.22, r + 0.24, c + 0.78, r + 0.44, 0.24, 0.30, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+            draw3DPerspectiveBox(c + 0.12, r + 0.14, c + 0.88, r + 0.86, 0, 0.24, '#3b82f6', '#2563eb', '#1d4ed8', '#93c5fd');
+            draw3DPerspectiveBox(c + 0.12, r + 0.12, c + 0.88, r + 0.26, 0, 0.46, '#92400e', '#78350f', '#451a03', '#fbbf24');
+            draw3DPerspectiveBox(c + 0.24, r + 0.24, c + 0.76, r + 0.42, 0.24, 0.30, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
           } else if (fKind === 1) {
-            // 3D Wooden Study Desk + Monitor
-            draw3DPerspectiveBox(c + 0.12, r + 0.16, c + 0.88, r + 0.84, 0, 0.34, '#d97706', '#b45309', '#78350f', '#fde68a');
-            draw3DPerspectiveBox(c + 0.30, r + 0.32, c + 0.70, r + 0.56, 0.34, 0.54, '#38bdf8', '#0284c7', '#0f172a', '#bae6fd');
+            // 3D Study Desk + Archive Terminal (자정의 서가 자료관리 컴퓨터 & 디지털 금고)
+            draw3DPerspectiveBox(c + 0.14, r + 0.18, c + 0.86, r + 0.82, 0, 0.32, '#d97706', '#b45309', '#78350f', '#fde68a');
+            draw3DPerspectiveBox(c + 0.28, r + 0.30, c + 0.72, r + 0.56, 0.32, 0.54, '#0284c7', '#0369a1', '#0f172a', '#38bdf8');
           } else {
-            // 3D Wooden Cabinet
-            draw3DPerspectiveBox(c + 0.14, r + 0.14, c + 0.86, r + 0.86, 0, 0.56, '#b45309', '#92400e', '#78350f', '#fcd34d');
+            // 3D Escape-Room Safe & Multi-Tier Clue Bookshelf (No Giant Flat Brown Cube!)
+            draw3DPerspectiveBox(c + 0.18, r + 0.18, c + 0.82, r + 0.82, 0, 0.30, '#475569', '#334155', '#1e293b', '#94a3b8');
+            draw3DPerspectiveBox(c + 0.24, r + 0.24, c + 0.76, r + 0.76, 0.30, 0.52, '#0f172a', '#1e293b', '#090d16', '#22d3ee');
+            const sp = project3DPoint(c + 0.5, r + 0.5, 0.60);
+            if (sp && sp.depth < 6.0 && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
+              ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              ctx.fillStyle = safeSolved ? '#6ee7b7' : '#67e8f9';
+              ctx.textAlign = 'center';
+              ctx.fillText(safeSolved ? '🔓금고(해제됨)' : '🔐비상금고(614)', sp.x, sp.y);
+            }
           }
         } else if (t === TILE.SINK) {
           // 3D Porcelain Washbasin Vanity + Water Basin
-          draw3DPerspectiveBox(c + 0.12, r + 0.14, c + 0.88, r + 0.86, 0, 0.38, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
-          draw3DPerspectiveBox(c + 0.24, r + 0.26, c + 0.76, r + 0.74, 0.38, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
+          draw3DPerspectiveBox(c + 0.14, r + 0.16, c + 0.86, r + 0.84, 0, 0.36, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
+          draw3DPerspectiveBox(c + 0.24, r + 0.26, c + 0.76, r + 0.74, 0.36, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
           const sp = project3DPoint(c + 0.5, r + 0.5, 0.54);
           if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
             ctx.font = `bold ${Math.max(11, Math.min(20, Math.floor(26 / sp.depth)))}px "Noto Sans KR", sans-serif`;
             ctx.fillStyle = '#bae6fd';
             ctx.textAlign = 'center';
-            ctx.fillText('🚰세면대', sp.x, sp.y);
+            ctx.fillText('🚰세면대(수건적시기)', sp.x, sp.y);
           }
         } else if (t === TILE.OPEN_DOOR) {
-          // 3D Open Doorway Arch (Left & Right Jamb Pillars + Top Lintel Beam — Center is Open to Walk Through!)
-          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.16, r + 0.92, 0, 0.92, '#78350f', '#92400e', '#451a03', '#fbbf24');
-          draw3DPerspectiveBox(c + 0.84, r + 0.08, c + 0.98, r + 0.92, 0, 0.92, '#78350f', '#92400e', '#451a03', '#fbbf24');
-          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.98, r + 0.92, 0.84, 1.0, '#78350f', '#92400e', '#451a03', '#fbbf24');
+          // 3D Open Doorway Arch
+          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.16, r + 0.92, 0, 0.90, '#78350f', '#92400e', '#451a03', '#fbbf24');
+          draw3DPerspectiveBox(c + 0.84, r + 0.08, c + 0.98, r + 0.92, 0, 0.90, '#78350f', '#92400e', '#451a03', '#fbbf24');
           const dp = project3DPoint(c + 0.5, r + 0.5, 0.72);
           if (dp && dp.depth < 5.5 && isPointVisibleInZBuffer(dp.x, dp.depth - 0.1)) {
             ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / dp.depth)))}px "Noto Sans KR", sans-serif`;
@@ -4603,13 +4829,15 @@
             ctx.fillText('🚪열린문(통과)', dp.x, dp.y);
           }
         } else if (t === TILE.DEBRIS) {
-          draw3DPerspectiveBox(c + 0.12, r + 0.12, c + 0.88, r + 0.88, 0, 0.45, '#b45309', '#92400e', '#451a03', '#fb923c');
-          const dp = project3DPoint(c + 0.5, r + 0.5, 0.56);
+          // 3D Layered Wooden Planks Barricade (Not a single giant block)
+          draw3DPerspectiveBox(c + 0.14, r + 0.18, c + 0.86, r + 0.46, 0, 0.22, '#d97706', '#b45309', '#78350f', '#fde68a');
+          draw3DPerspectiveBox(c + 0.18, r + 0.52, c + 0.82, r + 0.82, 0, 0.34, '#b45309', '#92400e', '#451a03', '#fb923c');
+          const dp = project3DPoint(c + 0.5, r + 0.5, 0.48);
           if (dp && isPointVisibleInZBuffer(dp.x, dp.depth - 0.15)) {
             ctx.font = `bold ${Math.max(11, Math.min(18, Math.floor(24 / dp.depth)))}px "Noto Sans KR", sans-serif`;
             ctx.fillStyle = '#fed7aa';
             ctx.textAlign = 'center';
-            ctx.fillText('🪵장애물(도끼)', dp.x, dp.y);
+            ctx.fillText('🪵장애물(소방도끼)', dp.x, dp.y);
           }
         } else if (
           t === TILE.GAS_VALVE ||
@@ -4618,27 +4846,29 @@
           t === TILE.PHONE_119 ||
           t === TILE.HAZARD
         ) {
-          draw3DPerspectiveBox(c + 0.22, r + 0.22, c + 0.78, r + 0.78, 0, 0.44, '#334155', '#1e293b', '#0f172a', '#38bdf8');
-          const fp = project3DPoint(c + 0.5, r + 0.5, 0.58);
+          const boxTop = t === TILE.GAS_VALVE
+            ? (player.gasClosed ? '#10b981' : '#ef4444')
+            : (t === TILE.BREAKER ? (player.breakerClosed ? '#10b981' : '#3b82f6') : '#475569');
+          draw3DPerspectiveBox(c + 0.22, r + 0.22, c + 0.78, r + 0.78, 0, 0.42, boxTop, '#1e293b', '#0f172a', '#38bdf8');
+          const fp = project3DPoint(c + 0.5, r + 0.5, 0.56);
           if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.15)) {
-            const label = t === TILE.GAS_VALVE ? '🔴가스밸브'
-              : t === TILE.BREAKER ? '⚡차단기'
-              : t === TILE.ALARM_BELL ? '🔔비상벨'
-              : t === TILE.PHONE_119 ? '📞119전화'
-              : '⚠️위험요소';
+            const label = t === TILE.GAS_VALVE ? (player.gasClosed ? '✅가스밸브(차단됨)' : '🔴가스밸브(잠그기)')
+              : t === TILE.BREAKER ? (player.breakerClosed ? '✅배전판(복구완료)' : '⚡배전판(전원·배선)')
+              : t === TILE.ALARM_BELL ? '🔔비상벨(작동)'
+              : t === TILE.PHONE_119 ? '📞119비상전화'
+              : '⚠️화재위험요소';
             ctx.font = `bold ${Math.max(11, Math.min(19, Math.floor(26 / fp.depth)))}px "Noto Sans KR", sans-serif`;
             ctx.fillStyle = '#fef08a';
             ctx.textAlign = 'center';
             ctx.fillText(label, fp.x, fp.y);
           }
         } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR || t === TILE.EXIT) {
-          // Floating 3D Architectural Door / Exit Badge on the Wall Face
           const wp = project3DPoint(c + 0.5, r + 0.5, 0.55);
           if (wp && wp.depth < 6.5 && isPointVisibleInZBuffer(wp.x, wp.depth - 0.45)) {
             const badgeText = t === TILE.EXIT ? '🏃 EXIT 비상구'
-              : t === TILE.LOCKED_DOOR ? '🔒 잠긴문 (열쇠)'
-              : t === TILE.HOT_DOOR ? '🌡️🔥 고온 위험문'
-              : '🚪 방문 (다가가면 열림)';
+              : t === TILE.LOCKED_DOOR ? '🔒 잠긴문 (열쇠/금고614)'
+              : t === TILE.HOT_DOOR ? '🌡️🔥 고온 위험문 (열지마세요!)'
+              : '🚪 방문 (행동키로 열기)';
             ctx.save();
             ctx.font = `bold ${Math.max(11, Math.min(18, Math.floor(25 / wp.depth)))}px "Noto Sans KR", sans-serif`;
             const tw = ctx.measureText(badgeText).width + 12;
@@ -4657,13 +4887,15 @@
         }
       } else if (obj.kind === 'item') {
         const { it } = obj;
-        const ip = project3DPoint(it.c + 0.5, it.r + 0.5, 0.18 + Math.sin(now * 3.5) * 0.04);
+        // Draw a 3D Pedestal Cushion under the Item + Floating 3D Item Orb
+        draw3DPerspectiveBox(it.c + 0.32, it.r + 0.32, it.c + 0.68, it.r + 0.68, 0, 0.08, '#1e293b', '#0f172a', '#020617', '#38bdf8');
+        const ip = project3DPoint(it.c + 0.5, it.r + 0.5, 0.22 + Math.sin(now * 3.5) * 0.04);
         if (ip && isPointVisibleInZBuffer(ip.x, ip.depth - 0.12)) {
           const rad = Math.max(12, Math.min(34, 42 / ip.depth));
           ctx.save();
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
           ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.arc(ip.x, ip.y, rad, 0, Math.PI * 2);
           ctx.fill();
@@ -4697,7 +4929,7 @@
         }
       } else if (obj.kind === 'smoke') {
         const { s } = obj;
-        const sp = project3DPoint(s.c + 0.5, s.r + 0.5, 0.76);
+        const sp = project3DPoint(s.c + 0.5, s.r + 0.5, 0.78);
         if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.1)) {
           const srad = Math.max(18, Math.min(58, 68 / sp.depth));
           const sGrad = ctx.createRadialGradient(sp.x, sp.y, srad * 0.1, sp.x, sp.y, srad);
@@ -4711,12 +4943,89 @@
       }
     }
 
-    // 5. Floating 3D Objective Beacon in 1st-Person 3D View
+    // 5. PRD F05 Center Raycast Reticle (⌖) & Real-Time Target Distance / Required Action Inspector HUD
+    let aimedTargetInfo = null;
+    for (let d = 0.4; d <= 3.8; d += 0.25) {
+      const tx = player.x + cosYaw * d;
+      const ty = player.y + sinYaw * d;
+      const tc = Math.floor(tx);
+      const tr = Math.floor(ty);
+      if (tc < 0 || tc >= COLS || tr < 0 || tr >= ROWS) break;
+      const hitItem = items.find(it => it.c === tc && it.r === tr);
+      if (hitItem) {
+        aimedTargetInfo = {
+          name: `${hitItem.icon} ${hitItem.name}`,
+          dist: d,
+          action: d <= 1.8 ? '✋ 행동하기(Space/E): 즉시 획득/구출' : '더 가까이 이동하세요'
+        };
+        break;
+      }
+      const tt = grid[tr][tc];
+      if (tt !== TILE.FLOOR && tt !== TILE.OPEN_DOOR) {
+        if (tt === TILE.WALL) break;
+        const tNames = {
+          [TILE.DOOR]: ['🚪 일반 방문', '✋ 행동하기(Space/E): 문 열기'],
+          [TILE.LOCKED_DOOR]: ['🔒 잠긴 방문', player.keys > 0 ? '🔑 열쇠로 즉시 개방 가능!' : '🔐 금고(614) 또는 열쇠(🔑) 필요'],
+          [TILE.HOT_DOOR]: ['🌡️🔥 고온 위험문', '⚠️ 백드래프트 위험! 절대 열지 마세요'],
+          [TILE.SINK]: ['🚰 욕실 세면대', player.hasTowel && !player.wetTowel ? '✋ 수건 물에 적시기' : '💧 깨끗한 물 공급원'],
+          [TILE.GAS_VALVE]: ['🔴 주방 가스밸브', player.gasClosed ? '✅ 이미 안전하게 잠김' : '✋ 행동하기: 가스밸브 잠그기'],
+          [TILE.BREAKER]: ['⚡ 비상 배전판', player.breakerClosed ? '✅ 배선·전원 복구 완료' : '✋ 행동하기 / 🔐 배선 퍼즐(R=B,B=D,Y=A,G=C)'],
+          [TILE.DEBRIS]: ['🪵 목재 장애물', player.hasAxe ? '🪓 소방도끼로 즉시 돌파 가능!' : '🪓 소방도끼 필요 (서가 정렬 퍼즐/탐색)'],
+          [TILE.EXIT]: ['🏃 비상구(EXIT)', '✋ 모든 목표 달성 후 최종 탈출!'],
+          [TILE.FURNITURE]: ['🔐 단서 서가 · 비상 금고', '🔐 상단 [퍼즐조사(Q)]로 금고·서가 조사'],
+          [TILE.ALARM_BELL]: ['🔔 화재 비상벨', '✋ 행동하기: 비상 경보 울리기'],
+          [TILE.PHONE_119]: ['📞 119 비상전화', '✋ 행동하기: 119 화재 신고']
+        };
+        if (tNames[tt]) {
+          aimedTargetInfo = { name: tNames[tt][0], dist: d, action: tNames[tt][1] };
+        }
+        break;
+      }
+    }
+
+    // Draw Center 3D Reticle (⌖)
+    ctx.save();
+    const reticleY = horizon;
+    const isAimingInteractive = !!aimedTargetInfo;
+    ctx.strokeStyle = isAimingInteractive ? '#22d3ee' : 'rgba(226, 232, 240, 0.55)';
+    ctx.lineWidth = isAimingInteractive ? 2.2 : 1.5;
+    ctx.beginPath();
+    ctx.arc(halfW, reticleY, isAimingInteractive ? 9 : 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(halfW - 14, reticleY);
+    ctx.lineTo(halfW - 5, reticleY);
+    ctx.moveTo(halfW + 5, reticleY);
+    ctx.lineTo(halfW + 14, reticleY);
+    ctx.moveTo(halfW, reticleY - 14);
+    ctx.lineTo(halfW, reticleY - 5);
+    ctx.moveTo(halfW, reticleY + 5);
+    ctx.lineTo(halfW, reticleY + 14);
+    ctx.stroke();
+
+    if (aimedTargetInfo) {
+      const hudText = `🎯 ${aimedTargetInfo.name} (${aimedTargetInfo.dist.toFixed(1)}m) — ${aimedTargetInfo.action}`;
+      ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+      const tw = ctx.measureText(hudText).width + 18;
+      const hudY = Math.min(height - 135, reticleY + 26);
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(halfW - tw * 0.5, hudY - 12, tw, 24);
+      ctx.strokeRect(halfW - tw * 0.5, hudY - 12, tw, 24);
+      ctx.fillStyle = '#ecfeff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(hudText, halfW, hudY);
+    }
+    ctx.restore();
+
+    // 5B. Floating 3D Objective Beacon in 1st-Person 3D View
     if (nextObj && !player.onFire) {
       const op = project3DPoint(nextObj.c + 0.5, nextObj.r + 0.5, 0.68);
       if (op && op.depth < 12) {
         const clampedX = Math.max(70, Math.min(width - 70, op.x));
-        const clampedY = Math.max(46, Math.min(height - 90, op.y));
+        const clampedY = Math.max(46, Math.min(height - 110, op.y));
         ctx.save();
         ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
         const rawLabel = nextObj.label || '🎯 목표 지점';
@@ -4735,18 +5044,69 @@
       }
     }
 
-    // 6. Foreground Articulated 3D Human Character ('나') Walking Into the 3D Room/Corridor
+    // 6. 1st-Person 3D Held Equipment Hands (Left: 3D Flashlight Beam / Wet Towel, Right: Extinguisher / Axe)
+    // + Compact Ground-Locked 3D Runner Avatar
+    const handBobX = reduceMot ? 0 : Math.cos(fpsWalkPhase) * 3.5;
+    const handBobY = reduceMot ? 0 : Math.abs(Math.sin(fpsWalkPhase)) * 4.5;
+
+    ctx.save();
+    // Left Hand: 3D Tactical Flashlight casting volumetric light cone
+    if (flashlightSpotEnabled || player.hasFlashlight) {
+      const lx = width * 0.34 + handBobX;
+      const ly = height - 18 + handBobY;
+      const beamGrad = ctx.createRadialGradient(halfW, horizon, 10, halfW, horizon, width * 0.36);
+      beamGrad.addColorStop(0, 'rgba(254, 249, 195, 0.16)');
+      beamGrad.addColorStop(0.6, 'rgba(253, 224, 71, 0.06)');
+      beamGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Flashlight 3D Cylinder Body
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(lx - 18, height + 8);
+      ctx.lineTo(lx + 14, ly - 26);
+      ctx.lineTo(lx + 34, ly - 16);
+      ctx.lineTo(lx + 6, height + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.ellipse(lx + 24, ly - 21, 10, 6, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Right Hand: Active Safety Gear (Extinguisher / Axe)
+    const rx = width * 0.66 - handBobX;
+    const ry = height - 22 + handBobY;
+    if (player.extinguisherCharges > 0 || player.hasAxe) {
+      ctx.fillStyle = player.extinguisherCharges > 0 ? '#dc2626' : '#b45309';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2;
+      ctx.fillRect(rx - 16, ry - 32, 32, 56);
+      ctx.strokeRect(rx - 16, ry - 32, 32, 56);
+      ctx.font = '20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(player.extinguisherCharges > 0 ? '🧯' : '🪓', rx, ry - 8);
+    }
+    ctx.restore();
+
+    // Compact Ground-Anchored 3D Character ('나') — Scaled cleanly so it never blocks the center reticle
     const activeSkin = getSelectedSkin();
     let rightTool = 'none';
-    if (player.extinguishers > 0) rightTool = 'extinguisher';
+    if (player.extinguisherCharges > 0) rightTool = 'extinguisher';
     else if (player.hasAxe) rightTool = 'axe';
-    else if (player.buckets > 0) rightTool = 'bucket';
+    else if (player.waterCharges > 0) rightTool = 'bucket';
     else if (player.hasFlashlight) rightTool = 'flashlight';
 
     const isMovingNow = Math.abs(fpsForwardSurge) > 0.08 || Math.abs(fpsTurnBias) > 0.08;
-    const charFootX = width * 0.5 + fpsTurnBias * (width * 0.055);
-    const charFootY = height * 0.87 - fpsForwardSurge * (height * 0.035);
-    const charHeight = Math.min(width, height) * (player.crouching ? 0.25 : 0.30);
+    const charFootX = width * 0.5 + fpsTurnBias * (width * 0.045);
+    const charFootY = height * 0.91 - fpsForwardSurge * (height * 0.025);
+    const charHeight = Math.min(width, height) * (player.crouching ? 0.19 : 0.23);
 
     drawHumanCharacter3DWalk(ctx, charFootX, charFootY, charHeight, {
       crouching: player.crouching,
@@ -4761,21 +5121,20 @@
       onFire: player.onFire
     });
 
-    // Player overhead badge ('나')
     const headTopY = charFootY - (player.crouching ? charHeight * 0.74 : charHeight * 0.94);
     ctx.save();
-    const pBadgeText = player.crouching ? '나 (🧎낮은자세)' : '나';
-    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    const pBadgeText = player.crouching ? '나 (🧎낮은자세 · 신선한 공기층)' : '나 (🚶서있음)';
+    ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
     const pbW = ctx.measureText(pBadgeText).width + 12;
-    ctx.fillStyle = player.crouching ? '#059669' : '#2563eb';
-    ctx.fillRect(charFootX - pbW * 0.5, headTopY - 22, pbW, 18);
+    ctx.fillStyle = player.crouching ? 'rgba(5, 150, 105, 0.92)' : 'rgba(37, 99, 235, 0.92)';
+    ctx.fillRect(charFootX - pbW * 0.5, headTopY - 20, pbW, 17);
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.2;
-    ctx.strokeRect(charFootX - pbW * 0.5, headTopY - 22, pbW, 18);
+    ctx.strokeRect(charFootX - pbW * 0.5, headTopY - 20, pbW, 17);
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(pBadgeText, charFootX, headTopY - 13);
+    ctx.fillText(pBadgeText, charFootX, headTopY - 11.5);
     ctx.restore();
 
     // 7. Top-Right 3D Radar Minimap & Bottom-Left Status Pill
@@ -5243,7 +5602,7 @@
         const ix = (it.c + 0.5) * tileSize;
         const baseY = (it.r + 0.58) * tileSize;
         const bob = Math.sin(now * 2.4 + it.c) * 3;
-        const iy = baseY - tileSize * 0.24 + bob;
+        const iy = baseY - tileSize * 0.28 + bob;
 
         // 3D Floor Shadow & Pedestal Ring
         ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
@@ -5266,17 +5625,29 @@
             skinId: 'npc'
           });
         } else {
-          // 3D Floating Item Orb
+          // 3D Extruded Supply Pedestal + Floating Item Orb
           const ringColor = it.type === 'toy' ? '#fb7185' : (it.type === 'dog' ? '#4ade80' : (it.type === 'key' ? '#facc15' : '#38bdf8'));
+          draw3DBox(
+            ctx,
+            ix - tileSize * 0.22,
+            baseY - tileSize * 0.06,
+            tileSize * 0.44,
+            tileSize * 0.20,
+            tileSize * 0.14,
+            '#334155',
+            '#1e293b',
+            '#0f172a',
+            ringColor
+          );
           ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
           ctx.beginPath();
-          ctx.arc(ix, iy, tileSize * 0.31, 0, Math.PI * 2);
+          ctx.arc(ix, iy, tileSize * 0.29, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = ringColor;
           ctx.lineWidth = 2.2;
           ctx.stroke();
 
-          ctx.font = `${Math.floor(tileSize * 0.40)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(it.icon, ix, iy);
@@ -5336,6 +5707,24 @@
       if (pRow === r) {
         const pRad = 0.32 * tileSize;
         const footY = py + tileSize * 0.16;
+
+        // 3D Volumetric Flashlight Cone in Player's Facing Direction (F key / Top Button)
+        if (flashlightSpotEnabled || player.hasFlashlight) {
+          ctx.save();
+          const fAngle = Math.atan2(player.dirY || 0, player.dirX || 1);
+          const coneLen = tileSize * (player.hasFlashlight ? 2.6 : 1.9);
+          const coneGrad = ctx.createRadialGradient(px, py - tileSize * 0.18, tileSize * 0.1, px, py - tileSize * 0.18, coneLen);
+          coneGrad.addColorStop(0, 'rgba(254, 249, 195, 0.38)');
+          coneGrad.addColorStop(0.6, 'rgba(253, 224, 71, 0.16)');
+          coneGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+          ctx.fillStyle = coneGrad;
+          ctx.beginPath();
+          ctx.moveTo(px, py - tileSize * 0.18);
+          ctx.arc(px, py - tileSize * 0.18, coneLen, fAngle - 0.42, fAngle + 0.42);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
 
         // 3D Floor Shadow & Glowing Safety Ring under Player
         ctx.fillStyle = 'rgba(2, 6, 23, 0.68)';
@@ -5673,8 +6062,48 @@
     ro.observe(canvasContainer.parentElement);
   }
 
-  // --- Direct Canvas Touch / Pointer Support ---
+  // --- 3D Tactical Flashlight Toggle (PRD F05 & Section 5: F Key / Top Button) ---
+  const btnFlashlightTop = document.getElementById('btnFlashlightTop');
+  function toggle3DFlashlight() {
+    SoundFX.init();
+    flashlightSpotEnabled = !flashlightSpotEnabled;
+    if (flashlightSpotEnabled) {
+      player.hasFlashlight = true;
+      SoundFX.pickup();
+      showToast('🔦 [3D 손전등 스포트라이트 ON] 전방 원뿔 조명으로 어두운 복도와 벽면 단서를 밝힙니다!', 'border-amber-400');
+    } else {
+      SoundFX.playTone(380, 'sine', 0.05, 0.06);
+      showToast('🔦 [3D 손전등 OFF] 손전등 스포트라이트를 껐습니다. (F키 또는 상단 버튼으로 재점등)', 'border-slate-500');
+    }
+    if (btnFlashlightTop) {
+      btnFlashlightTop.className = flashlightSpotEnabled
+        ? 'px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 border border-amber-300 text-[10px] sm:text-xs font-extrabold text-amber-100 transition shrink-0'
+        : 'px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[10px] sm:text-xs font-extrabold text-slate-400 transition shrink-0';
+    }
+    updateHUD();
+    renderCanvas();
+  }
+  if (btnFlashlightTop) {
+    btnFlashlightTop.addEventListener('click', toggle3DFlashlight);
+  }
+
+  // --- Direct Canvas Touch / Pointer Support + PRD Section 5 & 10 3D Drag-to-Look Rotation ---
   let canvasPointerDown = false;
+  let canvasDragStartX = 0;
+  let canvasDragStartY = 0;
+  let canvasLastClientX = 0;
+  let canvasIsDraggingLook = false;
+
+  function isClientPointIn3DRadarMinimap(clientX, clientY) {
+    if (cameraMode3D !== 'FPS_3D') return false;
+    const local = window.getElementLocalCoords(canvas, clientX, clientY);
+    const mapW = Math.min(165, Math.max(115, local.width * 0.22));
+    const mapH = mapW * (ROWS / COLS);
+    const mapX = local.width - mapW - 10;
+    const mapY = 10;
+    return local.x >= mapX && local.x <= mapX + mapW && local.y >= mapY && local.y <= mapY + mapH;
+  }
+
   function handleCanvasPointer(clientX, clientY, isTapStart) {
     if (gameState !== 'PLAYING') return;
     SoundFX.init();
@@ -5705,7 +6134,7 @@
         return;
       }
 
-      if (distToTap <= 1.65) {
+      if (distToTap <= 1.85) {
         const dx = (c + 0.5) - player.x;
         const dy = (r + 0.5) - player.y;
         const len = Math.hypot(dx, dy) || 1;
@@ -5717,6 +6146,13 @@
         if (tappedItemIdx !== -1) {
           pointerMoveTarget = null;
           triggerInteraction({ kind: 'item', index: tappedItemIdx, item: items[tappedItemIdx] });
+          return;
+        }
+        if (tappedTile === TILE.FURNITURE && typeof openPuzzleModalFn === 'function') {
+          pointerMoveTarget = null;
+          const stationKind = (c + r) % 3;
+          const tab = stationKind === 0 ? 'safe' : (stationKind === 1 ? 'books' : 'dirlock');
+          openPuzzleModalFn(tab);
           return;
         }
         const isStandingInTile = (Math.floor(player.x) === c && Math.floor(player.y) === r);
@@ -5737,21 +6173,45 @@
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     canvasPointerDown = true;
+    canvasDragStartX = e.clientX;
+    canvasDragStartY = e.clientY;
+    canvasLastClientX = e.clientX;
+    canvasIsDraggingLook = false;
     handleCanvasPointer(e.clientX, e.clientY, true);
   });
 
   canvas.addEventListener('pointermove', (e) => {
     if (!canvasPointerDown || gameState !== 'PLAYING') return;
+    if (cameraMode3D === 'FPS_3D' && !isClientPointIn3DRadarMinimap(e.clientX, e.clientY)) {
+      const totalDx = e.clientX - canvasDragStartX;
+      const totalDy = e.clientY - canvasDragStartY;
+      if (Math.abs(totalDx) > 9 && Math.abs(totalDx) > Math.abs(totalDy) * 0.8) {
+        canvasIsDraggingLook = true;
+      }
+      if (canvasIsDraggingLook) {
+        const stepDx = e.clientX - canvasLastClientX;
+        canvasLastClientX = e.clientX;
+        const sensMult = Math.max(0.6, Math.min(1.4, ((appSettings && appSettings.sensitivity) || 100) / 100));
+        fpsCamYaw += (stepDx / Math.max(240, cssCanvasW)) * 2.6 * sensMult;
+        player.dirX = Math.cos(fpsCamYaw);
+        player.dirY = Math.sin(fpsCamYaw);
+        pointerMoveTarget = null;
+        return;
+      }
+    }
+    canvasLastClientX = e.clientX;
     handleCanvasPointer(e.clientX, e.clientY, false);
   });
 
   window.addEventListener('pointerup', () => {
     canvasPointerDown = false;
+    canvasIsDraggingLook = false;
     pointerMoveTarget = null;
   });
 
   window.addEventListener('pointercancel', () => {
     canvasPointerDown = false;
+    canvasIsDraggingLook = false;
     pointerMoveTarget = null;
   });
 
@@ -5964,7 +6424,13 @@
       if (gameState === 'PLAYING') useWaterBucket();
     }
     if (e.code === 'KeyF') {
-      if (gameState === 'PLAYING') performStopDropRoll();
+      if (gameState === 'PLAYING') {
+        if (player.onFire) {
+          performStopDropRoll();
+        } else if (!e.repeat) {
+          toggle3DFlashlight();
+        }
+      }
     }
     if (e.code === 'ShiftLeft' || e.code === 'KeyC') {
       if (gameState === 'PLAYING') toggleCrouch();
@@ -7062,6 +7528,8 @@
       safeLockUntil: Number(safeLockUntil.toFixed(2)),
       safeSolved: !!safeSolved,
       wireSolved: !!wireSolved,
+      dirLockSolved: !!dirLockSolved,
+      bookSortSolved: !!bookSortSolved,
       savedAt: new Date().toISOString(),
       sessionId: SESSION_ID,
       saveSeq: ++campaignSaveSeq
@@ -7132,6 +7600,11 @@
     safeLockUntil = Number(saved.safeLockUntil) || 0;
     safeSolved = !!saved.safeSolved;
     wireSolved = !!saved.wireSolved;
+    dirLockSolved = !!saved.dirLockSolved;
+    bookSortSolved = !!saved.bookSortSolved;
+    if (bookSortSolved) {
+      bookSortOrder = ['425.12', '425.2', '430', '440', '450', '480'];
+    }
 
     orientCameraToOpenSpace();
     hideAllModalsAndResume();
@@ -7302,13 +7775,23 @@
         },
         {
           badge: safeSolved ? '[완료]' : '[단서 원문]',
-          title: '🔢 비상 금고 잠금장치 암호 단서 메모',
+          title: '🔢 퍼즐 1 · 비상 금고 잠금장치 암호 단서 메모',
           body: `우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>이며, 구역별 비상 암호(<strong>${safeCode}</strong> 또는 긴급 직통번호 <strong>0119</strong>) 입력으로 비상 마스터 열쇠(🔑)를 꺼낼 수 있습니다.`
         },
         {
           badge: wireSolved ? '[완료]' : '[단서 원문]',
-          title: '⚡ 배전판 비상 배선 복구 도면 (색약 배려 문자 병기)',
+          title: '⚡ 퍼즐 2 · 배전판 비상 배선 복구 도면 (색약 배려 문자 병기)',
           body: `배전판 단자 연결 규칙: <strong>🔴 빨강(RED) → [B]단자</strong>, <strong>🔵 파랑(BLUE) → [D]단자</strong>, <strong>🟡 노랑(YELLOW) → [A]단자</strong>, <strong>🟢 초록(GREEN) → [C]단자</strong>로 연결하면 누전이 차단되고 비상 소화기가 충전됩니다.`
+        },
+        {
+          badge: dirLockSolved ? '[완료]' : '[단서 원문]',
+          title: '🧭 퍼즐 3 · 구호장비 보관함 6단계 방향 자물쇠 (비상대피 동선)',
+          body: `벽면 피난안내도 화살표 순서: <strong>[⬆️ 위 → ➡️ 오른쪽 → ➡️ 오른쪽 → ⬇️ 아래 → ⬅️ 왼쪽 → ⬆️ 위]</strong> 순서대로 방향 자물쇠를 조작하면 방연마스크(😷)와 손전등(🔦)이 지급됩니다.`
+        },
+        {
+          badge: bookSortSolved ? '[완료]' : '[단서 원문]',
+          title: '📚 퍼즐 4 · 소방 안전 매뉴얼 십진 청구기호 정렬 규칙',
+          body: `소수점 아래 숫자는 자릿수가 아니라 크기 순서로 비교합니다(<code>.12 &lt; .2</code>). 올바른 오름차순 배열: <strong>425.12 → 425.2 → 430 → 440 → 450 → 480</strong> (완료 시 🪓소방도끼 + 🧯소화기 보급).`
         }
       ];
       notebookClueList.innerHTML = clueNotes.map(cn => `
@@ -7334,7 +7817,7 @@
     }
     if (hintStep1Text) {
       hintStep1Text.innerHTML = open1
-        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 먼저 세면대(🚰)에서 젖은 수건을 착용해 호흡기를 보호하고, 금고 단서 메모(<strong>${safeCode}</strong>)와 배전판 도면(R=B, B=D, Y=A, G=C)을 확인하세요.`
+        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 먼저 세면대(🚰)에서 젖은 수건을 착용하거나 방향 자물쇠(<strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong>)로 방연마스크를 획득하고, 금고 단서(<strong>${safeCode}</strong>)와 배전판 도면(R=B, B=D, Y=A, G=C)을 확인하세요.`
         : '힌트 열기를 누르면 현재 목표의 위치와 안전 원리를 안내합니다.';
     }
     if (btnUnlockHint1) {
@@ -7345,7 +7828,7 @@
     }
     if (hintStep2Text) {
       hintStep2Text.innerHTML = open2
-        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 우측 하단 [➕ 더보기] → [🔐 금고·배선퍼즐]에서 금고 암호 <strong>${safeCode}</strong>(또는 <strong>614</strong> / <strong>0119</strong>) 입력 후 열쇠(🔑)를 받고, 배전판을 <strong>빨강=B, 파랑=D, 노랑=A, 초록=C</strong>로 연결하세요.`
+        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 상단 <strong>[🔐 퍼즐조사]</strong>에서 ① 금고 암호 <strong>${safeCode}</strong>(또는 <strong>614</strong> / <strong>0119</strong>) → 열쇠(🔑), ② 배전판 <strong>빨강=B, 파랑=D, 노랑=A, 초록=C</strong> → 소화기, ③ 방향자물쇠 <strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong> → 마스크, ④ 청구기호 <strong>425.12 → 425.2 → 430 → 440 → 450 → 480</strong> → 소방도끼를 획득할 수 있습니다.`
         : '1단계 힌트를 확인한 뒤 결정적 해답과 암호를 확인할 수 있습니다.';
     }
     if (btnUnlockHint2) {
@@ -7409,6 +7892,32 @@
             closeNotebookModalFn();
             openPuzzleModalFn('wire');
             return '⚡ 배전판 배선 퍼즐 조사 창을 열었습니다.';
+          }
+        },
+        {
+          id: 'clue_dirlock',
+          cat: 'record',
+          icon: '🧭',
+          name: '비상대피 동선 방향 자물쇠 표식',
+          owned: true,
+          desc: '위 → 오른쪽 → 오른쪽 → 아래 → 왼쪽 → 위 순서의 구호장비 보관함 해제 기록입니다.',
+          onUse: () => {
+            closeNotebookModalFn();
+            openPuzzleModalFn('dirlock');
+            return '🧭 방향 자물쇠 퍼즐 조사 창을 열었습니다.';
+          }
+        },
+        {
+          id: 'clue_books',
+          cat: 'record',
+          icon: '📚',
+          name: '소방 매뉴얼 청구기호 정렬표 (425.12~480)',
+          owned: true,
+          desc: '425.12 → 425.2 → 430 → 440 → 450 → 480 오름차순 서가 배열 기록입니다.',
+          onUse: () => {
+            closeNotebookModalFn();
+            openPuzzleModalFn('books');
+            return '📚 소방 매뉴얼 서가 정렬 퍼즐 창을 열었습니다.';
           }
         },
         {
@@ -7606,14 +8115,19 @@
     });
   });
 
-  // --- Section 5, F06, T05, T10: Object Inspection & Escape-Room Puzzles (Digital Safe & Accessible Wiring) ---
+  // --- Section 5, Section 16, F06, T05, T10: 4-Type Escape-Room Object Inspection & Puzzles ---
   const puzzleModal = document.getElementById('puzzleModal');
+  const btnPuzzleTop = document.getElementById('btnPuzzleTop');
   const btnPuzzleInspector = document.getElementById('btnPuzzleInspector');
   const btnClosePuzzleModal = document.getElementById('btnClosePuzzleModal');
   const btnSelectSafePuzzle = document.getElementById('btnSelectSafePuzzle');
   const btnSelectWirePuzzle = document.getElementById('btnSelectWirePuzzle');
+  const btnSelectDirLockPuzzle = document.getElementById('btnSelectDirLockPuzzle');
+  const btnSelectBookSortPuzzle = document.getElementById('btnSelectBookSortPuzzle');
   const safePuzzleBox = document.getElementById('safePuzzleBox');
   const wirePuzzleBox = document.getElementById('wirePuzzleBox');
+  const dirLockPuzzleBox = document.getElementById('dirLockPuzzleBox');
+  const bookSortPuzzleBox = document.getElementById('bookSortPuzzleBox');
   const safeWrongBadge = document.getElementById('safeWrongBadge');
   const safeCodeInput = document.getElementById('safeCodeInput');
   const btnSubmitSafeCode = document.getElementById('btnSubmitSafeCode');
@@ -7625,25 +8139,41 @@
   const wireSelectGreen = document.getElementById('wireSelectGreen');
   const btnSubmitWirePuzzle = document.getElementById('btnSubmitWirePuzzle');
   const wireFeedbackMsg = document.getElementById('wireFeedbackMsg');
+  const dirLockSeqDisplay = document.getElementById('dirLockSeqDisplay');
+  const btnDirLockClear = document.getElementById('btnDirLockClear');
+  const btnSubmitDirLock = document.getElementById('btnSubmitDirLock');
+  const dirLockFeedbackMsg = document.getElementById('dirLockFeedbackMsg');
+  const bookSortListContainer = document.getElementById('bookSortListContainer');
+  const btnSubmitBookSort = document.getElementById('btnSubmitBookSort');
+  const bookSortFeedbackMsg = document.getElementById('bookSortFeedbackMsg');
 
   function switchPuzzleSubTab(which) {
-    const isSafe = which !== 'wire';
-    if (safePuzzleBox) safePuzzleBox.classList.toggle('hidden', !isSafe);
-    if (wirePuzzleBox) wirePuzzleBox.classList.toggle('hidden', isSafe);
-    if (btnSelectSafePuzzle) {
-      btnSelectSafePuzzle.className = isSafe
-        ? 'py-1.5 rounded-lg bg-cyan-600 text-white transition'
-        : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
-    }
-    if (btnSelectWirePuzzle) {
-      btnSelectWirePuzzle.className = !isSafe
-        ? 'py-1.5 rounded-lg bg-cyan-600 text-white transition'
-        : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
-    }
+    const tabs = [
+      { id: 'safe', btn: btnSelectSafePuzzle, box: safePuzzleBox },
+      { id: 'wire', btn: btnSelectWirePuzzle, box: wirePuzzleBox },
+      { id: 'dirlock', btn: btnSelectDirLockPuzzle, box: dirLockPuzzleBox },
+      { id: 'books', btn: btnSelectBookSortPuzzle, box: bookSortPuzzleBox }
+    ];
+    const targetId = tabs.some(t => t.id === which) ? which : 'safe';
+    tabs.forEach(({ id, btn, box }) => {
+      const active = id === targetId;
+      if (box) box.classList.toggle('hidden', !active);
+      if (btn) {
+        btn.className = active
+          ? 'py-1.5 rounded-lg bg-cyan-600 text-white transition'
+          : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
+      }
+    });
+    updateSafeLockUI();
+    updateWirePuzzleUI();
+    updateDirLockPuzzleUI();
+    renderBookSortPuzzleUI();
   }
 
   if (btnSelectSafePuzzle) btnSelectSafePuzzle.addEventListener('click', () => switchPuzzleSubTab('safe'));
   if (btnSelectWirePuzzle) btnSelectWirePuzzle.addEventListener('click', () => switchPuzzleSubTab('wire'));
+  if (btnSelectDirLockPuzzle) btnSelectDirLockPuzzle.addEventListener('click', () => switchPuzzleSubTab('dirlock'));
+  if (btnSelectBookSortPuzzle) btnSelectBookSortPuzzle.addEventListener('click', () => switchPuzzleSubTab('books'));
 
   function updateSafeLockUI() {
     if (safeWrongBadge) {
@@ -7689,6 +8219,169 @@
       wireFeedbackMsg.textContent = '색상과 영문 기호(RED·BLUE·YELLOW·GREEN)를 확인해 알맞은 단자(A·B·C·D)를 선택하세요.';
       wireFeedbackMsg.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 text-emerald-200 font-bold text-center';
     }
+  }
+
+  const TARGET_DIR_SEQUENCE = ['위', '오른쪽', '오른쪽', '아래', '왼쪽', '위'];
+  function updateDirLockPuzzleUI() {
+    if (dirLockSeqDisplay) {
+      if (dirLockSolved) {
+        dirLockSeqDisplay.textContent = 'UNLOCKED (위 · 오른쪽 · 오른쪽 · 아래 · 왼쪽 · 위)';
+      } else if (dirLockBuffer.length === 0) {
+        dirLockSeqDisplay.textContent = '(방향 버튼을 순서대로 6회 누르세요)';
+      } else {
+        dirLockSeqDisplay.textContent = dirLockBuffer.join(' → ');
+      }
+    }
+    if (!dirLockFeedbackMsg) return;
+    if (dirLockSolved) {
+      dirLockFeedbackMsg.textContent = '✅ 구호장비 보관함 방향 자물쇠 해제 완료! (😷방연마스크 + 🔦3D 손전등 지급 완료)';
+      dirLockFeedbackMsg.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 font-bold text-center';
+    } else {
+      dirLockFeedbackMsg.textContent = `피난안내도 동선 순서(위·오른쪽·오른쪽·아래·왼쪽·위)를 입력한 뒤 [잠금 해제]를 누르세요. (${dirLockBuffer.length}/6단계)`;
+      dirLockFeedbackMsg.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 text-purple-200 font-bold text-center';
+    }
+  }
+
+  document.querySelectorAll('.dir-lock-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      SoundFX.init();
+      if (dirLockSolved) return;
+      const token = btn.getAttribute('data-dir-token');
+      if (token && dirLockBuffer.length < 6) {
+        dirLockBuffer.push(token);
+        SoundFX.playTone(580, 'sine', 0.04, 0.06);
+        updateDirLockPuzzleUI();
+      }
+    });
+  });
+
+  if (btnDirLockClear) {
+    btnDirLockClear.addEventListener('click', () => {
+      SoundFX.init();
+      if (dirLockSolved) return;
+      dirLockBuffer = [];
+      updateDirLockPuzzleUI();
+    });
+  }
+
+  if (btnSubmitDirLock) {
+    btnSubmitDirLock.addEventListener('click', () => {
+      SoundFX.init();
+      if (dirLockSolved) {
+        showToast('✅ 이미 구호장비 보관함 방향 자물쇠가 해제되었습니다.', 'border-emerald-400');
+        return;
+      }
+      if (dirLockBuffer.length < 6) {
+        SoundFX.warning();
+        if (dirLockFeedbackMsg) {
+          dirLockFeedbackMsg.textContent = `⚠️ 방향 6단계를 모두 입력해 주세요! (현재 ${dirLockBuffer.length}/6단계 입력됨)`;
+          dirLockFeedbackMsg.className = 'p-2 rounded-lg bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-center';
+        }
+        return;
+      }
+      const isMatch = TARGET_DIR_SEQUENCE.every((v, idx) => dirLockBuffer[idx] === v);
+      if (isMatch) {
+        dirLockSolved = true;
+        player.hasMask = true;
+        player.hasFlashlight = true;
+        flashlightSpotEnabled = true;
+        score += 200;
+        SoundFX.win();
+        updateDirLockPuzzleUI();
+        updateHUD();
+        saveCampaignState();
+        showToast('🧭 [방향 자물쇠 해제 성공!] 방연마스크(😷)와 3D 전술 손전등(🔦)을 획득했습니다! (+200점)', 'border-purple-400');
+      } else {
+        dirLockBuffer = [];
+        SoundFX.warning();
+        updateDirLockPuzzleUI();
+        if (dirLockFeedbackMsg) {
+          dirLockFeedbackMsg.textContent = '❌ 방향 순서가 일치하지 않습니다! 단서: 위 → 오른쪽 → 오른쪽 → 아래 → 왼쪽 → 위';
+          dirLockFeedbackMsg.className = 'p-2 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 font-bold text-center';
+        }
+      }
+    });
+  }
+
+  const TARGET_BOOK_ORDER = ['425.12', '425.2', '430', '440', '450', '480'];
+  const BOOK_TITLES = {
+    '425.12': '화재 대류 현상과 연기 이동 원리',
+    '425.2': '젖은 수건·방연마스크 호흡기 보호법',
+    '430': 'ABC 분말소화기 PASS 분사 수칙',
+    '440': '백드래프트 예방과 문 손잡이 온도 감지',
+    '450': '완강기 3단계 착용 및 경량칸막이 탈출',
+    '480': '119 긴급 신고 및 다중이용시설 피난'
+  };
+
+  function renderBookSortPuzzleUI() {
+    if (!bookSortListContainer) return;
+    bookSortListContainer.innerHTML = bookSortOrder.map((code, idx) => `
+      <div class="p-2 rounded-lg bg-slate-900 border ${bookSortSolved ? 'border-emerald-500/50' : 'border-slate-700'} flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 font-mono font-black text-xs shrink-0">#${idx + 1} [${code}]</span>
+          <span class="text-slate-200 font-bold text-xs truncate">${BOOK_TITLES[code] || '소방 안전 매뉴얼'}</span>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" data-book-idx="${idx}" data-book-dir="-1" class="book-move-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[10px] font-black text-slate-200" ${idx === 0 || bookSortSolved ? 'disabled' : ''}>◀ 앞</button>
+          <button type="button" data-book-idx="${idx}" data-book-dir="1" class="book-move-btn px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-[10px] font-black text-slate-200" ${idx === bookSortOrder.length - 1 || bookSortSolved ? 'disabled' : ''}>뒤 ▶</button>
+        </div>
+      </div>
+    `).join('');
+
+    bookSortListContainer.querySelectorAll('.book-move-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        SoundFX.init();
+        if (bookSortSolved) return;
+        const idx = parseInt(btn.getAttribute('data-book-idx') || '0', 10);
+        const dir = parseInt(btn.getAttribute('data-book-dir') || '0', 10);
+        const swapIdx = idx + dir;
+        if (swapIdx >= 0 && swapIdx < bookSortOrder.length) {
+          const tmp = bookSortOrder[idx];
+          bookSortOrder[idx] = bookSortOrder[swapIdx];
+          bookSortOrder[swapIdx] = tmp;
+          SoundFX.playTone(540, 'sine', 0.04, 0.06);
+          renderBookSortPuzzleUI();
+        }
+      });
+    });
+
+    if (bookSortFeedbackMsg) {
+      if (bookSortSolved) {
+        bookSortFeedbackMsg.textContent = '✅ 십진 청구기호(425.12 → 425.2 → 430 → 440 → 450 → 480) 정렬 완료! (🪓소방도끼 + 🧯소화기 지급 완료)';
+        bookSortFeedbackMsg.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 font-bold text-center';
+      } else {
+        bookSortFeedbackMsg.textContent = '청구기호 소수점 크기(425.12 < 425.2)에 유의하여 오름차순으로 배열한 뒤 [정렬 검증]을 누르세요.';
+        bookSortFeedbackMsg.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 text-sky-200 font-bold text-center';
+      }
+    }
+  }
+
+  if (btnSubmitBookSort) {
+    btnSubmitBookSort.addEventListener('click', () => {
+      SoundFX.init();
+      if (bookSortSolved) {
+        showToast('✅ 이미 소방 안전 매뉴얼 서가 정렬이 완료되었습니다.', 'border-emerald-400');
+        return;
+      }
+      const ok = TARGET_BOOK_ORDER.every((c, idx) => bookSortOrder[idx] === c);
+      if (ok) {
+        bookSortSolved = true;
+        player.hasAxe = true;
+        player.extinguisherCharges += 1;
+        score += 250;
+        SoundFX.win();
+        renderBookSortPuzzleUI();
+        updateHUD();
+        saveCampaignState();
+        showToast('📚 [서가 청구기호 정렬 완료!] 비밀 격실이 열려 🪓소방도끼와 🧯소화기(+1회)를 획득했습니다! (+250점)', 'border-sky-400');
+      } else {
+        SoundFX.warning();
+        if (bookSortFeedbackMsg) {
+          bookSortFeedbackMsg.textContent = '❌ 정렬 순서가 올바르지 않습니다! 정답 순서: 425.12 → 425.2 → 430 → 440 → 450 → 480';
+          bookSortFeedbackMsg.className = 'p-2 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 font-bold text-center';
+        }
+      }
+    });
   }
 
   document.querySelectorAll('.safe-digit-btn').forEach((btn) => {
@@ -7830,8 +8523,6 @@
       pauseText.textContent = '계속하기';
     }
     switchPuzzleSubTab(defaultSubTab);
-    updateSafeLockUI();
-    updateWirePuzzleUI();
     puzzleModal.classList.remove('hidden');
     puzzleModal.classList.add('flex');
   }
@@ -7858,6 +8549,7 @@
     updateHUD();
   }
 
+  if (btnPuzzleTop) btnPuzzleTop.addEventListener('click', () => { SoundFX.init(); openPuzzleModalFn('safe'); });
   if (btnPuzzleInspector) btnPuzzleInspector.addEventListener('click', () => { SoundFX.init(); openPuzzleModalFn('safe'); });
   if (btnClosePuzzleModal) btnClosePuzzleModal.addEventListener('click', closePuzzleModalFn);
 
