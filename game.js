@@ -2292,93 +2292,201 @@
     let targetSurge = 0;
     let targetTurnBias = 0;
 
-    // Unified, Non-Rotating 4-Way Movement in BOTH 3D Modes (Zero Motion Sickness!)
-    // ▲(W) = Up (North), ▼(S) = Down (South), ◀(A) = Left (West), ▶(D) = Right (East)
-    if (keysPressed.up) mvY -= 1;
-    if (keysPressed.down) mvY += 1;
-    if (keysPressed.left) mvX -= 1;
-    if (keysPressed.right) mvX += 1;
+    if (cameraMode3D === 'FPS_3D') {
+      // Smooth, Non-Dizzying 1st-Person 3D Perspective Walkthrough Controls:
+      // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Smooth Turn + Strafe Assist
+      const turnInput = (keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0);
+      const forwardInput = (keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0);
 
-    if (mvX !== 0 || mvY !== 0) {
-      pointerMoveTarget = null;
-    } else if (pointerMoveTarget) {
-      const dx = pointerMoveTarget.x - player.x;
-      const dy = pointerMoveTarget.y - player.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 0.12) {
-        mvX = dx / dist;
-        mvY = dy / dist;
-      } else {
+      if (turnInput !== 0 || forwardInput !== 0) {
         pointerMoveTarget = null;
+      }
+
+      if (turnInput !== 0) {
+        // Calm, steady turn rate (1.50 rad/s) so the room never spins dizzily
+        const turnSpeed = forwardInput !== 0 ? 1.35 : 1.55;
+        fpsCamYaw += turnInput * turnSpeed * dt;
+        targetTurnBias = turnInput * 0.82;
+        player.dirX = Math.cos(fpsCamYaw);
+        player.dirY = Math.sin(fpsCamYaw);
+      } else if (forwardInput > 0) {
+        // Gentle Corridor Alignment Assist: when walking forward without turning, softly align toward nearest 90° corridor axis if close
+        const snapAxis = Math.round(fpsCamYaw / (Math.PI * 0.5)) * (Math.PI * 0.5);
+        let axisDiff = snapAxis - fpsCamYaw;
+        while (axisDiff > Math.PI) axisDiff -= Math.PI * 2;
+        while (axisDiff < -Math.PI) axisDiff += Math.PI * 2;
+        if (Math.abs(axisDiff) < 0.28) {
+          fpsCamYaw += axisDiff * Math.min(1, dt * 4.2);
+        }
+      }
+
+      if (forwardInput !== 0) {
+        const moveMult = forwardInput > 0 ? 1.0 : 0.68;
+        mvX = Math.cos(fpsCamYaw) * forwardInput * moveMult;
+        mvY = Math.sin(fpsCamYaw) * forwardInput * moveMult;
+        isMoving = true;
+        targetSurge = forwardInput > 0 ? 1.0 : -0.45;
+      } else if (turnInput !== 0) {
+        // Subtle forward step while turning in place so the character never feels stuck on a corner
+        mvX = Math.cos(fpsCamYaw) * 0.22;
+        mvY = Math.sin(fpsCamYaw) * 0.22;
+        isMoving = true;
+        targetSurge = 0.25;
+      } else if (pointerMoveTarget) {
+        const dx = pointerMoveTarget.x - player.x;
+        const dy = pointerMoveTarget.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.14) {
+          const desiredYaw = Math.atan2(dy, dx);
+          let diff = desiredYaw - fpsCamYaw;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          fpsCamYaw += diff * Math.min(1, dt * 5.2);
+          targetTurnBias = Math.max(-0.85, Math.min(0.85, diff * 1.1));
+          mvX = dx / dist;
+          mvY = dy / dist;
+          isMoving = true;
+          targetSurge = 0.9;
+        } else {
+          pointerMoveTarget = null;
+        }
+      }
+
+      player.dirX = Math.cos(fpsCamYaw);
+      player.dirY = Math.sin(fpsCamYaw);
+    } else {
+      // Full-Building 3D Cutaway ('DIORAMA_3D') 4-Way Movement
+      if (keysPressed.up) mvY -= 1;
+      if (keysPressed.down) mvY += 1;
+      if (keysPressed.left) mvX -= 1;
+      if (keysPressed.right) mvX += 1;
+
+      if (mvX !== 0 || mvY !== 0) {
+        pointerMoveTarget = null;
+      } else if (pointerMoveTarget) {
+        const dx = pointerMoveTarget.x - player.x;
+        const dy = pointerMoveTarget.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.12) {
+          mvX = dx / dist;
+          mvY = dy / dist;
+        } else {
+          pointerMoveTarget = null;
+        }
+      }
+
+      isMoving = (mvX !== 0 || mvY !== 0);
+      if (isMoving) {
+        const len = Math.hypot(mvX, mvY);
+        mvX /= len;
+        mvY /= len;
+        player.dirX = mvX;
+        player.dirY = mvY;
+        fpsCamYaw = Math.atan2(mvY, mvX);
+        targetSurge = 1.0;
+        targetTurnBias = mvX * 0.65;
       }
     }
 
-    isMoving = (mvX !== 0 || mvY !== 0);
-
     if (isMoving) {
-      const len = Math.hypot(mvX, mvY);
-      mvX /= len;
-      mvY /= len;
-      player.dirX = mvX;
-      player.dirY = mvY;
-      fpsCamYaw = Math.atan2(mvY, mvX);
-      targetSurge = 1.0;
-      targetTurnBias = mvX * 0.65;
+      const probeDirX = player.dirX || mvX;
+      const probeDirY = player.dirY || mvY;
 
-      // Auto-Interact when walking directly into a closed door, locked door (with key), debris (with axe), or sink/valve/breaker/alarm
+      // Auto-Interact when walking toward a closed door, locked door (with key), debris (with axe), or sink/valve/breaker/alarm
       if (autoInteractCooldown <= 0) {
-        const probeC = Math.floor(player.x + mvX * 0.56);
-        const probeR = Math.floor(player.y + mvY * 0.56);
-        if (probeC >= 0 && probeC < COLS && probeR >= 0 && probeR < ROWS) {
-          const probeTile = grid[probeR][probeC];
-          if (
-            probeTile === TILE.DOOR ||
-            (probeTile === TILE.LOCKED_DOOR && player.keys > 0) ||
-            (probeTile === TILE.DEBRIS && player.hasAxe) ||
-            (probeTile === TILE.SINK && ((player.hasTowel && !player.wetTowel) || player.o2 < 85)) ||
-            (probeTile === TILE.GAS_VALVE && !player.gasClosed) ||
-            (probeTile === TILE.BREAKER && !player.breakerClosed) ||
-            (probeTile === TILE.ALARM_BELL && !player.alarmRung)
-          ) {
-            autoInteractCooldown = 0.38;
-            triggerInteraction({ kind: 'tile', c: probeC, r: probeR, tile: probeTile });
+        const probeAngles = cameraMode3D === 'FPS_3D' ? [0, 0.45, -0.45] : [0];
+        let interacted = false;
+        for (const angOff of probeAngles) {
+          if (interacted) break;
+          const pCos = cameraMode3D === 'FPS_3D' ? Math.cos(fpsCamYaw + angOff) : probeDirX;
+          const pSin = cameraMode3D === 'FPS_3D' ? Math.sin(fpsCamYaw + angOff) : probeDirY;
+          for (const probeDist of [0.52, 0.84]) {
+            const probeC = Math.floor(player.x + pCos * probeDist);
+            const probeR = Math.floor(player.y + pSin * probeDist);
+            if (probeC >= 0 && probeC < COLS && probeR >= 0 && probeR < ROWS) {
+              const probeTile = grid[probeR][probeC];
+              if (
+                probeTile === TILE.DOOR ||
+                (probeTile === TILE.LOCKED_DOOR && player.keys > 0) ||
+                (probeTile === TILE.DEBRIS && player.hasAxe) ||
+                (probeTile === TILE.SINK && ((player.hasTowel && !player.wetTowel) || player.o2 < 85)) ||
+                (probeTile === TILE.GAS_VALVE && !player.gasClosed) ||
+                (probeTile === TILE.BREAKER && !player.breakerClosed) ||
+                (probeTile === TILE.ALARM_BELL && !player.alarmRung)
+              ) {
+                autoInteractCooldown = 0.36;
+                triggerInteraction({ kind: 'tile', c: probeC, r: probeR, tile: probeTile });
+                interacted = true;
+                break;
+              }
+            }
           }
         }
       }
 
       const stepX = mvX * baseSpeed * dt;
       const stepY = mvY * baseSpeed * dt;
+      let movedX = false;
+      let movedY = false;
 
-      // Horizontal step + strong doorway auto-centering
+      // Horizontal step + strong doorway auto-centering & wall-sliding
       if (canMoveTo(player.x + stepX, player.y, player.radius)) {
         player.x += stepX;
-      } else if (Math.abs(mvX) > 0.35) {
+        movedX = true;
+      } else if (Math.abs(mvX) > 0.25) {
         const centerY = Math.floor(player.y) + 0.5;
         const diffY = centerY - player.y;
-        if (Math.abs(diffY) > 0.01 && Math.abs(diffY) < 0.48) {
-          const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), baseSpeed * 0.95 * dt);
+        if (Math.abs(diffY) > 0.01 && Math.abs(diffY) < 0.49) {
+          const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), baseSpeed * 1.05 * dt);
           if (canMoveTo(player.x, player.y + nudgeY, player.radius)) {
             player.y += nudgeY;
           }
-          if (canMoveTo(player.x + stepX * 0.75, player.y, player.radius)) {
-            player.x += stepX * 0.75;
+          if (canMoveTo(player.x + stepX * 0.8, player.y, player.radius)) {
+            player.x += stepX * 0.8;
+            movedX = true;
           }
         }
       }
 
-      // Vertical step + strong doorway auto-centering
+      // Vertical step + strong doorway auto-centering & wall-sliding
       if (canMoveTo(player.x, player.y + stepY, player.radius)) {
         player.y += stepY;
-      } else if (Math.abs(mvY) > 0.35) {
+        movedY = true;
+      } else if (Math.abs(mvY) > 0.25) {
         const centerX = Math.floor(player.x) + 0.5;
         const diffX = centerX - player.x;
-        if (Math.abs(diffX) > 0.01 && Math.abs(diffX) < 0.48) {
-          const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), baseSpeed * 0.95 * dt);
+        if (Math.abs(diffX) > 0.01 && Math.abs(diffX) < 0.49) {
+          const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), baseSpeed * 1.05 * dt);
           if (canMoveTo(player.x + nudgeX, player.y, player.radius)) {
             player.x += nudgeX;
           }
-          if (canMoveTo(player.x, player.y + stepY * 0.75, player.radius)) {
-            player.y += stepY * 0.75;
+          if (canMoveTo(player.x, player.y + stepY * 0.8, player.radius)) {
+            player.y += stepY * 0.8;
+            movedY = true;
+          }
+        }
+      }
+
+      // Smart 3D Corridor & Doorway Slide Assist in FPS_3D:
+      // If pressing ▲ (forward) into a wall near a corner or doorway, smoothly glide along the wall toward the next escape route tile!
+      if (cameraMode3D === 'FPS_3D' && keysPressed.up && !movedX && !movedY) {
+        const nextObj = getNextStepObjective();
+        if (nextObj) {
+          const route = computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r);
+          if (route && route.length >= 2) {
+            const wp = route[1];
+            const wdx = (wp.c + 0.5) - player.x;
+            const wdy = (wp.r + 0.5) - player.y;
+            const wlen = Math.hypot(wdx, wdy) || 1;
+            const slideX = (wdx / wlen) * baseSpeed * 0.85 * dt;
+            const slideY = (wdy / wlen) * baseSpeed * 0.85 * dt;
+            if (canMoveTo(player.x + slideX, player.y, player.radius)) player.x += slideX;
+            if (canMoveTo(player.x, player.y + slideY, player.radius)) player.y += slideY;
+            const desiredYaw = Math.atan2(wdy, wdx);
+            let yawDiff = desiredYaw - fpsCamYaw;
+            while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+            while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+            fpsCamYaw += yawDiff * Math.min(1, dt * 2.8);
           }
         }
       }
@@ -2395,9 +2503,9 @@
       }
     }
 
-    // Smoothly interpolate 3D Follow-Camera position toward player (zero rotational dizziness!)
-    fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 9.0);
-    fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 9.0);
+    // Smoothly interpolate 3D Follow-Camera position toward player
+    fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 10.0);
+    fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 10.0);
 
     // Update 3D Walk Stride Phase & World-Space 3D Footprints
     fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 9.0);
@@ -2710,42 +2818,83 @@
     return { tileSize, wallH, offsetX, offsetY, isCloseUp: false };
   }
 
-  function computeCloseUp3DLayout(w, h) {
-    const tileSize = Math.max(48, Math.min(w, h) * 0.156);
-    const wallH = tileSize * 0.62;
-    const boardW = COLS * tileSize;
-    const boardH = ROWS * tileSize;
-    // Center smoothly on the player's 3D follow-cam position (fpsCamX, fpsCamY)
-    let offsetX = w * 0.5 - fpsCamX * tileSize;
-    let offsetY = h * 0.55 - fpsCamY * tileSize;
-    // Clamp gently so outer building walls frame the screen nicely
-    const minOffX = Math.min(28, w - boardW - 28);
-    const maxOffX = Math.max(28, w - boardW - 28);
-    if (boardW + 56 > w) {
-      offsetX = Math.max(w - boardW - 36, Math.min(36, offsetX));
-    } else {
-      offsetX = (w - boardW) * 0.5;
+  function computeShortestEscapePath(startC, startR, goalC, goalR) {
+    if (!grid || grid.length < ROWS) return [];
+    const sc = Math.max(0, Math.min(COLS - 1, startC));
+    const sr = Math.max(0, Math.min(ROWS - 1, startR));
+    const gc = Math.max(0, Math.min(COLS - 1, goalC));
+    const gr = Math.max(0, Math.min(ROWS - 1, goalR));
+    if (sc === gc && sr === gr) return [{ c: sc, r: sr }];
+
+    const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    const parent = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    const queue = [{ c: sc, r: sr }];
+    visited[sr][sc] = true;
+
+    const dirs = [
+      { dc: 1, dr: 0 },
+      { dc: -1, dr: 0 },
+      { dc: 0, dr: 1 },
+      { dc: 0, dr: -1 }
+    ];
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (curr.c === gc && curr.r === gr) break;
+
+      for (const d of dirs) {
+        const nc = curr.c + d.dc;
+        const nr = curr.r + d.dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS || visited[nr][nc]) continue;
+        const t = grid[nr][nc];
+        const isGoal = (nc === gc && nr === gr);
+        const walkable =
+          isGoal ||
+          t === TILE.FLOOR ||
+          t === TILE.DOOR ||
+          t === TILE.OPEN_DOOR ||
+          t === TILE.EXIT ||
+          (t === TILE.LOCKED_DOOR && player.keys > 0) ||
+          (t === TILE.DEBRIS && player.hasAxe);
+        if (!walkable) continue;
+        visited[nr][nc] = true;
+        parent[nr][nc] = curr;
+        queue.push({ c: nc, r: nr });
+      }
     }
-    if (boardH + wallH + 56 > h) {
-      offsetY = Math.max(h - boardH - 28, Math.min(wallH + 34, offsetY));
-    } else {
-      offsetY = wallH + (h - wallH - boardH) * 0.5;
+
+    if (!visited[gr][gc]) {
+      return [{ c: sc, r: sr }, { c: gc, r: gr }];
     }
-    return { tileSize, wallH, offsetX, offsetY, isCloseUp: true };
+
+    const path = [];
+    let cur = { c: gc, r: gr };
+    while (cur) {
+      path.push(cur);
+      cur = parent[cur.r][cur.c];
+    }
+    path.reverse();
+    return path;
   }
 
   function orientCameraToOpenSpace() {
     fpsCamX = player.x;
     fpsCamY = player.y;
     const nextObj = getNextStepObjective();
+    let bestYaw = Math.atan2(player.dirY || 0, player.dirX || 1);
     if (nextObj) {
-      const dx = (nextObj.c + 0.5) - player.x;
-      const dy = (nextObj.r + 0.5) - player.y;
-      const len = Math.hypot(dx, dy) || 1;
-      player.dirX = dx / len;
-      player.dirY = dy / len;
+      // Use the first step of the BFS escape route from player to nextObj so the 1st-person 3D camera looks straight down the open room/corridor!
+      const route = computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r);
+      if (route && route.length >= 2) {
+        const stepTile = route[Math.min(2, route.length - 1)];
+        bestYaw = Math.atan2((stepTile.r + 0.5) - player.y, (stepTile.c + 0.5) - player.x);
+      } else {
+        bestYaw = Math.atan2((nextObj.r + 0.5) - player.y, (nextObj.c + 0.5) - player.x);
+      }
     }
-    fpsCamYaw = Math.atan2(player.dirY || 0, player.dirX || 1);
+    fpsCamYaw = bestYaw;
+    player.dirX = Math.cos(fpsCamYaw);
+    player.dirY = Math.sin(fpsCamYaw);
     footsteps3D = [];
     fpsForwardSurge = 0;
     fpsTurnBias = 0;
@@ -2761,7 +2910,7 @@
       orientCameraToOpenSpace();
       if (iconEl) iconEl.textContent = '👁️';
       if (textEl) textEl.textContent = '1인칭3D';
-      showToast('👁️ [3D 실내 근접 탈출 뷰] 화면 회전 어지러움 없이 ▲▼◀▶ 방향키로 실제 건물 방과 복도를 걸어서 탈출하세요!', 'border-indigo-400');
+      showToast('👁️ [1인칭 3D 건물 탈출 뷰] ▲ 전진 · ▼ 후진 · ◀/▶ 방향전환으로 실제 3D 건물 속을 걸어 탈출하세요!', 'border-indigo-400');
     } else {
       if (iconEl) iconEl.textContent = '🧊';
       if (textEl) textEl.textContent = '3D입체뷰';
@@ -2778,7 +2927,7 @@
   function getCanvasGridCoords(clientX, clientY) {
     const local = window.getElementLocalCoords(canvas, clientX, clientY);
     if (cameraMode3D === 'FPS_3D') {
-      // Check if user tapped inside the top-right 3D radar minimap
+      // 1. Check if user tapped inside the top-right 3D radar minimap
       const mapW = Math.min(165, Math.max(115, local.width * 0.22));
       const mapH = mapW * (ROWS / COLS);
       const mapX = local.width - mapW - 10;
@@ -2788,9 +2937,15 @@
         const gy = ((local.y - mapY) / mapH) * ROWS;
         return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
       }
-      const layout = computeCloseUp3DLayout(local.width, local.height);
-      const gx = (local.x - layout.offsetX) / layout.tileSize;
-      const gy = (local.y - layout.offsetY) / layout.tileSize;
+      // 2. Otherwise, unproject 3D perspective viewport tap into a point ahead in the 3D corridor
+      const fov = Math.PI * 0.42;
+      const relX = (local.x / Math.max(1, local.width) - 0.5) * 2;
+      const rayAngle = fpsCamYaw + relX * (fov * 0.5);
+      const horizon = player.crouching ? local.height * 0.38 : local.height * 0.43;
+      const dyScreen = Math.max(18, local.y - horizon);
+      const stepDist = Math.min(3.5, Math.max(0.85, (local.height * 0.35) / dyScreen));
+      const gx = Math.max(0.5, Math.min(COLS - 0.5, player.x + Math.cos(rayAngle) * stepDist));
+      const gy = Math.max(0.5, Math.min(ROWS - 0.5, player.y + Math.sin(rayAngle) * stepDist));
       return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
     }
     const layout = computeDioramaLayout(local.width, local.height);
@@ -3756,6 +3911,7 @@
         else if (t === TILE.EXIT) ctx.fillStyle = '#10b981';
         else if (t === TILE.LOCKED_DOOR) ctx.fillStyle = '#eab308';
         else if (t === TILE.DOOR) ctx.fillStyle = '#d97706';
+        else if (t === TILE.OPEN_DOOR) ctx.fillStyle = '#059669';
         else if (t === TILE.DEBRIS) ctx.fillStyle = '#ea580c';
         else if (t === TILE.FURNITURE) ctx.fillStyle = '#92400e';
         else ctx.fillStyle = '#1e293b';
@@ -3772,6 +3928,14 @@
     }
     const mpx = mapX + player.x * mtw;
     const mpy = mapY + player.y * mth;
+    // Draw 3D Camera FOV Cone on Radar Minimap
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+    ctx.beginPath();
+    ctx.moveTo(mpx, mpy);
+    ctx.arc(mpx, mpy, mtw * 2.8, fpsCamYaw - 0.42, fpsCamYaw + 0.42);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.fillStyle = '#38bdf8';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
@@ -3783,29 +3947,719 @@
     ctx.fillStyle = '#e0e7ff';
     ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🗺️ 건물 전체 지도 (터치이동)', mapX + mapW / 2, mapY + mapH + 12);
+    ctx.fillText('🗺️ 3D 레이더 지도 (터치이동)', mapX + mapW / 2, mapY + mapH + 12);
     ctx.restore();
 
-    // Bottom-Left 3D Interior Follow-Cam Status Badge (Never overlaps top toast banner!)
+    // Bottom-Left 1st-Person 3D Walkthrough Status Badge (Never overlaps top toast banner!)
     const gearSummary = player.wetTowel
       ? '🧣젖은수건 착용'
-      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : '문·아이템 자동상호작용'));
+      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : '▲전진·▼후진·◀▶회전'));
     ctx.save();
     const badgeY = height - 34;
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = '#818cf8';
     ctx.lineWidth = 1.5;
-    ctx.fillRect(10, badgeY, 265, 24);
-    ctx.strokeRect(10, badgeY, 265, 24);
+    ctx.fillRect(10, badgeY, 275, 24);
+    ctx.strokeRect(10, badgeY, 275, 24);
     ctx.fillStyle = '#e0e7ff';
     ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`👁️ 3D실내근접뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`, 18, badgeY + 12);
+    ctx.fillText(`👁️ 1인칭 3D 탈출뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`, 18, badgeY + 12);
     ctx.restore();
   }
 
-  // --- Unified 3D Architectural Building Escape Renderer (Supports Close-Up 3D Follow-Cam & Full-Building 3D Cutaway) ---
+  // --- True 1st-Person / Over-the-Shoulder 3D Perspective Building Escape Engine ('FPS_3D') ---
+  function renderFirstPerson3D(width, height, now, st) {
+    const fov = Math.PI * 0.44;
+    const tanHalfFov = Math.tan(fov * 0.5);
+    const cosYaw = Math.cos(fpsCamYaw);
+    const sinYaw = Math.sin(fpsCamYaw);
+
+    // Position 3D camera eye slightly behind the player inside open room space (never inside a wall)
+    let camWorldX = player.x;
+    let camWorldY = player.y;
+    for (let d = 0.06; d <= 0.62; d += 0.06) {
+      const tx = player.x - cosYaw * d;
+      const ty = player.y - sinYaw * d;
+      if (canMoveTo(tx, ty, 0.14)) {
+        camWorldX = tx;
+        camWorldY = ty;
+      } else {
+        break;
+      }
+    }
+
+    const camEyeZ = player.crouching ? 0.36 : 0.48;
+    const walkBobY = Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 1.8);
+    const horizon = (player.crouching ? height * 0.38 : height * 0.43) + walkBobY;
+    const vertScale = height * 0.72;
+
+    // Unified 3D World-to-Screen Projection (wz=0 is floor, wz=1.0 is ceiling)
+    function project3DPoint(wx, wy, wz = 0) {
+      const dx = wx - camWorldX;
+      const dy = wy - camWorldY;
+      const depth = dx * cosYaw + dy * sinYaw;
+      if (depth <= 0.12) return null;
+      const right = -dx * sinYaw + dy * cosYaw;
+      return {
+        x: width * 0.5 + (right / (depth * tanHalfFov)) * (width * 0.5),
+        y: horizon + ((camEyeZ - wz) * vertScale) / depth,
+        depth
+      };
+    }
+
+    // 1. 3D Ceiling & Perspective Floor Base Backdrop
+    const ceilGrad = ctx.createLinearGradient(0, 0, 0, horizon);
+    ceilGrad.addColorStop(0, '#0f172a');
+    ceilGrad.addColorStop(0.65, '#1e293b');
+    ceilGrad.addColorStop(1, '#334155');
+    ctx.fillStyle = ceilGrad;
+    ctx.fillRect(0, 0, width, horizon);
+
+    // Perspective Ceiling Acoustic Grid & Warm Recessed Ceiling Lights
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+    ctx.lineWidth = 1;
+    for (let p = 1; p <= 6; p++) {
+      const cy = horizon - Math.pow(p / 6, 1.65) * horizon * 0.92;
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(width, cy);
+      ctx.stroke();
+    }
+
+    const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
+    floorGrad.addColorStop(0, '#1e293b');
+    floorGrad.addColorStop(0.35, '#273549');
+    floorGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, horizon, width, height - horizon);
+
+    // 2. World-Locked 3D Perspective Floor Tile Quads & Ceiling Light Fixtures
+    const floorQuads = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r][c] === TILE.WALL) continue;
+        const distSq = (c + 0.5 - camWorldX) ** 2 + (r + 0.5 - camWorldY) ** 2;
+        if (distSq > 110) continue;
+
+        // Recessed 3D Ceiling Light Panel on every even tile
+        if ((r % 2 === 1) && (c % 3 === 1)) {
+          const lp = project3DPoint(c + 0.5, r + 0.5, 1.0);
+          if (lp && lp.depth > 0.4 && lp.depth < 9.5 && lp.y > 0 && lp.y < horizon - 4) {
+            const lw = Math.max(8, (width * 0.14) / lp.depth);
+            const lh = Math.max(3, lw * 0.28);
+            ctx.fillStyle = st.isDarkStage ? 'rgba(56, 189, 248, 0.22)' : 'rgba(254, 249, 195, 0.78)';
+            ctx.fillRect(lp.x - lw * 0.5, lp.y - lh * 0.5, lw, lh);
+          }
+        }
+
+        const p0 = project3DPoint(c, r, 0);
+        const p1 = project3DPoint(c + 1, r, 0);
+        const p2 = project3DPoint(c + 1, r + 1, 0);
+        const p3 = project3DPoint(c, r + 1, 0);
+        if (!p0 || !p1 || !p2 || !p3) continue;
+        const avgDepth = (p0.depth + p1.depth + p2.depth + p3.depth) * 0.25;
+        floorQuads.push({ r, c, p0, p1, p2, p3, avgDepth });
+      }
+    }
+
+    floorQuads.sort((a, b) => b.avgDepth - a.avgDepth);
+
+    for (const fq of floorQuads) {
+      const { r, c, p0, p1, p2, p3 } = fq;
+      const even = (r + c) % 2 === 0;
+      const t = grid[r][c];
+      let fillCol = even ? '#334155' : '#273549';
+      let strokeCol = 'rgba(148, 163, 184, 0.35)';
+
+      if (t === TILE.EXIT) {
+        fillCol = 'rgba(16, 185, 129, 0.65)';
+        strokeCol = '#6ee7b7';
+      } else if (c <= 3 && r <= 3) {
+        // Warm Oak Parquet Bedroom Floor
+        fillCol = even ? '#78350f' : '#652b0d';
+        strokeCol = 'rgba(251, 191, 36, 0.32)';
+      } else if (c >= 4 && c <= 7 && r <= 3) {
+        // Clean Aqua Ceramic Bathroom Tile
+        fillCol = even ? '#155e75' : '#0e4f63';
+        strokeCol = 'rgba(103, 232, 249, 0.38)';
+      } else if (c <= 5 && r >= 5) {
+        // Terracotta Kitchen Floor
+        fillCol = even ? '#5b232c' : '#4a1b23';
+        strokeCol = 'rgba(253, 164, 175, 0.30)';
+      }
+
+      ctx.fillStyle = fillCol;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.lineTo(p3.x, p3.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = Math.max(0.8, Math.min(2.2, 3.0 / fq.avgDepth));
+      ctx.stroke();
+
+      // Glowing Green Photoluminescent Emergency Guide Strip on Corridor Floors
+      if (r === 4 || c === 8) {
+        const gc0 = project3DPoint(c + 0.42, r + 0.42, 0);
+        const gc1 = project3DPoint(c + 0.58, r + 0.58, 0);
+        if (gc0 && gc1) {
+          ctx.strokeStyle = 'rgba(52, 211, 153, 0.55)';
+          ctx.lineWidth = Math.max(1.5, 4.0 / fq.avgDepth);
+          ctx.beginPath();
+          ctx.moveTo(gc0.x, gc0.y);
+          ctx.lineTo(gc1.x, gc1.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 2B. Golden 3D Escape Route Chevrons & World-Space 3D Footprints on the Floor
+    const nextObj = getNextStepObjective();
+    const routePath = nextObj
+      ? computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r)
+      : [];
+
+    if (routePath && routePath.length >= 2) {
+      for (let i = 0; i < routePath.length - 1; i++) {
+        const curr = routePath[i];
+        const next = routePath[i + 1];
+        const fp = project3DPoint(curr.c + 0.5, curr.r + 0.5, 0.02);
+        const tp = project3DPoint(next.c + 0.5, next.r + 0.5, 0.02);
+        if (fp && tp && fp.depth < 8.5) {
+          ctx.strokeStyle = 'rgba(250, 204, 21, 0.82)';
+          ctx.lineWidth = Math.max(2, 6 / fp.depth);
+          ctx.beginPath();
+          ctx.moveTo(fp.x, fp.y);
+          ctx.lineTo(tp.x, tp.y);
+          ctx.stroke();
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(tp.x, tp.y, Math.max(2.5, 5 / tp.depth), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    for (const fs of footsteps3D) {
+      const fp = project3DPoint(fs.x, fs.y, 0.01);
+      if (!fp || fp.depth > 5.0) continue;
+      const alpha = Math.max(0, (fs.life / fs.maxLife) * 0.55);
+      const rx = Math.max(2.5, 8 / fp.depth);
+      const ry = Math.max(1.4, 3.8 / fp.depth);
+      ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(fp.x, fp.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3. Solid, Full-Height 3D Architectural Walls & Doors Raycasting Pass (Zero Floating Walls, Zero Comb-Stripes!)
+    const numRays = Math.min(480, Math.max(240, Math.floor(width * 0.45)));
+    const zBuffer = new Float32Array(numRays);
+
+    function isFullHeightWallTile(t) {
+      return (
+        t === TILE.WALL ||
+        t === TILE.DOOR ||
+        t === TILE.LOCKED_DOOR ||
+        t === TILE.HOT_DOOR ||
+        t === TILE.EXIT ||
+        t === TILE.ELEVATOR ||
+        t === TILE.PARTITION ||
+        t === TILE.LIFELINE
+      );
+    }
+
+    for (let i = 0; i < numRays; i++) {
+      const camX = (2 * (i + 0.5)) / numRays - 1;
+      const rayAngle = fpsCamYaw + Math.atan(camX * tanHalfFov);
+      const rayDirX = Math.cos(rayAngle);
+      const rayDirY = Math.sin(rayAngle);
+
+      let mapX = Math.floor(camWorldX);
+      let mapY = Math.floor(camWorldY);
+      const deltaDistX = Math.abs(rayDirX) < 1e-6 ? 1e6 : Math.abs(1 / rayDirX);
+      const deltaDistY = Math.abs(rayDirY) < 1e-6 ? 1e6 : Math.abs(1 / rayDirY);
+
+      let stepX, sideDistX;
+      let stepY, sideDistY;
+      if (rayDirX < 0) {
+        stepX = -1;
+        sideDistX = (camWorldX - mapX) * deltaDistX;
+      } else {
+        stepX = 1;
+        sideDistX = (mapX + 1.0 - camWorldX) * deltaDistX;
+      }
+      if (rayDirY < 0) {
+        stepY = -1;
+        sideDistY = (camWorldY - mapY) * deltaDistY;
+      } else {
+        stepY = 1;
+        sideDistY = (mapY + 1.0 - camWorldY) * deltaDistY;
+      }
+
+      let hit = false;
+      let side = 0;
+      let hitTile = TILE.WALL;
+      let steps = 0;
+
+      while (!hit && steps < 36) {
+        steps++;
+        if (sideDistX < sideDistY) {
+          sideDistX += deltaDistX;
+          mapX += stepX;
+          side = 0;
+        } else {
+          sideDistY += deltaDistY;
+          mapY += stepY;
+          side = 1;
+        }
+        if (mapX < 0 || mapX >= COLS || mapY < 0 || mapY >= ROWS) {
+          hit = true;
+          hitTile = TILE.WALL;
+        } else if (isFullHeightWallTile(grid[mapY][mapX])) {
+          hit = true;
+          hitTile = grid[mapY][mapX];
+        }
+      }
+
+      const rawDist = side === 0 ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+      const perpDist = Math.max(0.14, rawDist * Math.cos(rayAngle - fpsCamYaw));
+      zBuffer[i] = perpDist;
+
+      // Exact Unclamped Perspective Wall Top & Bottom (100% Anchored to the 3D Floor Plane!)
+      const projH = vertScale / perpDist;
+      const wallBottom = horizon + projH * camEyeZ;
+      const wallTop = wallBottom - projH;
+
+      // Exact Non-Overlapping Integer Strip Coordinates (Eliminates Vertical Comb-Stripes!)
+      const x0 = Math.floor((i * width) / numRays);
+      const x1 = Math.floor(((i + 1) * width) / numRays);
+      const sw = Math.max(1, x1 - x0);
+
+      // Exact Horizontal Texture Coordinate wallX in [0, 1) on the Hit Tile Face
+      let wallX = side === 0 ? (camWorldY + rawDist * rayDirY) : (camWorldX + rawDist * rayDirX);
+      wallX -= Math.floor(wallX);
+
+      const isSideLit = side === 0;
+      const isEdgeSeam = wallX < 0.045 || wallX > 0.955;
+
+      if (hitTile === TILE.DOOR || hitTile === TILE.LOCKED_DOOR || hitTile === TILE.HOT_DOOR) {
+        // 3D Architectural Door Frame + Recessed Wood Panels + Brass Doorknob
+        const isFrameJamb = wallX < 0.12 || wallX > 0.88;
+        if (isFrameJamb) {
+          ctx.fillStyle = isSideLit ? '#5c2808' : '#451a03';
+          ctx.fillRect(x0, wallTop, sw, projH);
+        } else {
+          let leafCol = isSideLit ? '#d97706' : '#b45309';
+          if (hitTile === TILE.LOCKED_DOOR) leafCol = isSideLit ? '#eab308' : '#ca8a04';
+          else if (hitTile === TILE.HOT_DOOR) leafCol = isSideLit ? '#ef4444' : '#b91c1c';
+
+          // Top Transom Frame
+          ctx.fillStyle = '#451a03';
+          ctx.fillRect(x0, wallTop, sw, projH * 0.09);
+
+          // Main Door Leaf
+          ctx.fillStyle = leafCol;
+          ctx.fillRect(x0, wallTop + projH * 0.09, sw, projH * 0.91);
+
+          // Recessed Upper & Lower Door Panels
+          if (wallX > 0.22 && wallX < 0.78) {
+            const panelCol = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#854d0e' : '#78350f');
+            ctx.fillStyle = panelCol;
+            ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.28);
+            ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.30);
+          }
+
+          // 3D Brass Doorknob / Lock Plate
+          if (wallX >= 0.71 && wallX <= 0.82) {
+            ctx.fillStyle = '#fde047';
+            ctx.fillRect(x0, wallTop + projH * 0.47, sw, projH * 0.07);
+          }
+        }
+      } else if (hitTile === TILE.EXIT) {
+        // 3D Illuminated Emergency Exit Portal
+        const isFrame = wallX < 0.10 || wallX > 0.90;
+        ctx.fillStyle = isFrame ? '#064e3b' : (isSideLit ? '#10b981' : '#059669');
+        ctx.fillRect(x0, wallTop, sw, projH);
+
+        // Overhead Glowing White/Green EXIT Sign Box
+        if (wallX > 0.18 && wallX < 0.82) {
+          ctx.fillStyle = '#ecfdf5';
+          ctx.fillRect(x0, wallTop + projH * 0.06, sw, projH * 0.16);
+          ctx.fillStyle = '#047857';
+          ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.12);
+          // Glowing Inner Exit Doorway
+          ctx.fillStyle = '#6ee7b7';
+          ctx.fillRect(x0, wallTop + projH * 0.28, sw, projH * 0.68);
+        }
+      } else if (hitTile === TILE.ELEVATOR) {
+        // Brushed Steel Elevator Doors (Do Not Enter)
+        ctx.fillStyle = isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : (isSideLit ? '#64748b' : '#475569');
+        ctx.fillRect(x0, wallTop, sw, projH);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.07);
+      } else if (hitTile === TILE.PARTITION || hitTile === TILE.LIFELINE) {
+        const baseCol = hitTile === TILE.LIFELINE ? (isSideLit ? '#0284c7' : '#0369a1') : (isSideLit ? '#ea580c' : '#c2410c');
+        ctx.fillStyle = baseCol;
+        ctx.fillRect(x0, wallTop, sw, projH);
+        if (wallX > 0.15 && wallX < 0.85) {
+          ctx.fillStyle = hitTile === TILE.LIFELINE ? '#bae6fd' : '#fdba74';
+          ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.52);
+        }
+      } else {
+        // Standard 3D Building Interior Wall (Crown Molding + Upper Plaster + Photoluminescent Safety Line + Lower Wood Wainscoting + Baseboard)
+        const upperCol = isEdgeSeam
+          ? '#334155'
+          : (isSideLit ? '#94a3b8' : '#64748b');
+        const lowerCol = isEdgeSeam
+          ? '#1e293b'
+          : (isSideLit ? '#475569' : '#334155');
+
+        // Upper Plaster Wall
+        ctx.fillStyle = upperCol;
+        ctx.fillRect(x0, wallTop, sw, projH * 0.62);
+
+        // Ceiling Crown Molding
+        ctx.fillStyle = isSideLit ? '#e2e8f0' : '#cbd5e1';
+        ctx.fillRect(x0, wallTop, sw, projH * 0.055);
+
+        // Lower Wainscoting Wall
+        ctx.fillStyle = lowerCol;
+        ctx.fillRect(x0, wallTop + projH * 0.62, sw, projH * 0.38);
+
+        // Recessed Wainscoting Panel Detail
+        if (wallX > 0.18 && wallX < 0.82) {
+          ctx.fillStyle = isSideLit ? '#3b495e' : '#283548';
+          ctx.fillRect(x0, wallTop + projH * 0.68, sw, projH * 0.20);
+        }
+
+        // Photoluminescent Green Emergency Wall Guide Stripe & Golden Trim
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.042);
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(x0, wallTop + projH * 0.58, sw, projH * 0.012);
+
+        // Dark Architectural Floor Baseboard (Anchors Wall Crisp to Floor!)
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(x0, wallBottom - projH * 0.075, sw, projH * 0.075);
+      }
+    }
+
+    // 4. True 3D Perspective Floor Boxes (3D Beds, Desks, Wardrobes, Porcelain Sinks, Open Doorway Arches, Valves) & 3D Billboards
+    function isPointVisibleInZBuffer(screenX, depth) {
+      const rayIdx = Math.max(0, Math.min(numRays - 1, Math.floor((screenX / width) * numRays)));
+      return depth < zBuffer[rayIdx] + 0.28;
+    }
+
+    function draw3DPerspectiveBox(wx0, wy0, wx1, wy1, wz0, wz1, topCol, sideColLit, sideColShade, strokeCol) {
+      const centerP = project3DPoint((wx0 + wx1) * 0.5, (wy0 + wy1) * 0.5, (wz0 + wz1) * 0.5);
+      if (!centerP || centerP.depth <= 0.18 || centerP.depth > 10.5) return;
+      if (!isPointVisibleInZBuffer(centerP.x, centerP.depth - 0.15)) return;
+
+      const b00 = project3DPoint(wx0, wy0, wz0);
+      const b10 = project3DPoint(wx1, wy0, wz0);
+      const b11 = project3DPoint(wx1, wy1, wz0);
+      const b01 = project3DPoint(wx0, wy1, wz0);
+
+      const t00 = project3DPoint(wx0, wy0, wz1);
+      const t10 = project3DPoint(wx1, wy0, wz1);
+      const t11 = project3DPoint(wx1, wy1, wz1);
+      const t01 = project3DPoint(wx0, wy1, wz1);
+
+      if (!b00 || !b10 || !b11 || !b01 || !t00 || !t10 || !t11 || !t01) return;
+
+      function fillQuad(pA, pB, pC, pD, fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.lineTo(pC.x, pC.y);
+        ctx.lineTo(pD.x, pD.y);
+        ctx.closePath();
+        ctx.fill();
+        if (strokeCol) {
+          ctx.strokeStyle = strokeCol;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      // Draw the vertical side faces that face the camera eye (camWorldX, camWorldY)
+      if (camWorldY < wy0) fillQuad(b00, b10, t10, t00, sideColShade);
+      if (camWorldY > wy1) fillQuad(b01, b11, t11, t01, sideColShade);
+      if (camWorldX < wx0) fillQuad(b00, b01, t01, t00, sideColLit);
+      if (camWorldX > wx1) fillQuad(b10, b11, t11, t10, sideColLit);
+
+      // Draw the top horizontal face (if camera eye is above wz1, or if it's a low furniture box)
+      if (camEyeZ >= wz1 - 0.05) {
+        fillQuad(t00, t10, t11, t01, topCol);
+      } else if (camEyeZ <= wz0 + 0.05) {
+        fillQuad(b00, b10, b11, b01, sideColShade);
+      }
+    }
+
+    // Collect all 3D room objects, open doors, items, fires, smokes, and door labels for back-to-front depth sorting
+    const objects3D = [];
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = grid[r][c];
+        if (t === TILE.FLOOR || t === TILE.WALL) continue;
+        const p = project3DPoint(c + 0.5, r + 0.5, 0.25);
+        if (!p || p.depth > 10.5) continue;
+        objects3D.push({ kind: 'tileObj', r, c, t, depth: p.depth });
+      }
+    }
+
+    for (const it of items) {
+      const p = project3DPoint(it.c + 0.5, it.r + 0.5, 0.20);
+      if (p && p.depth <= 10.5) {
+        objects3D.push({ kind: 'item', it, depth: p.depth });
+      }
+    }
+
+    for (const f of fires) {
+      const p = project3DPoint(f.c + 0.5, f.r + 0.5, 0.25);
+      if (p && p.depth <= 10.5) {
+        objects3D.push({ kind: 'fire', f, depth: p.depth });
+      }
+    }
+
+    for (const s of smokes) {
+      const p = project3DPoint(s.c + 0.5, s.r + 0.5, 0.72);
+      if (p && p.depth <= 10.5) {
+        objects3D.push({ kind: 'smoke', s, depth: p.depth });
+      }
+    }
+
+    objects3D.sort((a, b) => b.depth - a.depth);
+
+    for (const obj of objects3D) {
+      if (obj.kind === 'tileObj') {
+        const { r, c, t } = obj;
+        if (t === TILE.FURNITURE) {
+          const fKind = (r + c * 3) % 3;
+          if (fKind === 0) {
+            // 3D Bedroom Bed on Floor (Mattress + Blue Blanket + Wooden Headboard + White Pillow)
+            draw3DPerspectiveBox(c + 0.10, r + 0.12, c + 0.90, r + 0.88, 0, 0.24, '#3b82f6', '#1d4ed8', '#1e3a8a', '#93c5fd');
+            draw3DPerspectiveBox(c + 0.10, r + 0.10, c + 0.90, r + 0.26, 0, 0.48, '#92400e', '#78350f', '#451a03', '#fbbf24');
+            draw3DPerspectiveBox(c + 0.22, r + 0.24, c + 0.78, r + 0.44, 0.24, 0.30, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+          } else if (fKind === 1) {
+            // 3D Wooden Study Desk + Monitor
+            draw3DPerspectiveBox(c + 0.12, r + 0.16, c + 0.88, r + 0.84, 0, 0.34, '#d97706', '#b45309', '#78350f', '#fde68a');
+            draw3DPerspectiveBox(c + 0.30, r + 0.32, c + 0.70, r + 0.56, 0.34, 0.54, '#38bdf8', '#0284c7', '#0f172a', '#bae6fd');
+          } else {
+            // 3D Wooden Cabinet
+            draw3DPerspectiveBox(c + 0.14, r + 0.14, c + 0.86, r + 0.86, 0, 0.56, '#b45309', '#92400e', '#78350f', '#fcd34d');
+          }
+        } else if (t === TILE.SINK) {
+          // 3D Porcelain Washbasin Vanity + Water Basin
+          draw3DPerspectiveBox(c + 0.12, r + 0.14, c + 0.88, r + 0.86, 0, 0.38, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
+          draw3DPerspectiveBox(c + 0.24, r + 0.26, c + 0.76, r + 0.74, 0.38, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
+          const sp = project3DPoint(c + 0.5, r + 0.5, 0.54);
+          if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
+            ctx.font = `bold ${Math.max(11, Math.min(20, Math.floor(26 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+            ctx.fillStyle = '#bae6fd';
+            ctx.textAlign = 'center';
+            ctx.fillText('🚰세면대', sp.x, sp.y);
+          }
+        } else if (t === TILE.OPEN_DOOR) {
+          // 3D Open Doorway Arch (Left & Right Jamb Pillars + Top Lintel Beam — Center is Open to Walk Through!)
+          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.16, r + 0.92, 0, 0.92, '#78350f', '#92400e', '#451a03', '#fbbf24');
+          draw3DPerspectiveBox(c + 0.84, r + 0.08, c + 0.98, r + 0.92, 0, 0.92, '#78350f', '#92400e', '#451a03', '#fbbf24');
+          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.98, r + 0.92, 0.84, 1.0, '#78350f', '#92400e', '#451a03', '#fbbf24');
+          const dp = project3DPoint(c + 0.5, r + 0.5, 0.72);
+          if (dp && dp.depth < 5.5 && isPointVisibleInZBuffer(dp.x, dp.depth - 0.1)) {
+            ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / dp.depth)))}px "Noto Sans KR", sans-serif`;
+            ctx.fillStyle = '#6ee7b7';
+            ctx.textAlign = 'center';
+            ctx.fillText('🚪열린문(통과)', dp.x, dp.y);
+          }
+        } else if (t === TILE.DEBRIS) {
+          draw3DPerspectiveBox(c + 0.12, r + 0.12, c + 0.88, r + 0.88, 0, 0.45, '#b45309', '#92400e', '#451a03', '#fb923c');
+          const dp = project3DPoint(c + 0.5, r + 0.5, 0.56);
+          if (dp && isPointVisibleInZBuffer(dp.x, dp.depth - 0.15)) {
+            ctx.font = `bold ${Math.max(11, Math.min(18, Math.floor(24 / dp.depth)))}px "Noto Sans KR", sans-serif`;
+            ctx.fillStyle = '#fed7aa';
+            ctx.textAlign = 'center';
+            ctx.fillText('🪵장애물(도끼)', dp.x, dp.y);
+          }
+        } else if (
+          t === TILE.GAS_VALVE ||
+          t === TILE.BREAKER ||
+          t === TILE.ALARM_BELL ||
+          t === TILE.PHONE_119 ||
+          t === TILE.HAZARD
+        ) {
+          draw3DPerspectiveBox(c + 0.22, r + 0.22, c + 0.78, r + 0.78, 0, 0.44, '#334155', '#1e293b', '#0f172a', '#38bdf8');
+          const fp = project3DPoint(c + 0.5, r + 0.5, 0.58);
+          if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.15)) {
+            const label = t === TILE.GAS_VALVE ? '🔴가스밸브'
+              : t === TILE.BREAKER ? '⚡차단기'
+              : t === TILE.ALARM_BELL ? '🔔비상벨'
+              : t === TILE.PHONE_119 ? '📞119전화'
+              : '⚠️위험요소';
+            ctx.font = `bold ${Math.max(11, Math.min(19, Math.floor(26 / fp.depth)))}px "Noto Sans KR", sans-serif`;
+            ctx.fillStyle = '#fef08a';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, fp.x, fp.y);
+          }
+        } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR || t === TILE.EXIT) {
+          // Floating 3D Architectural Door / Exit Badge on the Wall Face
+          const wp = project3DPoint(c + 0.5, r + 0.5, 0.55);
+          if (wp && wp.depth < 6.5 && isPointVisibleInZBuffer(wp.x, wp.depth - 0.45)) {
+            const badgeText = t === TILE.EXIT ? '🏃 EXIT 비상구'
+              : t === TILE.LOCKED_DOOR ? '🔒 잠긴문 (열쇠)'
+              : t === TILE.HOT_DOOR ? '🌡️🔥 고온 위험문'
+              : '🚪 방문 (다가가면 열림)';
+            ctx.save();
+            ctx.font = `bold ${Math.max(11, Math.min(18, Math.floor(25 / wp.depth)))}px "Noto Sans KR", sans-serif`;
+            const tw = ctx.measureText(badgeText).width + 12;
+            const th = Math.max(18, Math.min(26, Math.floor(32 / wp.depth)));
+            ctx.fillStyle = t === TILE.EXIT ? 'rgba(5, 150, 105, 0.92)' : 'rgba(15, 23, 42, 0.88)';
+            ctx.strokeStyle = t === TILE.EXIT ? '#6ee7b7' : '#fbbf24';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(wp.x - tw * 0.5, wp.y - th * 0.5, tw, th);
+            ctx.strokeRect(wp.x - tw * 0.5, wp.y - th * 0.5, tw, th);
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(badgeText, wp.x, wp.y);
+            ctx.restore();
+          }
+        }
+      } else if (obj.kind === 'item') {
+        const { it } = obj;
+        const ip = project3DPoint(it.c + 0.5, it.r + 0.5, 0.18 + Math.sin(now * 3.5) * 0.04);
+        if (ip && isPointVisibleInZBuffer(ip.x, ip.depth - 0.12)) {
+          const rad = Math.max(12, Math.min(34, 42 / ip.depth));
+          ctx.save();
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(ip.x, ip.y, rad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.font = `${Math.floor(rad * 1.15)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(it.icon, ip.x, ip.y);
+          ctx.font = `bold ${Math.max(10, Math.floor(rad * 0.55))}px "Noto Sans KR", sans-serif`;
+          ctx.fillStyle = '#fef08a';
+          ctx.fillText(it.name, ip.x, ip.y + rad + 10);
+          ctx.restore();
+        }
+      } else if (obj.kind === 'fire') {
+        const { f } = obj;
+        const fp = project3DPoint(f.c + 0.5, f.r + 0.5, 0.25);
+        if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.12)) {
+          const frad = Math.max(14, Math.min(48, 56 / fp.depth));
+          const fGrad = ctx.createRadialGradient(fp.x, fp.y, frad * 0.15, fp.x, fp.y, frad);
+          fGrad.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
+          fGrad.addColorStop(0.5, 'rgba(249, 115, 22, 0.80)');
+          fGrad.addColorStop(1, 'rgba(220, 38, 38, 0)');
+          ctx.fillStyle = fGrad;
+          ctx.beginPath();
+          ctx.arc(fp.x, fp.y, frad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = `${Math.floor(frad * 1.1)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔥', fp.x, fp.y);
+        }
+      } else if (obj.kind === 'smoke') {
+        const { s } = obj;
+        const sp = project3DPoint(s.c + 0.5, s.r + 0.5, 0.76);
+        if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.1)) {
+          const srad = Math.max(18, Math.min(58, 68 / sp.depth));
+          const sGrad = ctx.createRadialGradient(sp.x, sp.y, srad * 0.1, sp.x, sp.y, srad);
+          sGrad.addColorStop(0, 'rgba(100, 116, 139, 0.62)');
+          sGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+          ctx.fillStyle = sGrad;
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, srad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 5. Floating 3D Objective Beacon in 1st-Person 3D View
+    if (nextObj && !player.onFire) {
+      const op = project3DPoint(nextObj.c + 0.5, nextObj.r + 0.5, 0.68);
+      if (op && op.depth < 12) {
+        const clampedX = Math.max(70, Math.min(width - 70, op.x));
+        const clampedY = Math.max(46, Math.min(height - 90, op.y));
+        ctx.save();
+        ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+        const rawLabel = nextObj.label || '🎯 목표 지점';
+        const label = `${rawLabel.startsWith('🎯') ? rawLabel : '🎯 ' + rawLabel} (${op.depth.toFixed(1)}m)`;
+        const bw = ctx.measureText(label).width + 16;
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(clampedX - bw * 0.5, clampedY - 13, bw, 26);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(clampedX - bw * 0.5, clampedY - 13, bw, 26);
+        ctx.fillStyle = '#0f172a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, clampedX, clampedY);
+        ctx.restore();
+      }
+    }
+
+    // 6. Foreground Articulated 3D Human Character ('나') Walking Into the 3D Room/Corridor
+    const activeSkin = getSelectedSkin();
+    let rightTool = 'none';
+    if (player.extinguishers > 0) rightTool = 'extinguisher';
+    else if (player.hasAxe) rightTool = 'axe';
+    else if (player.buckets > 0) rightTool = 'bucket';
+    else if (player.hasFlashlight) rightTool = 'flashlight';
+
+    const isMovingNow = Math.abs(fpsForwardSurge) > 0.08 || Math.abs(fpsTurnBias) > 0.08;
+    const charFootX = width * 0.5 + fpsTurnBias * (width * 0.055);
+    const charFootY = height * 0.87 - fpsForwardSurge * (height * 0.035);
+    const charHeight = Math.min(width, height) * (player.crouching ? 0.25 : 0.30);
+
+    drawHumanCharacter3DWalk(ctx, charFootX, charFootY, charHeight, {
+      crouching: player.crouching,
+      moving: isMovingNow,
+      walkPhase: fpsWalkPhase,
+      turnBias: fpsTurnBias,
+      skinId: activeSkin.id || 'student',
+      wetTowel: player.wetTowel,
+      hasTowel: player.hasTowel,
+      hasMask: player.hasMask,
+      rightTool,
+      onFire: player.onFire
+    });
+
+    // Player overhead badge ('나')
+    const headTopY = charFootY - (player.crouching ? charHeight * 0.74 : charHeight * 0.94);
+    ctx.save();
+    const pBadgeText = player.crouching ? '나 (🧎낮은자세)' : '나';
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    const pbW = ctx.measureText(pBadgeText).width + 12;
+    ctx.fillStyle = player.crouching ? '#059669' : '#2563eb';
+    ctx.fillRect(charFootX - pbW * 0.5, headTopY - 22, pbW, 18);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(charFootX - pbW * 0.5, headTopY - 22, pbW, 18);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pBadgeText, charFootX, headTopY - 13);
+    ctx.restore();
+
+    // 7. Top-Right 3D Radar Minimap & Bottom-Left Status Pill
+    draw3DRadarMinimapOverlay(ctx, width, height, nextObj);
+  }
+
+  // --- Unified 3D Architectural Building Escape Renderer (Dispatches 'FPS_3D' vs 'DIORAMA_3D') ---
   function renderCanvas() {
     const width = cssCanvasW;
     const height = cssCanvasH;
@@ -3814,6 +4668,11 @@
     const now = performance.now() * 0.004;
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
 
+    if (cameraMode3D === 'FPS_3D') {
+      renderFirstPerson3D(width, height, now, st);
+      return;
+    }
+
     // Deep atmospheric 3D building backdrop
     const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 40, width * 0.5, height * 0.5, Math.max(width, height) * 0.75);
     bgGrad.addColorStop(0, '#1e293b');
@@ -3821,8 +4680,8 @@
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    const isCloseUp = cameraMode3D === 'FPS_3D';
-    const layout = isCloseUp ? computeCloseUp3DLayout(width, height) : computeDioramaLayout(width, height);
+    const isCloseUp = false;
+    const layout = computeDioramaLayout(width, height);
     const { tileSize, wallH, offsetX, offsetY } = layout;
     const boardW = COLS * tileSize;
     const boardH = ROWS * tileSize;
