@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="2022 개정 초등 교육과정 연계 화재 대피 시뮬레이션 게임 - 연소와 소화, 대류 현상, 완강기, 경량칸막이, 방화문 닫기 체험" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta property="og:title" content="화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 에디션)" />
+  <meta property="og:description" content="불타는 집·학교 과학실·지하철에서 안전 수칙을 활용해 탈출하는 교육용 웹 게임" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>" />
+  <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+
+  <!-- Top Navigation & Status Header -->
+  <header class="w-full bg-slate-900/95 border-b border-slate-800 px-2 sm:px-3 py-1.5 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-1.5">
+      <!-- Title & Stage Badge -->
+      <div class="flex items-center gap-1.5">
+        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-md shadow-orange-600/30 text-base sm:text-lg shrink-0">
+          🔥
+        </div>
+        <div>
+          <h1 class="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 flex-wrap">
+            <span>화재 탈출 넘버원</span>
+            <span id="stageBadge" class="text-[11px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold">1단계: 2층 침실</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Stage Selector & Utility Controls -->
+      <div class="flex items-center gap-1 flex-wrap">
+        <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700 flex-wrap" role="group" aria-label="스테이지 선택">
+          <button id="btnStage0" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition" title="화재 예방 사전점검 모드">🔍예방</button>
+          <button id="btnStage1" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition">1층/2층</button>
+          <button id="btnStage2" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition">거실/주방</button>
+          <button id="btnStage3" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition">최종탈출</button>
+          <button id="btnStage4" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="4단계: 초등학교 과학실">🏫과학실</button>
+          <button id="btnStage5" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="5단계: 다중이용시설 지하철·쇼핑몰">🚇다중시설</button>
+        </div>
+
+        <button id="btnMapEditor" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1" title="우리 집·교실 대피도 맵 에디터">
+          <span>🛠️</span>
+          <span class="hidden md:inline">맵에디터</span>
+        </button>
+
+        <button id="btnCertModal" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1" title="명예 소방관 수료증 및 배지 도감">
+          <span>🏅</span>
+          <span class="hidden md:inline">수료증·도감</span>
+        </button>
+
+        <button id="btnPause" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="일시정지">
+          <span id="pauseIcon">⏸️</span>
+          <span id="pauseText" class="hidden lg:inline">일시정지</span>
+        </button>
+
+        <button id="btnRestartTop" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="다시 시작">
+          <span>🔄</span>
+          <span id="pauseRestartText" class="hidden lg:inline">재시작</span>
+        </button>
+
+        <button id="btnSound" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition" title="소리 켜기/끄기">
+          🔊
+        </button>
+
+        <button id="btnGuide" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
+          <span>🧯</span>
+          <span>안전수칙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-2 sm:px-4 py-1.5 flex flex-col gap-1.5">
+
+    <!-- HUD: Vitals, Convection Layer Gauge, Inventory & Mission -->
+    <section class="grid grid-cols-1 md:grid-cols-12 gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-2 shadow-lg">
+      <!-- Health & Oxygen Bars -->
+      <div class="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-1.5 items-center">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] sm:text-xs font-bold text-red-400 w-12 sm:w-14 shrink-0 flex items-center gap-0.5">❤️ 체력</span>
+          <div class="flex-1 h-3 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
+            <div id="hpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-150" style="width: 100%;"></div>
+          </div>
+          <span id="hpValue" class="text-[11px] sm:text-xs font-mono font-bold text-slate-300 w-8 sm:w-9 text-right">100%</span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] sm:text-xs font-bold text-sky-400 w-12 sm:w-14 shrink-0 flex items-center gap-0.5">💨 산소</span>
+          <div class="flex-1 h-3 sm:h-3.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700 p-0.5">
+            <div id="o2Bar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
+          </div>
+          <span id="o2Value" class="text-[11px] sm:text-xs font-mono font-bold text-slate-300 w-8 sm:w-9 text-right">100%</span>
+        </div>
+      </div>
+
+      <!-- Convection & Smoke Vertical Cross-Section Gauge + Posture/Score -->
+      <div class="md:col-span-4 flex items-center justify-between bg-slate-950/70 rounded-lg px-2.5 py-1 border border-slate-800/80 gap-2">
+        <div class="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded border border-slate-800" title="과학 대류 현상: 뜨거운 연기는 위로 올라가고 바닥에는 신선한 공기가 남습니다">
+          <div class="w-4 h-8 rounded overflow-hidden flex flex-col border border-slate-700 relative shrink-0">
+            <div class="h-1/2 bg-gradient-to-b from-slate-500 to-orange-500/60 flex items-center justify-center text-[8px]">💨</div>
+            <div class="h-1/2 bg-gradient-to-b from-sky-900/60 to-emerald-600/60 flex items-center justify-center text-[8px]">🌬️</div>
+            <div id="convectionMarker" class="absolute left-0 right-0 h-1.5 bg-yellow-300 border border-black transition-all duration-200" style="top: 3px;"></div>
+          </div>
+          <div class="text-[10px] leading-tight">
+            <div class="text-slate-400 font-semibold">대류·공기층</div>
+            <div id="postureStatus" class="text-xs font-extrabold text-amber-400">🚶 상층(위험)</div>
+            <div id="convectionHint" class="text-[9px] text-slate-400">고온 연기층 호흡중</div>
+          </div>
+        </div>
+
+        <div class="h-6 w-px bg-slate-800"></div>
+        <div class="text-center">
+          <div class="text-[10px] text-slate-400">시간</div>
+          <div id="timerDisplay" class="text-xs font-mono font-extrabold text-white">00:00</div>
+        </div>
+        <div class="h-6 w-px bg-slate-800"></div>
+        <div class="text-center">
+          <div class="text-[10px] text-slate-400">점수 / 최고</div>
+          <div class="text-xs font-mono font-extrabold text-emerald-400"><span id="scoreDisplay">0</span> <span class="text-slate-500">/</span> <span id="bestScoreDisplay" class="text-slate-400">0</span></div>
+        </div>
+      </div>
+
+      <!-- Inventory Items -->
+      <div class="md:col-span-4 flex flex-col justify-between bg-slate-950/70 rounded-lg px-2.5 py-1 border border-slate-800/80">
+        <div class="flex items-center justify-between mb-0.5">
+          <span class="text-[10px] sm:text-[11px] font-bold text-slate-400">보유 장비 · 상태</span>
+          <span id="missionShort" class="text-[10px] sm:text-[11px] font-semibold text-orange-300 truncate max-w-[205px]">목표: 비상 계단으로 탈출!</span>
+        </div>
+        <div id="inventoryList" class="flex items-center gap-1 overflow-x-auto py-0.5 min-h-[24px]">
+          <span class="text-[11px] text-slate-500 italic">아이템 없음 (화면 터치 또는 방향키로 탐색)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Canvas & Interactive Toast Area -->
+    <div class="relative w-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl" id="canvasContainer">
+      <canvas id="gameCanvas" class="w-full h-full cursor-pointer"></canvas>
+
+      <!-- Map Legend Pill (Top Left) -->
+      <div class="pointer-events-none absolute top-1.5 left-1.5 z-10 flex flex-wrap items-center gap-1 sm:gap-1.5 bg-slate-950/85 border border-slate-800 px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] text-slate-300 max-w-[96%]">
+        <span>🔥일반/🍳식용유/⚡전기</span>
+        <span>🧱경량칸막이</span>
+        <span>🚪방화문닫기</span>
+        <span>🔔비상벨</span>
+        <span>😷방연마스크/🔦손전등</span>
+        <span>🪢완강기</span>
+      </div>
+
+      <!-- Live Toast Notification Banner inside Game View -->
+      <div id="toastBanner" class="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-xl bg-slate-950/95 border border-amber-500/50 text-amber-200 text-[11px] sm:text-sm font-semibold shadow-lg transition-all duration-300 opacity-0 -translate-y-2 w-[92%] sm:w-auto max-w-[94%] text-center">
+        화재가 발생했습니다! 젖은 수건·방연마스크를 챙기고 낮은 자세로 대피하세요!
+      </div>
+
+      <!-- Context Prompt Pill near Bottom of Canvas -->
+      <div id="contextPrompt" class="pointer-events-none absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-slate-950/90 border border-amber-500/40 text-amber-200 text-[11px] sm:text-xs font-semibold shadow transition-opacity duration-200 opacity-0 max-w-[94%] truncate">
+        [Space] 또는 [상호작용] 버튼으로 행동
+      </div>
+
+      <!-- Start / Stage Intro / Game Over / Victory Overlay Modal -->
+      <div id="gameOverlay" class="fixed sm:absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-3.5 sm:p-5 shadow-2xl text-center flex flex-col gap-2.5 my-auto max-h-[96%] overflow-y-auto">
+          <div id="overlayIcon" class="w-10 h-10 sm:w-12 sm:h-12 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-red-600/30 shrink-0">
+            🚨
+          </div>
+          <div>
+            <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-orange-400">2022 개정 교육과정 & 10대 확장 에디션</span>
+            <h2 id="overlayTitle" class="text-base sm:text-2xl font-black text-white mt-0.5">불타는 집·학교·지하철에서 탈출하라!</h2>
+            <p id="overlayDesc" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+              사전 화재예방 점검부터 아파트 경량칸막이 파괴, 방화문 닫기, 옷에 불붙었을 때 구르기(Stop·Drop·Roll), 과학실·다중이용시설 탈출, 맵 에디터까지 모두 체험해 보세요!
+            </p>
+          </div>
+
+          <!-- Stage Objectives Box -->
+          <div id="overlayTipsBox" class="bg-slate-950/90 border border-slate-800 rounded-xl p-2.5 text-left text-[11px] sm:text-xs space-y-1 text-slate-300">
+            <div class="font-bold text-amber-400 flex items-center gap-1">💡 10대 핵심 안전 기능 가이드</div>
+            <div>• <strong>경량칸막이(🧱) & 방화문 닫기(🚪):</strong> 옆집 경량칸막이를 부숴 탈출하거나, 지나간 문을 다시 닫아 연기 확산을 물리적으로 차단하세요.</div>
+            <div>• <strong>구르기(🔄) & 방연마스크(😷)·손전등(🔦):</strong> 옷에 불이 붙으면 즉시 [구르기]를 연타하고, 마스크와 손전등으로 어두운 연기를 돌파하세요.</div>
+            <div>• <strong>비상벨(🔔) & 이웃 구조(🧒):</strong> 복도 비상벨을 울려 이웃과 친구를 깨워 함께 탈출하면 협동 보너스를 얻습니다.</div>
+            <div>• <strong>예방점검(🔍) · 과학실(🏫) · 지하철(🚇) · 맵에디터(🛠️) · 수료증(🏅) · 동선리플레이</strong> 완비!</div>
+          </div>
+
+          <!-- Stats Summary (Shown on Clear/GameOver) -->
+          <div id="overlayStats" class="hidden grid-cols-3 gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2">
+            <div>
+              <div class="text-[10px] text-slate-400">소요 시간</div>
+              <div id="statTime" class="text-xs sm:text-sm font-bold text-white">00:24</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400">남은 체력/산소</div>
+              <div id="statVitals" class="text-xs sm:text-sm font-bold text-emerald-400">85%</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400">획득 점수</div>
+              <div id="statScore" class="text-xs sm:text-sm font-bold text-amber-400">1,250</div>
+            </div>
+          </div>
+
+          <!-- Debriefing Safety Report Card + Path Replay Minimap -->
+          <div id="debriefReportBox" class="hidden bg-slate-950/95 border border-slate-800 rounded-xl p-2.5 text-left text-xs space-y-2">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1">
+              <span class="font-extrabold text-emerald-400 flex items-center gap-1 text-[11px] sm:text-xs">📋 나의 화재 대피 안전 진단표 & 동선 리플레이</span>
+              <span id="debriefGrade" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]">안전 박사 (S)</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+              <div id="debriefChecklist" class="sm:col-span-7 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
+              <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800">
+                <span class="text-[9px] text-slate-400 mb-1">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
+                <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
+              </div>
+            </div>
+
+            <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2 pt-0.5">
+            <button id="btnPrimaryAction" type="button" class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-orange-600/30 transition">
+              게임 시작하기
+            </button>
+            <button id="btnOpenCertFromOverlay" type="button" class="hidden py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm transition">
+              🏅 수료증·도감 보기
+            </button>
+            <button id="btnSecondaryAction" type="button" class="hidden py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition">
+              처음부터 다시
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Educational Mini-Game Modal -->
+      <div id="eduModal" class="fixed sm:absolute inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-amber-500/50 rounded-2xl max-w-md w-full p-3.5 sm:p-5 shadow-2xl space-y-2.5 text-left my-auto max-h-[95%] overflow-y-auto">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div>
+              <span id="eduModalBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">교과 체험 미션</span>
+              <h3 id="eduModalTitle" class="text-sm sm:text-lg font-extrabold text-white mt-0.5">미션 제목</h3>
+            </div>
+            <button id="btnCloseEduModal" type="button" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-xs shrink-0">✕</button>
+          </div>
+          <div id="eduModalDesc" class="text-xs sm:text-sm text-slate-300 leading-relaxed"></div>
+          <div id="eduModalChoices" class="space-y-2"></div>
+          <div class="pt-1 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span>⌨️ <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-amber-300 font-mono">▲▼ / WS</kbd> 선택 이동</span>
+            <span><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-emerald-300 font-mono">Enter / Space</kbd> 결정 · <kbd class="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono">1~9</kbd> 번호선택</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Touch & Keyboard Controls Bar -->
+    <section class="bg-slate-900/95 border border-slate-800 rounded-xl p-2 flex flex-wrap items-center justify-between gap-1.5">
+      <!-- D-Pad for Mobile / Touch / Mouse -->
+      <div class="flex items-center gap-2">
+        <div class="grid grid-cols-3 gap-1 w-28 h-24 sm:w-32 sm:h-28 shrink-0" aria-label="방향 조작 패드">
+          <div></div>
+          <button id="btnUp" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▲</button>
+          <div></div>
+          <button id="btnLeft" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">◀</button>
+          <button id="btnDown" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▼</button>
+          <button id="btnRight" type="button" class="btn-control bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center text-sm sm:text-base font-bold text-white shadow">▶</button>
+        </div>
+
+        <div class="hidden xl:flex flex-col text-[11px] text-slate-400 space-y-1">
+          <div><kbd class="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 font-mono">WASD/방향키</kbd> 또는 <strong>화면 직접 터치·드래그</strong></div>
+          <div><kbd class="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 font-mono">Space/E</kbd> 행동·소화기 · <kbd class="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 font-mono">Q</kbd> 물 · <kbd class="px-1 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-200 font-mono">F</kbd> 구르기</div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1 sm:gap-1.5 ml-auto flex-wrap justify-end">
+        <button id="btnRoll" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[11px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow" title="옷에 불이 붙었을 때 멈추고 엎드려 구르기 (단축키 F)">
+          <span class="text-base sm:text-lg">🔄</span>
+          <span>구르기 <span id="rollStatusBadge" class="text-[9px] text-rose-300">(안전)</span></span>
+        </button>
+
+        <button id="btnCrouch" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow">
+          <span class="text-base sm:text-lg">🧎</span>
+          <span>낮은 자세</span>
+        </button>
+
+        <button id="btnWaterBucket" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-blue-950/70 hover:bg-blue-900/80 border border-blue-500/40 text-[11px] sm:text-xs font-bold text-blue-200 flex flex-col items-center justify-center min-w-[62px] sm:min-w-[72px] shadow" title="물양동이 (냉각 소화 - 일반 화재용)">
+          <span class="text-base sm:text-lg">🪣</span>
+          <span>물양동이 <span id="waterAmmoBadge" class="text-[10px] text-blue-300">(0)</span></span>
+        </button>
+
+        <button id="btnExtinguish" type="button" class="btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-sky-900/60 hover:bg-sky-800/70 border border-sky-500/40 text-[11px] sm:text-xs font-bold text-sky-200 flex flex-col items-center justify-center min-w-[62px] sm:min-w-[72px] shadow" title="분말/K급 소화기 (질식 소화 - 모든 화재용)">
+          <span class="text-base sm:text-lg">🧯</span>
+          <span>소화기 <span id="extAmmoBadge" class="text-[10px] text-sky-400">(0)</span></span>
+        </button>
+
+        <button id="btnAction" type="button" class="btn-control px-2.5 sm:px-3.5 py-2 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-[11px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-[68px] sm:min-w-[78px] shadow-lg shadow-orange-600/30">
+          <span class="text-base sm:text-lg">✋</span>
+          <span>상호작용</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Custom Map Editor Modal ('우리 집·교실 대피도 만들기') -->
+  <div id="mapEditorModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-indigo-500/50 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300">창작·설계 활동 (아이디어 8)</span>
+          <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5">🛠️ 나만의 '우리 집·우리 교실 대피도' 맵 에디터</h3>
+        </div>
+        <button id="btnCloseMapEditor" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-300">아래 팔레트에서 타일·화재·장비를 선택한 뒤 격자를 클릭/드래그해 배치하고, <strong>[내 커스텀 맵 플레이하기]</strong>를 눌러 직접 탈출해 보세요! (시작점 🧍에서 출구까지 경로가 자동으로 검증됩니다)</p>
+
+      <!-- Expanded Palette Buttons -->
+      <div id="editorPalette" class="flex flex-wrap gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs">
+        <button type="button" data-brush="floor" class="editor-brush px-2 py-1 rounded bg-orange-600 text-white font-bold">⬜ 바닥(지우개)</button>
+        <button type="button" data-brush="wall" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧱 벽</button>
+        <button type="button" data-brush="furniture" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪑 가구</button>
+        <button type="button" data-brush="door" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🚪 방화문</button>
+        <button type="button" data-brush="locked_door" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔒 잠긴문</button>
+        <button type="button" data-brush="hot_door" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🌡️ 고온문</button>
+        <button type="button" data-brush="partition" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔨 경량칸막이</button>
+        <button type="button" data-brush="lifeline" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪢 완강기</button>
+        <button type="button" data-brush="sink" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🚰 세면대</button>
+        <button type="button" data-brush="bell" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔔 비상벨</button>
+        <button type="button" data-brush="exit" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🏃 비상구(EXIT)</button>
+        <button type="button" data-brush="fire" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔥 일반화재</button>
+        <button type="button" data-brush="oil_fire" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🍳 식용유화재</button>
+        <button type="button" data-brush="elec_fire" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">⚡ 전기화재</button>
+        <button type="button" data-brush="smoke" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">💨 유독연기</button>
+        <button type="button" data-brush="extinguisher" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧯 소화기</button>
+        <button type="button" data-brush="mask" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">😷 방연마스크</button>
+        <button type="button" data-brush="key" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔑 열쇠</button>
+      </div>
+
+      <!-- Editor Canvas Grid -->
+      <div class="flex justify-center bg-slate-950 p-2 rounded-xl border border-slate-800">
+        <canvas id="editorCanvas" width="420" height="280" class="w-full max-w-[420px] h-auto cursor-crosshair rounded border border-slate-700"></canvas>
+      </div>
+
+      <!-- Export / Import Code -->
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+        <input id="editorMapCodeInput" type="text" placeholder="맵 공유 코드 또는 공유 URL이 여기에 표시됩니다" class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono" />
+        <button id="btnCopyMapCode" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200">📋 코드복사</button>
+        <button id="btnCopyMapUrl" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-300">🔗 공유링크 복사</button>
+        <button id="btnLoadMapCode" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">📥 불러오기</button>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button id="btnPlayCustomMap" type="button" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-extrabold text-xs sm:text-sm shadow-lg transition">
+          ▶️ 내 커스텀 맵 플레이하기
+        </button>
+        <button id="btnResetCustomMap" type="button" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold text-xs sm:text-sm transition">
+          기본 틀 초기화
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Honorary Junior Firefighter Certificate & Badge Encyclopedia Modal -->
+  <div id="certModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <h3 class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🏅 어린이 명예 소방관 수료증 & 안전 배지 도감</h3>
+        <button id="btnCloseCertModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <!-- Certificate Card -->
+      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30 border-2 border-amber-400/60 text-center space-y-2 shadow-inner">
+        <div class="text-xs font-bold text-amber-400 tracking-widest">제 2026-119 호 · 어린이 소방안전 교육 수료증</div>
+        <div class="text-lg sm:text-xl font-black text-white">명예 어린이 소방안전 대원 임명장</div>
+        <div class="flex items-center justify-center gap-2 py-1">
+          <label for="studentNameInput" class="text-xs font-bold text-slate-300">대원 이름:</label>
+          <input id="studentNameInput" type="text" value="용감한 어린이" maxlength="16" class="px-2.5 py-1 rounded-lg bg-slate-950 border border-amber-500/50 text-amber-200 font-extrabold text-xs sm:text-sm text-center w-36" />
+        </div>
+        <p id="certSummaryText" class="text-xs text-slate-300 leading-relaxed">
+          위 어린이는 2022 개정 초등 교육과정 연계 화재 대피 시뮬레이션을 통해 연소와 소화 원리, 대류 현상 대응, 완강기 및 경량칸막이 피난 요령을 성실히 익혔으므로 명예 소방안전 대원으로 임명합니다.
+        </p>
+        <div class="flex justify-around text-[11px] text-amber-300 font-bold pt-1 border-t border-slate-800">
+          <span id="certTotalScore">최고 점수: 0점</span>
+          <span id="certBadgeCount">획득 배지: 0 / 10개</span>
+        </div>
+      </div>
+
+      <!-- 10 Safety Badges Grid -->
+      <div>
+        <div class="text-xs font-bold text-slate-300 mb-2">🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</div>
+        <div id="badgeCollectionGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
+      </div>
+
+      <button id="btnConfirmCertModal" type="button" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition">
+        확인 및 저장하기
+      </button>
+    </div>
+  </div>
+
+  <!-- Fire Safety & Curriculum Guide Modal -->
+  <div id="guideModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <h3 class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🧯 2022 개정 교육과정 & 확장 안전 백과</h3>
+        <button id="btnCloseGuide" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+      <div class="space-y-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="font-bold text-orange-400 mb-0.5">1. 연소·소화 원리와 옷에 불이 붙었을 때 구르기 (🔄)</div>
+          식용유(🍳)·전기(⚡) 화재에는 물 사용을 금하고 소화기(🧯질식 소화)를 쓰세요. 몸이나 옷에 불이 붙으면 뛰지 말고 즉시 멈춰 바닥에 엎드려 <strong>구르기(🔄 버튼 연타)</strong>로 불을 꺼야 합니다.
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="font-bold text-amber-400 mb-0.5">2. 방화문 닫기(🚪)와 아파트 경량칸막이(🧱) 탈출</div>
+          대피할 때 지나온 방화문을 닫으면 불길과 유독가스가 문 너머로 확산되는 것을 물리적으로 차단할 수 있습니다. 현관이 막혔다면 베란다의 <strong>9mm 경량칸막이(🧱)</strong>를 부숴 옆집으로 탈출하세요.
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+          <div class="font-bold text-sky-400 mb-0.5">3. 습식 방연마스크(😷)·손전등(🔦)·비상벨(🔔)과 이웃 대피</div>
+          방연마스크는 유독가스를 막아주고 손전등은 정전된 다중이용시설(지하철·쇼핑몰)에서 어둠을 밝혀 시야를 넓혀줍니다. 복도 비상벨(🔔)을 눌러 이웃과 친구(🧒)를 함께 대피시키세요.
+        </div>
+      </div>
+      <button id="btnConfirmGuide" type="button" class="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition">
+        확인했습니다
+      </button>
+    </div>
+  </div>
+
+  <!-- Modular Scripts (Order: sound -> stages -> editor -> game) -->
+  <script src="./sound.js"></script>
+  <script src="./stages.js"></script>
+  <script src="./editor.js"></script>
+  <script src="./game.js"></script>
+</body>
+</html>
