@@ -61,8 +61,13 @@
           🎯 지금 할 일: 🧣 수건을 챙기세요!
         </div>
 
-        <!-- Right: Only 3 Essential Buttons -->
+        <!-- Right: Essential Buttons including 3D View Toggle -->
         <div class="flex items-center gap-1 shrink-0">
+          <button id="btnCamera3D" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/60 text-indigo-200 transition flex items-center gap-1 shadow-sm" title="3D 입체뷰 / 1인칭 3D 시점 전환">
+            <span id="camera3DIcon">🧊</span>
+            <span id="camera3DText" class="text-[11px] sm:text-xs">3D입체뷰</span>
+          </button>
+
           <button id="btnHomeMain" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="메인 화면으로">
             <span>🏠</span>
             <span class="text-[11px] sm:text-xs">메인화면</span>
@@ -215,15 +220,15 @@
           <div class="flex flex-col items-center gap-1">
             <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 shadow-sm">
               <span id="overlayIcon" class="text-sm sm:text-base">🔥</span>
-              <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-extrabold tracking-wide text-orange-300">2022 개정 교육과정 연계 · 인터랙티브 화재 안전 게임</span>
+              <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-extrabold tracking-wide text-orange-300">2022 개정 교육과정 연계 · 3D 방탈출 화재 안전 게임</span>
             </div>
 
             <h2 id="overlayTitle" class="text-xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-300 bg-clip-text text-transparent mt-0.5">
-              화재 탈출 넘버원
+              화재 탈출 넘버원 3D
             </h2>
 
             <p id="overlayDesc" class="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
-              불타는 건물과 유독가스 속에서 <strong>올바른 안전 수칙</strong>을 실천하며 <strong>비상구(EXIT)</strong>까지 탈출하는 화재 안전 체험 게임입니다.
+              불타는 다중 미로 건물 속에서 <strong>젖은 수건·열쇠·소방도끼·차단기 퍼즐</strong>을 풀고 고립된 가족과 친구를 구출해 <strong>비상구(EXIT)</strong>로 탈출하는 3D 방탈출 게임입니다.
             </p>
           </div>
 
@@ -233,20 +238,20 @@
               <div class="bg-slate-950/90 border border-sky-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
                 <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 tracking-wider">STEP 01</span>
                 <span class="text-xl sm:text-2xl mt-0.5">🧣🚰</span>
-                <span class="font-extrabold text-sky-300 text-[11px] sm:text-xs">수건 적시기</span>
-                <span class="text-[10px] text-slate-400 leading-tight">수건을 주워 세면대 물에 적셔 호흡기를 보호해요</span>
+                <span class="font-extrabold text-sky-300 text-[11px] sm:text-xs">호흡기 보호 필수</span>
+                <span class="text-[10px] text-slate-400 leading-tight">수건을 적시거나 방연마스크를 착용해야 탈출 가능!</span>
               </div>
               <div class="bg-slate-950/90 border border-amber-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
                 <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 tracking-wider">STEP 02</span>
-                <span class="text-xl sm:text-2xl mt-0.5">🧎💨</span>
-                <span class="font-extrabold text-amber-300 text-[11px] sm:text-xs">낮은 자세 이동</span>
-                <span class="text-[10px] text-slate-400 leading-tight">연기가 자욱한 곳에선 자세를 낮춰 이동해요</span>
+                <span class="text-xl sm:text-2xl mt-0.5">🔑🪓</span>
+                <span class="font-extrabold text-amber-300 text-[11px] sm:text-xs">방탈출 퍼즐 & 구출</span>
+                <span class="text-[10px] text-slate-400 leading-tight">열쇠·도끼·차단기 퍼즐을 풀고 고립된 동생을 구출!</span>
               </div>
               <div class="bg-slate-950/90 border border-emerald-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
                 <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 tracking-wider">STEP 03</span>
-                <span class="text-xl sm:text-2xl mt-0.5">🎯🚪</span>
-                <span class="font-extrabold text-emerald-300 text-[11px] sm:text-xs">화살표 따라 탈출</span>
-                <span class="text-[10px] text-slate-400 leading-tight">노란 점선 화살표를 따라 비상구(EXIT)로 탈출해요</span>
+                <span class="text-xl sm:text-2xl mt-0.5">🧊👁️</span>
+                <span class="font-extrabold text-emerald-300 text-[11px] sm:text-xs">3D 입체 / 1인칭 뷰</span>
+                <span class="text-[10px] text-slate-400 leading-tight">상단 [🧊 3D입체뷰 / 👁️ 1인칭3D]로 시점을 전환해요!</span>
               </div>
             </div>
 
@@ -254,7 +259,7 @@
               <span class="text-amber-300 font-extrabold">🕹️ 간편 조작법</span>
               <span>좌측 <strong>십자키(방향키)</strong>로 이동</span>
               <span class="text-slate-600">•</span>
-              <span>우측 <strong>[✋ 행동하기]</strong>와 <strong>[🚶 자세 낮추기]</strong> 2개 버튼으로 모든 행동 수행</span>
+              <span>우측 <strong>[✋ 행동하기]</strong>와 <strong>[🚶 자세 낮추기]</strong> 2개 버튼으로 모든 방탈출 퍼즐 수행</span>
             </div>
           </div>
 
