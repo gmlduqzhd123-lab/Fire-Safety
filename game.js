@@ -323,11 +323,60 @@
   let score = 0;
   let stageStartScore = 0;
   let elapsedSeconds = 0;
+  let hazardExposure = 0;
   let fireSpreadTimer = 0;
+  let autoSaveTimer = 0;
   let lastFrameTime = 0;
   let animFrameId = null;
   let toastTimeout = null;
   let mapEditorInstance = null;
+
+  // --- PRD v1.0 Escape-Room State (Hints, Safe/Wire Puzzles, Time/Tension Policy, Settings & Campaign Save) ---
+  const SESSION_ID = `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  let campaignSaveSeq = 0;
+  let selectedWorldId = 'fire';
+  let hintLog = []; // Unique opened hint IDs (idempotent: re-opening never increments count)
+  let safeInputBuffer = '';
+  let safeWrongCount = 0;
+  let safeLockUntil = 0; // Active elapsedSeconds timestamp until which safe keypad is locked (30s after 3rd wrong attempt)
+  let safeSolved = false;
+  let wireSolved = false;
+  let runOptions = {
+    mode: 'standard', // 'standard' | 'relaxed' | 'practice'
+    hazardLimitSeconds: 300
+  };
+  let nextRunOptions = {
+    mode: 'standard',
+    hazardLimitSeconds: 300
+  };
+  let appSettings = {
+    graphicsQuality: 'auto',
+    brightness: 100,
+    sensitivity: 100,
+    reduceMotion: false
+  };
+  try {
+    const savedSettings = JSON.parse(localStorage.getItem('fire-safety:settings:v1') || 'null');
+    if (savedSettings && typeof savedSettings === 'object') {
+      if (['auto', 'high', 'low'].includes(savedSettings.graphicsQuality)) appSettings.graphicsQuality = savedSettings.graphicsQuality;
+      if (typeof savedSettings.brightness === 'number') appSettings.brightness = Math.max(85, Math.min(135, savedSettings.brightness));
+      if (typeof savedSettings.sensitivity === 'number') appSettings.sensitivity = Math.max(60, Math.min(140, savedSettings.sensitivity));
+      if (typeof savedSettings.reduceMotion === 'boolean') appSettings.reduceMotion = savedSettings.reduceMotion;
+      if (['standard', 'relaxed', 'practice'].includes(savedSettings.defaultMode)) {
+        nextRunOptions.mode = savedSettings.defaultMode;
+        nextRunOptions.hazardLimitSeconds = savedSettings.defaultMode === 'relaxed' ? 480 : (savedSettings.defaultMode === 'practice' ? null : 300);
+        runOptions = { ...nextRunOptions };
+      }
+    }
+  } catch (e) {}
+
+  let isPerfDiagEnabled = false;
+  try {
+    isPerfDiagEnabled = new URLSearchParams(window.location.search).get('perf') === '1';
+  } catch (e) {}
+  let perfFrameTimes = [];
+  let perfLongFrames = 0;
+  let perfUiTimer = 0;
 
   const keysPressed = {
     up: false,
@@ -404,8 +453,9 @@
   }
 
   function getVisibleOverlayButtons() {
-    return [btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].filter(
-      (b) => b && !b.classList.contains('hidden')
+    const continueBtn = document.getElementById('btnContinueSaved');
+    return [continueBtn, btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].filter(
+      (b) => b && !b.classList.contains('hidden') && !b.disabled
     );
   }
 
@@ -414,7 +464,8 @@
     if (btns.length === 0) return;
     if (overlaySelectedIndex >= btns.length) overlaySelectedIndex = 0;
     if (overlaySelectedIndex < 0) overlaySelectedIndex = btns.length - 1;
-    [btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].forEach((b) => {
+    const continueBtn = document.getElementById('btnContinueSaved');
+    [continueBtn, btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].forEach((b) => {
       if (b) b.classList.remove('kb-selected');
     });
     const targetBtn = btns[overlaySelectedIndex];
@@ -493,6 +544,8 @@
     if (resetTotalScore) {
       score = 0;
       stageStartScore = 0;
+      hintLog = [];
+      runOptions = { ...nextRunOptions };
     } else {
       stageStartScore = score;
     }
@@ -576,7 +629,14 @@
     };
 
     elapsedSeconds = 0;
+    hazardExposure = 0;
     fireSpreadTimer = 0;
+    autoSaveTimer = 0;
+    safeInputBuffer = '';
+    safeWrongCount = 0;
+    safeLockUntil = 0;
+    safeSolved = false;
+    wireSolved = false;
 
     stageBadge.textContent = st.name;
     missionShort.textContent = st.mission;
@@ -599,7 +659,7 @@
       } else {
         btn.className = idx === 5
           ? 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition shrink-0'
-          : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0';
+          : 'px-1 sm:px-2 py-0.5 sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0';
       }
     });
 
@@ -1818,6 +1878,7 @@
         showToast('🐶 반려견 초코를 구출했습니다! 함께 비상구로 탈출하세요!');
       }
       updateHUD();
+      if (typeof saveCampaignState === 'function') saveCampaignState();
       return;
     }
 
@@ -1925,7 +1986,7 @@
           showToast('🔓 손등으로 온도를 확인한 뒤 열쇠로 잠긴 문을 열었습니다!');
         } else {
           SoundFX.warning();
-          showToast('🔒 잠긴 문입니다! 주변 방에서 열쇠(🔑)를 먼저 찾으세요.', 'border-amber-500');
+          showToast('🔒 잠긴 문입니다! 주변에서 열쇠(🔑)를 찾거나 [🔐 금고·배선퍼즐]에서 비상 마스터키를 해금하세요!', 'border-amber-500');
         }
       } else if (tile === TILE.ELEVATOR) {
         SoundFX.warning();
@@ -1988,6 +2049,7 @@
         }
       }
       updateHUD();
+      if (typeof saveCampaignState === 'function') saveCampaignState();
     }
   }
 
@@ -2117,7 +2179,7 @@
     }
     itemsHtml.push(`<div>${metrics.waterOnSpecialFireMistake === 0 ? '✅' : '❌'} <strong>연소·소화 & 방화문 차단:</strong> 화재 진압 <strong>${metrics.correctExtinguishCount}회</strong> · 방화문 닫기 <strong>${player.fireDoorsClosed}회</strong></div>`);
     itemsHtml.push(`<div>${metrics.backdraftTriggered === 0 ? '✅' : '❌'} <strong>문 온도 확인 & 특수 피난:</strong> 문 확인 <strong>${metrics.doorHeatChecked}회</strong> ${metrics.usedPartition ? '· 🧱경량칸막이 탈출' : ''} ${metrics.usedLifeline ? '· 🪢완강기 탈출' : ''}</div>`);
-    itemsHtml.push(`<div>${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고 활동:</strong> ${player.alarmRung ? '🔔비상벨 발신 ' : ''}${player.rescuedNpcs > 0 ? `· 🧒이웃구출 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '· 📞119 신고 완료 ' : ''}${isCoopMode ? '· 👥2인 협동 탈출' : ''}</div>`);
+    itemsHtml.push(`<div>${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고·퍼즐:</strong> ${player.alarmRung ? '🔔비상벨 발신 ' : ''}${player.rescuedNpcs > 0 ? `· 🧒이웃구출 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '· 📞119 신고 완료 ' : ''}${safeSolved ? '· 🔐금고해제 ' : ''}${wireSolved ? '· ⚡배선복구 ' : ''}${isCoopMode ? '· 👥2인 협동' : ''} (힌트 ${hintLog.length}회)</div>`);
 
     debriefChecklist.innerHTML = itemsHtml.join('');
 
@@ -2166,6 +2228,13 @@
     statTime.textContent = `${mins}:${secs}`;
     statVitals.textContent = `${Math.round(player.hp)}% / ${Math.round(player.o2)}%`;
     statScore.textContent = score.toLocaleString();
+    const statHintsEl = document.getElementById('statHints');
+    if (statHintsEl) statHintsEl.textContent = `${hintLog.length}회`;
+    const continueBtn = document.getElementById('btnContinueSaved');
+    if (continueBtn) continueBtn.classList.add('hidden');
+    const worldBar = document.getElementById('worldSelectBar');
+    if (worldBar) worldBar.classList.add('hidden');
+
     overlayStats.classList.remove('hidden');
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
@@ -2214,6 +2283,7 @@
       btnPrimaryAction.textContent = '1단계부터 다시 도전';
       btnSecondaryAction.classList.add('hidden');
     }
+    if (typeof saveCampaignState === 'function') saveCampaignState();
     gameOverlay.classList.remove('hidden');
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
@@ -2233,8 +2303,15 @@
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
     const secs = String(Math.floor(elapsedSeconds % 60)).padStart(2, '0');
     statTime.textContent = `${mins}:${secs}`;
-    statVitals.textContent = `0%`;
+    statVitals.textContent = reason === 'exposure' ? `${Math.round(player.hp)}% / ${Math.round(player.o2)}%` : `0%`;
     statScore.textContent = score.toLocaleString();
+    const statHintsEl = document.getElementById('statHints');
+    if (statHintsEl) statHintsEl.textContent = `${hintLog.length}회`;
+    const continueBtn = document.getElementById('btnContinueSaved');
+    if (continueBtn) continueBtn.classList.add('hidden');
+    const worldBar = document.getElementById('worldSelectBar');
+    if (worldBar) worldBar.classList.add('hidden');
+
     overlayStats.classList.remove('hidden');
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
@@ -2244,10 +2321,15 @@
 
     overlayIcon.textContent = '⚠️';
     overlaySubtitle.textContent = '대피 실패 · 동선 리플레이 분석';
-    overlayTitle.textContent = reason === 'o2' ? '유독가스에 질식했습니다!' : '불길에 큰 화상을 입었습니다!';
-    overlayDesc.innerHTML = reason === 'o2'
-      ? '대류 현상으로 뜨거운 연기가 상층부에 가득 차 있습니다. <strong>젖은 수건·방연마스크(😷)</strong>를 쓰고 <strong>낮은 자세(C/Shift)</strong>로 이동하세요.'
-      : '옷에 불이 붙었을 때는 뛰지 말고 즉시 <strong>구르기(🔄 버튼 / F키)</strong>를 연타하여 불을 꺼야 합니다!';
+    if (reason === 'exposure') {
+      overlayTitle.textContent = `위험 노출 허용 시간(${runOptions.hazardLimitSeconds || 300}초)을 초과했습니다!`;
+      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🎛️ 설정·저장]</strong>에서 <strong>긴장 완화 모드(480초)</strong> 또는 <strong>연습 모드</strong>로 전환하거나, 수첩(H키) 힌트를 확인해 신속히 탈출하세요!`;
+    } else {
+      overlayTitle.textContent = reason === 'o2' ? '유독가스에 질식했습니다!' : '불길에 큰 화상을 입었습니다!';
+      overlayDesc.innerHTML = reason === 'o2'
+        ? '대류 현상으로 뜨거운 연기가 상층부에 가득 차 있습니다. <strong>젖은 수건·방연마스크(😷)</strong>를 쓰고 <strong>낮은 자세(C/Shift)</strong>로 이동하세요.'
+        : '옷에 불이 붙었을 때는 뛰지 말고 즉시 <strong>구르기(🔄 버튼 / F키)</strong>를 연타하여 불을 꺼야 합니다!';
+    }
 
     btnPrimaryAction.textContent = '이 단계 다시 도전하기';
     btnSecondaryAction.classList.remove('hidden');
@@ -2272,13 +2354,47 @@
 
   // --- Update Loop ---
   function updateGame(dt) {
+    // PRD Section 6.2 Activity Time Rule:
+    // While reading Notebook/Clues (#notebookModal open), active elapsedSeconds and safeLockUntil advance,
+    // while hazardExposure and fire/smoke spread pause!
+    const notebookEl = document.getElementById('notebookModal');
+    const isReadingNotebook = notebookEl && !notebookEl.classList.contains('hidden');
+    if (isReadingNotebook && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+      elapsedSeconds += dt;
+      if (typeof updateSafeLockUI === 'function') updateSafeLockUI();
+      if (typeof updateTimePolicyModalUI === 'function') updateTimePolicyModalUI();
+      updateHUD();
+      return;
+    }
+
     if (gameState !== 'PLAYING') return;
 
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     elapsedSeconds += dt;
+    if (!st.isPreventionMode) {
+      hazardExposure += dt;
+    }
     fireSpreadTimer += dt;
     pathRecordTimer += dt;
+    autoSaveTimer += dt;
+    if (autoSaveTimer >= 5.0) {
+      autoSaveTimer = 0;
+      if (typeof saveCampaignState === 'function') saveCampaignState();
+    }
+    if (typeof updateSafeLockUI === 'function') updateSafeLockUI();
     if (player.hurtCooldown > 0) player.hurtCooldown -= dt;
     if (autoInteractCooldown > 0) autoInteractCooldown -= dt;
+
+    // Check PRD Hazard Exposure Limit (300s Standard / 480s Relaxed / null Practice)
+    if (
+      !st.isPreventionMode &&
+      runOptions.mode !== 'practice' &&
+      typeof runOptions.hazardLimitSeconds === 'number' &&
+      hazardExposure >= runOptions.hazardLimitSeconds
+    ) {
+      handleGameOver('exposure');
+      return;
+    }
 
     const activeSkin = getSelectedSkin();
     let baseSpeed = player.crouching
@@ -2291,6 +2407,8 @@
     let isMoving = false;
     let targetSurge = 0;
     let targetTurnBias = 0;
+    const sensMult = Math.max(0.6, Math.min(1.4, (appSettings.sensitivity || 100) / 100));
+    const motionMult = appSettings.reduceMotion ? 0.35 : 1.0;
 
     if (cameraMode3D === 'FPS_3D') {
       // Smooth, Non-Dizzying 1st-Person 3D Perspective Walkthrough Controls:
@@ -2303,10 +2421,10 @@
       }
 
       if (turnInput !== 0) {
-        // Calm, steady turn rate (1.50 rad/s) so the room never spins dizzily
-        const turnSpeed = forwardInput !== 0 ? 1.35 : 1.55;
+        // Calm, steady turn rate scaled by user sensitivity setting
+        const turnSpeed = (forwardInput !== 0 ? 1.35 : 1.55) * sensMult;
         fpsCamYaw += turnInput * turnSpeed * dt;
-        targetTurnBias = turnInput * 0.82;
+        targetTurnBias = turnInput * 0.82 * motionMult;
         player.dirX = Math.cos(fpsCamYaw);
         player.dirY = Math.sin(fpsCamYaw);
       } else if (forwardInput > 0) {
@@ -2325,13 +2443,13 @@
         mvX = Math.cos(fpsCamYaw) * forwardInput * moveMult;
         mvY = Math.sin(fpsCamYaw) * forwardInput * moveMult;
         isMoving = true;
-        targetSurge = forwardInput > 0 ? 1.0 : -0.45;
+        targetSurge = (forwardInput > 0 ? 1.0 : -0.45) * motionMult;
       } else if (turnInput !== 0) {
         // Subtle forward step while turning in place so the character never feels stuck on a corner
         mvX = Math.cos(fpsCamYaw) * 0.22;
         mvY = Math.sin(fpsCamYaw) * 0.22;
         isMoving = true;
-        targetSurge = 0.25;
+        targetSurge = 0.25 * motionMult;
       } else if (pointerMoveTarget) {
         const dx = pointerMoveTarget.x - player.x;
         const dy = pointerMoveTarget.y - player.y;
@@ -2341,12 +2459,12 @@
           let diff = desiredYaw - fpsCamYaw;
           while (diff > Math.PI) diff -= Math.PI * 2;
           while (diff < -Math.PI) diff += Math.PI * 2;
-          fpsCamYaw += diff * Math.min(1, dt * 5.2);
-          targetTurnBias = Math.max(-0.85, Math.min(0.85, diff * 1.1));
+          fpsCamYaw += diff * Math.min(1, dt * 5.2 * sensMult);
+          targetTurnBias = Math.max(-0.85, Math.min(0.85, diff * 1.1)) * motionMult;
           mvX = dx / dist;
           mvY = dy / dist;
           isMoving = true;
-          targetSurge = 0.9;
+          targetSurge = 0.9 * motionMult;
         } else {
           pointerMoveTarget = null;
         }
@@ -2383,8 +2501,8 @@
         player.dirX = mvX;
         player.dirY = mvY;
         fpsCamYaw = Math.atan2(mvY, mvX);
-        targetSurge = 1.0;
-        targetTurnBias = mvX * 0.65;
+        targetSurge = 1.0 * motionMult;
+        targetTurnBias = mvX * 0.65 * motionMult;
       }
     }
 
@@ -2767,6 +2885,11 @@
         contextPrompt.classList.remove('opacity-100');
         contextPrompt.classList.add('opacity-0');
       }
+    }
+
+    if (runOptions.mode === 'practice') {
+      player.hp = Math.max(10, player.hp);
+      player.o2 = Math.max(10, player.o2);
     }
 
     if (player.hp <= 0) {
@@ -5442,10 +5565,32 @@
   // --- Main Animation Loop ---
   function gameLoop(timestamp) {
     if (!lastFrameTime) lastFrameTime = timestamp;
-    const dt = Math.min(0.05, (timestamp - lastFrameTime) / 1000);
+    const rawDeltaMs = Math.max(0, timestamp - lastFrameTime);
+    const dt = Math.min(0.05, rawDeltaMs / 1000);
     lastFrameTime = timestamp;
 
-    if (gameState === 'PLAYING') {
+    if (isPerfDiagEnabled && rawDeltaMs > 0 && rawDeltaMs < 500) {
+      perfFrameTimes.push(rawDeltaMs);
+      if (perfFrameTimes.length > 120) perfFrameTimes.shift();
+      if (rawDeltaMs > 33.3) perfLongFrames++;
+      perfUiTimer += dt;
+      if (perfUiTimer >= 0.25) {
+        perfUiTimer = 0;
+        const avgMs = perfFrameTimes.reduce((a, b) => a + b, 0) / (perfFrameTimes.length || 1);
+        const fps = Math.min(120, Math.round(1000 / Math.max(1, avgMs)));
+        const sorted = [...perfFrameTimes].sort((a, b) => a - b);
+        const p95Idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+        const p95Ms = sorted[p95Idx] || avgMs;
+        const perfMetricsEl = document.getElementById('perfMetricsText');
+        if (perfMetricsEl) {
+          perfMetricsEl.textContent = `FPS: ${fps} | p95: ${p95Ms.toFixed(1)}ms | LongFrames: ${perfLongFrames}`;
+        }
+      }
+    }
+
+    const notebookEl = document.getElementById('notebookModal');
+    const isReadingNotebook = notebookEl && !notebookEl.classList.contains('hidden');
+    if (gameState === 'PLAYING' || isReadingNotebook) {
       updateGame(dt);
     }
     renderCanvas();
@@ -5498,7 +5643,9 @@
 
   function resizeCanvas() {
     syncViewportOrientation();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const q = appSettings ? appSettings.graphicsQuality : 'auto';
+    const maxDpr = q === 'low' ? 1 : 2;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
     canvasContainer.style.height = '';
     const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 290);
@@ -5511,6 +5658,9 @@
     canvas.width = Math.floor(cssCanvasW * dpr);
     canvas.height = Math.floor(cssCanvasH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (appSettings && typeof appSettings.brightness === 'number') {
+      canvas.style.filter = appSettings.brightness !== 100 ? `brightness(${appSettings.brightness}%)` : '';
+    }
     renderCanvas();
   }
 
@@ -5608,8 +5758,33 @@
   // --- Keyboard Controls ---
   window.addEventListener('keydown', (e) => {
     const activeTag = document.activeElement ? document.activeElement.tagName : '';
-    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
       if (e.code === 'Escape') document.activeElement.blur();
+      return;
+    }
+
+    const nbModal = document.getElementById('notebookModal');
+    const pzModal = document.getElementById('puzzleModal');
+    const stModal = document.getElementById('settingsModal');
+    if (nbModal && !nbModal.classList.contains('hidden')) {
+      if ((e.code === 'Escape' || e.code === 'KeyH' || e.code === 'KeyI') && !e.repeat) {
+        e.preventDefault();
+        if (typeof closeNotebookModalFn === 'function') closeNotebookModalFn();
+      }
+      return;
+    }
+    if (pzModal && !pzModal.classList.contains('hidden')) {
+      if (e.code === 'Escape' && !e.repeat) {
+        e.preventDefault();
+        if (typeof closePuzzleModalFn === 'function') closePuzzleModalFn();
+      }
+      return;
+    }
+    if (stModal && !stModal.classList.contains('hidden')) {
+      if (e.code === 'Escape' && !e.repeat) {
+        e.preventDefault();
+        if (typeof closeSettingsModalFn === 'function') closeSettingsModalFn();
+      }
       return;
     }
 
@@ -5809,6 +5984,18 @@
         toggleCamera3DMode();
       }
     }
+    if (e.code === 'KeyH' && !e.repeat) {
+      if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        e.preventDefault();
+        if (typeof openNotebookModalFn === 'function') openNotebookModalFn('clues');
+      }
+    }
+    if (e.code === 'KeyI' && !e.repeat) {
+      if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        e.preventDefault();
+        if (typeof openNotebookModalFn === 'function') openNotebookModalFn('inv');
+      }
+    }
     if (e.code === 'KeyR') {
       if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         score = stageStartScore;
@@ -5879,6 +6066,9 @@
   }
 
   function showMainTitleScreen() {
+    if (gameState === 'PLAYING' && elapsedSeconds > 0 && typeof saveCampaignState === 'function') {
+      saveCampaignState();
+    }
     clearAllInputStates();
     gameState = 'START';
     overlayIcon.textContent = '🔥';
@@ -5889,6 +6079,10 @@
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
     debriefReportBox.classList.add('hidden');
+    const worldBar = document.getElementById('worldSelectBar');
+    if (worldBar) worldBar.classList.remove('hidden');
+    if (typeof selectWorldCard === 'function') selectWorldCard('fire');
+    if (typeof syncContinueButtonUI === 'function') syncContinueButtonUI();
     if (btnMainGuide) btnMainGuide.classList.remove('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
     btnSecondaryAction.classList.add('hidden');
@@ -5999,7 +6193,10 @@
 
   function hideAllModalsAndResume() {
     gameOverlay.classList.add('hidden');
-    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, moreToolsDrawer].forEach((m) => {
+    const nbModal = document.getElementById('notebookModal');
+    const pzModal = document.getElementById('puzzleModal');
+    const stModal = document.getElementById('settingsModal');
+    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, nbModal, pzModal, stModal, moreToolsDrawer].forEach((m) => {
       if (m) {
         m.classList.add('hidden');
         m.classList.remove('flex');
@@ -6664,9 +6861,18 @@
   btnPrimaryAction.addEventListener('click', () => {
     SoundFX.init();
     if (gameState === 'START') {
+      if (selectedWorldId !== 'fire') {
+        SoundFX.warning();
+        showToast('🔒 선택한 세계관은 [콘셉트 미리보기] 상태입니다. [🔥 화재 탈출 넘버원]을 선택해 입장하세요!', 'border-amber-400');
+        return;
+      }
+      if (typeof backupCurrentCampaignSave === 'function') {
+        backupCurrentCampaignSave();
+      }
       loadStage(currentStageIdx, true, activeCustomStage);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      if (typeof saveCampaignState === 'function') saveCampaignState();
       SoundFX.siren();
       SoundFX.speak('화재 경보 발생! 젖은 수건으로 코와 입을 막고 낮은 자세로 비상구까지 대피하세요.');
       showToast(
@@ -6686,6 +6892,7 @@
       loadStage(nextIdx, false, null);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      if (typeof saveCampaignState === 'function') saveCampaignState();
       SoundFX.siren();
       SoundFX.speak(`${STAGES[currentStageIdx].name} 대피를 시작합니다.`);
       showToast(`🚩 ${STAGES[currentStageIdx].name}! ${STAGES[currentStageIdx].mission}`);
@@ -6694,11 +6901,13 @@
       loadStage(currentStageIdx, false, activeCustomStage);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      if (typeof saveCampaignState === 'function') saveCampaignState();
       showToast('🔄 동선 리플레이를 바탕으로 다시 안전하게 탈출해 보세요!');
     } else if (gameState === 'ALL_CLEAR') {
       loadStage(0, true, null);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      if (typeof saveCampaignState === 'function') saveCampaignState();
       showToast('🚩 1단계부터 다시 도전합니다!');
     }
   });
@@ -6717,11 +6926,1372 @@
     }
   });
 
+  // =========================================================================
+  // --- PRD v1.0 ESCAPE GAME SYSTEMS IMPLEMENTATION ---
+  // 1. Portal World Selection & Concept Preview Separation (F01, F02, T01)
+  // 2. Single-Slot Campaign Auto-Save, Continue, Backup, 1MiB JSON Export/Import & Multi-Tab Sync (F04, F12, Section 7, T12, T13, T18)
+  // 3. Notebook, Clue Zoom, 2-Stage Hints (Idempotent hintLog) & Categorized Inventory (F07, F08, T04, T06)
+  // 4. Object Inspection & Escape-Room Puzzles: Digital Safe (614/3322/0119, 3-strike 30s lock) & Accessible Wiring (Red=B, Blue=D, Yellow=A, Green=C) (F06, Section 5, Section 16, T05, T10)
+  // 5. Time & Tension-Relief Policy (300s / 480s / Practice Mode, Reading State Timer Separation) (Section 6, F09, T07~T11)
+  // 6. Post-Activity Reflection Export & ?perf=1 Diagnostics (Section 10, Section 11)
+  // =========================================================================
+
+  const CAMPAIGN_SAVE_KEY = 'fire-safety:campaign:v2';
+  const CAMPAIGN_BACKUP_KEY = 'fire-safety:campaign:backup';
+  const APP_SETTINGS_KEY = 'fire-safety:settings:v1';
+
+  const btnWorldFire = document.getElementById('btnWorldFire');
+  const btnWorldAbyss = document.getElementById('btnWorldAbyss');
+  const btnWorldTrain = document.getElementById('btnWorldTrain');
+  const worldPreviewNotice = document.getElementById('worldPreviewNotice');
+  const btnContinueSaved = document.getElementById('btnContinueSaved');
+
+  function selectWorldCard(worldId) {
+    selectedWorldId = worldId;
+    const cards = [
+      { btn: btnWorldFire, id: 'fire' },
+      { btn: btnWorldAbyss, id: 'abyss' },
+      { btn: btnWorldTrain, id: 'train' }
+    ];
+    cards.forEach(({ btn, id }) => {
+      if (!btn) return;
+      const isSel = id === worldId;
+      if (id === 'fire') {
+        btn.className = isSel
+          ? 'world-card-btn p-2 rounded-xl border-2 border-emerald-400 bg-emerald-950/50 text-left transition flex flex-col justify-between shadow-md'
+          : 'world-card-btn p-2 rounded-xl border border-slate-700 bg-slate-900/70 hover:bg-slate-800/80 text-left transition flex flex-col justify-between';
+      } else {
+        btn.className = isSel
+          ? 'world-card-btn p-2 rounded-xl border-2 border-amber-400 bg-amber-950/40 text-left transition flex flex-col justify-between shadow-md'
+          : 'world-card-btn p-2 rounded-xl border border-slate-700 bg-slate-900/60 hover:bg-slate-800/70 text-left transition flex flex-col justify-between opacity-85';
+      }
+    });
+
+    if (worldId === 'fire') {
+      if (worldPreviewNotice) worldPreviewNotice.classList.add('hidden');
+      if (btnPrimaryAction && gameState === 'START') {
+        btnPrimaryAction.disabled = false;
+        btnPrimaryAction.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnPrimaryAction.textContent = '▶️ 게임 시작하기';
+      }
+    } else {
+      const worldNames = {
+        abyss: '🌊 심해 관측소 (THE ABYSS) — 수압 격벽·산소 밸브·비상 부상 포드 탈출 시나리오',
+        train: '🚂 마지막 열차 (LAST TRAIN) — 객차 분리 레버·비상 제동장치·기관실 코드 시나리오'
+      };
+      if (worldPreviewNotice) {
+        worldPreviewNotice.innerHTML = `ℹ️ <strong>[${worldNames[worldId] || '차기 세계관'}]</strong>은 현재 <strong>[콘셉트 미리보기 · 공개 일정 미정]</strong> 상태입니다. 미구현 세계는 입장이 차단되며, 플레이 가능한 <strong>[🔥 화재 탈출 넘버원]</strong> 카드를 선택해 입장하세요.`;
+        worldPreviewNotice.classList.remove('hidden');
+      }
+      if (btnPrimaryAction && gameState === 'START') {
+        btnPrimaryAction.disabled = true;
+        btnPrimaryAction.classList.add('opacity-50', 'cursor-not-allowed');
+        btnPrimaryAction.textContent = '🔒 준비 중인 세계관 (콘셉트 미리보기)';
+      }
+    }
+  }
+
+  if (btnWorldFire) btnWorldFire.addEventListener('click', () => { SoundFX.init(); selectWorldCard('fire'); });
+  if (btnWorldAbyss) btnWorldAbyss.addEventListener('click', () => { SoundFX.init(); selectWorldCard('abyss'); });
+  if (btnWorldTrain) btnWorldTrain.addEventListener('click', () => { SoundFX.init(); selectWorldCard('train'); });
+
+  // --- Section 7: Campaign Save Schema Validation, Auto-Save, Continue, Backup, Export/Import ---
+  function validateCampaignSave(obj) {
+    if (!obj || typeof obj !== 'object') {
+      return { valid: false, reason: '저장 데이터가 올바른 JSON 객체가 아닙니다.' };
+    }
+    if (obj.version !== 2 || obj.layoutVersion !== 4) {
+      return { valid: false, reason: `지원하지 않는 저장 버전입니다 (version=${obj.version}, layoutVersion=${obj.layoutVersion}).` };
+    }
+    if (obj.worldId !== 'fire') {
+      return { valid: false, reason: '유효하지 않은 세계관 ID입니다.' };
+    }
+    if (typeof obj.stageIdx !== 'number' || obj.stageIdx < 0 || obj.stageIdx >= STAGES.length) {
+      return { valid: false, reason: '유효하지 않은 스테이지 인덱스입니다.' };
+    }
+    if (typeof obj.elapsedSeconds !== 'number' || !Number.isFinite(obj.elapsedSeconds) || obj.elapsedSeconds < 0) {
+      return { valid: false, reason: '경과 시간 데이터가 손상되었습니다.' };
+    }
+    if (
+      !obj.player ||
+      typeof obj.player.x !== 'number' ||
+      typeof obj.player.y !== 'number' ||
+      typeof obj.player.hp !== 'number' ||
+      typeof obj.player.o2 !== 'number' ||
+      !Number.isFinite(obj.player.x) ||
+      !Number.isFinite(obj.player.y)
+    ) {
+      return { valid: false, reason: '플레이어 위치·체력 데이터가 손상되었습니다.' };
+    }
+    if (
+      !Array.isArray(obj.grid) ||
+      obj.grid.length !== ROWS ||
+      !obj.grid.every(r => Array.isArray(r) && r.length === COLS)
+    ) {
+      return { valid: false, reason: '건물 격자(Grid) 배열 규격이 일치하지 않습니다.' };
+    }
+    if (!Array.isArray(obj.items) || !Array.isArray(obj.fires) || !Array.isArray(obj.smokes)) {
+      return { valid: false, reason: '아이템·화재·연기 배열 데이터가 누락되었습니다.' };
+    }
+    return { valid: true };
+  }
+
+  function buildCampaignSnapshot() {
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    return {
+      version: 2,
+      layoutVersion: 4,
+      worldId: 'fire',
+      stageIdx: currentStageIdx,
+      stageName: st.name || `${currentStageIdx + 1}단계`,
+      isCustomStage: !!activeCustomStage,
+      score,
+      stageStartScore,
+      elapsedSeconds: Number(elapsedSeconds.toFixed(2)),
+      hazardExposure: Number(hazardExposure.toFixed(2)),
+      runOptions: { ...runOptions },
+      player: { ...player },
+      grid: grid.map(row => [...row]),
+      items: items.map(it => ({ ...it })),
+      fires: fires.map(f => ({ ...f })),
+      smokes: smokes.map(s => ({ ...s })),
+      interactedDoors: Array.from(interactedDoors),
+      metrics: { ...metrics },
+      hintLog: Array.isArray(hintLog) ? [...hintLog] : [],
+      safeWrongCount,
+      safeLockUntil: Number(safeLockUntil.toFixed(2)),
+      safeSolved: !!safeSolved,
+      wireSolved: !!wireSolved,
+      savedAt: new Date().toISOString(),
+      sessionId: SESSION_ID,
+      saveSeq: ++campaignSaveSeq
+    };
+  }
+
+  function saveCampaignState() {
+    if (activeCustomStage) return;
+    if (gameState !== 'PLAYING' && gameState !== 'PAUSED' && gameState !== 'STAGE_CLEAR') return;
+    if (!grid || grid.length !== ROWS) return;
+    try {
+      const snap = buildCampaignSnapshot();
+      localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(snap));
+      updateSaveStatusUI();
+    } catch (e) {}
+  }
+
+  function loadValidCampaignSave() {
+    try {
+      const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const check = validateCampaignSave(parsed);
+      if (!check.valid) return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function backupCurrentCampaignSave() {
+    try {
+      const existing = loadValidCampaignSave();
+      if (existing) {
+        localStorage.setItem(CAMPAIGN_BACKUP_KEY, JSON.stringify(existing));
+      }
+    } catch (e) {}
+  }
+
+  function restoreCampaignState(saved) {
+    const check = validateCampaignSave(saved);
+    if (!check.valid) {
+      showToast(`⚠️ 저장 데이터를 불러올 수 없습니다: ${check.reason}`, 'border-red-500');
+      return false;
+    }
+    loadStage(saved.stageIdx, false, null);
+    score = Number(saved.score) || 0;
+    stageStartScore = Number(saved.stageStartScore) || 0;
+    elapsedSeconds = Number(saved.elapsedSeconds) || 0;
+    hazardExposure = Number(saved.hazardExposure) || 0;
+    if (saved.runOptions && typeof saved.runOptions === 'object') {
+      runOptions = {
+        mode: saved.runOptions.mode || 'standard',
+        hazardLimitSeconds: saved.runOptions.hazardLimitSeconds !== undefined ? saved.runOptions.hazardLimitSeconds : 300
+      };
+    }
+    Object.assign(player, saved.player);
+    grid = saved.grid.map(row => [...row]);
+    items = saved.items.map(it => ({ ...it }));
+    fires = saved.fires.map(f => ({ ...f, phase: f.phase || 0 }));
+    smokes = saved.smokes.map(s => ({ ...s, phase: s.phase || 0 }));
+    interactedDoors = new Set(Array.isArray(saved.interactedDoors) ? saved.interactedDoors : []);
+    if (saved.metrics && typeof saved.metrics === 'object') {
+      Object.assign(metrics, saved.metrics);
+    }
+    hintLog = Array.isArray(saved.hintLog) ? [...new Set(saved.hintLog.map(String))] : [];
+    safeWrongCount = Number(saved.safeWrongCount) || 0;
+    safeLockUntil = Number(saved.safeLockUntil) || 0;
+    safeSolved = !!saved.safeSolved;
+    wireSolved = !!saved.wireSolved;
+
+    orientCameraToOpenSpace();
+    hideAllModalsAndResume();
+    updateHUD();
+    renderCanvas();
+    showToast(`⏯️ [${saved.stageName || '저장된 캠페인'}] 진행 상태를 이어서 시작합니다!`, 'border-emerald-400');
+    return true;
+  }
+
+  function syncContinueButtonUI() {
+    if (!btnContinueSaved) return;
+    const saved = loadValidCampaignSave();
+    if (saved && gameState === 'START') {
+      const mins = String(Math.floor((saved.elapsedSeconds || 0) / 60)).padStart(2, '0');
+      const secs = String(Math.floor((saved.elapsedSeconds || 0) % 60)).padStart(2, '0');
+      btnContinueSaved.textContent = `⏯️ 이어하기 (${saved.stageName || `${saved.stageIdx + 1}단계`} · ${mins}:${secs})`;
+      btnContinueSaved.classList.remove('hidden');
+    } else {
+      btnContinueSaved.classList.add('hidden');
+    }
+  }
+
+  if (btnContinueSaved) {
+    btnContinueSaved.addEventListener('click', () => {
+      SoundFX.init();
+      const saved = loadValidCampaignSave();
+      if (saved) {
+        restoreCampaignState(saved);
+      } else {
+        btnContinueSaved.classList.add('hidden');
+        showToast('⚠️ 유효한 자동 저장 데이터가 없어 새 게임을 시작해 주세요.', 'border-amber-500');
+      }
+    });
+  }
+
+  // Save on pagehide / visibilitychange & detect multi-tab save conflicts
+  window.addEventListener('pagehide', () => {
+    if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+      saveCampaignState();
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+      saveCampaignState();
+    }
+  });
+  window.addEventListener('storage', (e) => {
+    if (e.key === CAMPAIGN_SAVE_KEY && e.newValue) {
+      try {
+        const incoming = JSON.parse(e.newValue);
+        if (incoming && incoming.sessionId && incoming.sessionId !== SESSION_ID) {
+          showToast('⚠️ 다른 탭에서 캠페인 저장 데이터가 갱신되었습니다. 최신 저장본이 우선 유지됩니다.', 'border-amber-400');
+          syncContinueButtonUI();
+          updateSaveStatusUI();
+        }
+      } catch (err) {}
+    }
+  });
+
+  // --- Section 4, F07, F08, T04, T06: Notebook, Clue Zoom, 2-Stage Hints (Idempotent) & Categorized Inventory ---
+  const notebookModal = document.getElementById('notebookModal');
+  const btnNotebookTop = document.getElementById('btnNotebookTop');
+  const btnCloseNotebookModal = document.getElementById('btnCloseNotebookModal');
+  const btnConfirmNotebookModal = document.getElementById('btnConfirmNotebookModal');
+  const tabBtnTasks = document.getElementById('tabBtnTasks');
+  const tabBtnHints = document.getElementById('tabBtnHints');
+  const tabBtnInventory = document.getElementById('tabBtnInventory');
+  const panelNotebookTasks = document.getElementById('panelNotebookTasks');
+  const panelNotebookHints = document.getElementById('panelNotebookHints');
+  const panelNotebookInventory = document.getElementById('panelNotebookInventory');
+  const btnToggleClueZoom = document.getElementById('btnToggleClueZoom');
+  const notebookStageName = document.getElementById('notebookStageName');
+  const notebookTaskList = document.getElementById('notebookTaskList');
+  const notebookClueList = document.getElementById('notebookClueList');
+  const notebookHintUsedCount = document.getElementById('notebookHintUsedCount');
+  const hintTotalBadge = document.getElementById('hintTotalBadge');
+  const hintCurrentObjectiveTitle = document.getElementById('hintCurrentObjectiveTitle');
+  const hintStep1Text = document.getElementById('hintStep1Text');
+  const btnUnlockHint1 = document.getElementById('btnUnlockHint1');
+  const hintStep2Text = document.getElementById('hintStep2Text');
+  const btnUnlockHint2 = document.getElementById('btnUnlockHint2');
+  const hintHistoryList = document.getElementById('hintHistoryList');
+  const categorizedInventoryGrid = document.getElementById('categorizedInventoryGrid');
+
+  let activeNotebookTab = 'tasks';
+  let isClueZoomed = false;
+  let activeInvCategory = 'all';
+
+  function getStageSafePasscode() {
+    if (currentStageIdx === 0) return '614';
+    if (currentStageIdx === 1) return '3322';
+    return '0119';
+  }
+
+  function renderNotebookModal() {
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    const safeCode = getStageSafePasscode();
+
+    // Update Hint Badges
+    if (notebookHintUsedCount) notebookHintUsedCount.textContent = String(hintLog.length);
+    if (hintTotalBadge) hintTotalBadge.textContent = String(hintLog.length);
+    if (notebookStageName) notebookStageName.textContent = st.name;
+
+    // 1. Checklist & Clues Panel (Explicit text status tags [완료] / [진행중] / [미완료] — never color alone)
+    if (notebookTaskList) {
+      const tasks = [];
+      if (st.isPreventionMode) {
+        const doneHaz = player.hazardsFixed >= player.totalHazards;
+        tasks.push({
+          status: doneHaz ? '[완료]' : '[진행중]',
+          done: doneHaz,
+          text: `가정 내 화재 위험요소 5곳 안전 점검 (${player.hazardsFixed} / ${player.totalHazards}곳)`
+        });
+      } else {
+        const hasResp = player.wetTowel || player.hasMask;
+        tasks.push({
+          status: hasResp ? '[완료]' : '[미완료]',
+          done: hasResp,
+          text: '호흡기 보호: 수건을 줍고 세면대(🚰) 물에 적시거나 방연마스크(😷) 착용하기'
+        });
+        if (st.requireGasClosed) {
+          tasks.push({
+            status: player.gasClosed ? '[완료]' : '[미완료]',
+            done: player.gasClosed,
+            text: '2차 폭발 방지: 주방 가스밸브(🔴) 잠그기'
+          });
+        }
+        const hasLockedDoor = findNearestTileOfTypes([TILE.LOCKED_DOOR]) !== null;
+        const keyOrUnlocked = !hasLockedDoor || player.keys > 0 || safeSolved;
+        tasks.push({
+          status: !hasLockedDoor ? '[완료]' : (keyOrUnlocked ? '[진행중]' : '[미완료]'),
+          done: !hasLockedDoor,
+          text: '잠긴 방문(🔒) 개방: 열쇠(🔑)를 찾거나 [🔐 금고·배선퍼즐]에서 비상 금고 해금하기'
+        });
+        if (st.requireRescueNpc || st.requireRescueDog) {
+          const remainingRescue = items.some(it => it.type === 'npc' || it.type === 'dog');
+          tasks.push({
+            status: !remainingRescue ? '[완료]' : '[미완료]',
+            done: !remainingRescue,
+            text: '고립된 가족·친구·반려견 구출하여 동행하기'
+          });
+        }
+      }
+      tasks.push({
+        status: '[진행중]',
+        done: false,
+        text: '최종 탈출: 낮은 자세(🧎)를 유지하며 초록색 비상구(EXIT) 또는 완강기(🪢)로 탈출하기'
+      });
+
+      const sizeCls = isClueZoomed ? 'text-sm sm:text-base leading-relaxed' : 'text-xs leading-relaxed';
+      notebookTaskList.className = `space-y-1.5 text-slate-200 ${sizeCls}`;
+      notebookTaskList.innerHTML = tasks.map((t) => `
+        <div class="p-2 rounded-lg border ${t.done ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-200'} flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${t.done ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500/25 text-amber-300 border border-amber-400/40'}">${t.status}</span>
+          <span>${t.text}</span>
+        </div>
+      `).join('');
+    }
+
+    if (notebookClueList) {
+      const sizeCls = isClueZoomed ? 'text-sm sm:text-base leading-relaxed' : 'text-xs leading-relaxed';
+      notebookClueList.className = `space-y-1.5 text-slate-300 ${sizeCls}`;
+      const clueNotes = [
+        {
+          badge: '[새 기록]',
+          title: `📄 현장 소방 안전 지침서 (${st.name})`,
+          body: `연기는 위쪽으로 빠르게 이동(대류 현상)하므로 바닥에서 30~60cm 아래의 신선한 공기층을 따라 <strong>[🧎 낮은 자세]</strong>로 대피하십시오. 뜨거운 문(🌡️)은 백드래프트 폭발 위험이 있으므로 절대 열지 말고 우회하십시오.`
+        },
+        {
+          badge: safeSolved ? '[완료]' : '[단서 원문]',
+          title: '🔢 비상 금고 잠금장치 암호 단서 메모',
+          body: `우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>이며, 구역별 비상 암호(<strong>${safeCode}</strong> 또는 긴급 직통번호 <strong>0119</strong>) 입력으로 비상 마스터 열쇠(🔑)를 꺼낼 수 있습니다.`
+        },
+        {
+          badge: wireSolved ? '[완료]' : '[단서 원문]',
+          title: '⚡ 배전판 비상 배선 복구 도면 (색약 배려 문자 병기)',
+          body: `배전판 단자 연결 규칙: <strong>🔴 빨강(RED) → [B]단자</strong>, <strong>🔵 파랑(BLUE) → [D]단자</strong>, <strong>🟡 노랑(YELLOW) → [A]단자</strong>, <strong>🟢 초록(GREEN) → [C]단자</strong>로 연결하면 누전이 차단되고 비상 소화기가 충전됩니다.`
+        }
+      ];
+      notebookClueList.innerHTML = clueNotes.map(cn => `
+        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-700/80">
+          <div class="flex items-center justify-between gap-2 mb-1">
+            <span class="font-extrabold text-amber-300">${cn.title}</span>
+            <span class="px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 text-[10px] font-black">${cn.badge}</span>
+          </div>
+          <p class="text-slate-300">${cn.body}</p>
+        </div>
+      `).join('');
+    }
+
+    // 2. 2-Stage Hints Panel (Idempotent hintLog tracking: re-viewing never increments count)
+    const nextObj = getNextStepObjective();
+    const h1Id = `s${currentStageIdx}_hint_1`;
+    const h2Id = `s${currentStageIdx}_hint_2`;
+    const open1 = hintLog.includes(h1Id);
+    const open2 = hintLog.includes(h2Id);
+
+    if (hintCurrentObjectiveTitle) {
+      hintCurrentObjectiveTitle.textContent = `현재 목표: ${nextObj ? nextObj.bannerText : '초록색 비상구(EXIT)로 안전하게 탈출하기'}`;
+    }
+    if (hintStep1Text) {
+      hintStep1Text.innerHTML = open1
+        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 먼저 세면대(🚰)에서 젖은 수건을 착용해 호흡기를 보호하고, 금고 단서 메모(<strong>${safeCode}</strong>)와 배전판 도면(R=B, B=D, Y=A, G=C)을 확인하세요.`
+        : '힌트 열기를 누르면 현재 목표의 위치와 안전 원리를 안내합니다.';
+    }
+    if (btnUnlockHint1) {
+      btnUnlockHint1.textContent = open1 ? '✅ 1단계 힌트 다시 보기 (횟수 유지)' : '💡 1단계 힌트 열기 (+1회)';
+      btnUnlockHint1.className = open1
+        ? 'w-full py-1.5 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition'
+        : 'w-full py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition';
+    }
+    if (hintStep2Text) {
+      hintStep2Text.innerHTML = open2
+        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 우측 하단 [➕ 더보기] → [🔐 금고·배선퍼즐]에서 금고 암호 <strong>${safeCode}</strong>(또는 <strong>614</strong> / <strong>0119</strong>) 입력 후 열쇠(🔑)를 받고, 배전판을 <strong>빨강=B, 파랑=D, 노랑=A, 초록=C</strong>로 연결하세요.`
+        : '1단계 힌트를 확인한 뒤 결정적 해답과 암호를 확인할 수 있습니다.';
+    }
+    if (btnUnlockHint2) {
+      btnUnlockHint2.textContent = open2 ? '✅ 2단계 결정적 힌트 다시 보기 (횟수 유지)' : '🔑 2단계 결정적 힌트 열기 (+1회)';
+      btnUnlockHint2.className = open2
+        ? 'w-full py-1.5 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition'
+        : 'w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs transition';
+    }
+    if (hintHistoryList) {
+      if (hintLog.length === 0) {
+        hintHistoryList.innerHTML = '<div class="text-slate-500">아직 열람한 힌트가 없습니다.</div>';
+      } else {
+        hintHistoryList.innerHTML = hintLog.map((id, idx) => `
+          <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+            <strong>#${idx + 1} [${id}]</strong> — ${id.endsWith('_1') ? '1단계 탐색 방향 힌트 열람 완료 (재열람 무제한)' : '2단계 결정적 해답·암호 힌트 열람 완료 (재열람 무제한)'}
+          </div>
+        `).join('');
+      }
+    }
+
+    // 3. Categorized Inventory Panel (all / key / record / tool)
+    if (categorizedInventoryGrid) {
+      const invEntries = [
+        {
+          id: 'key',
+          cat: 'key',
+          icon: '🔑',
+          name: `비상 열쇠 (${player.keys}개)`,
+          owned: player.keys > 0,
+          desc: '잠긴 방문(🔒) 앞에서 사용하면 문을 즉시 개방합니다.',
+          onUse: () => {
+            const adjLocked = findNearestTileOfTypes([TILE.LOCKED_DOOR]);
+            if (adjLocked && adjLocked.dist <= 2.2) {
+              triggerInteraction({ kind: 'tile', c: adjLocked.c, r: adjLocked.r, tile: TILE.LOCKED_DOOR });
+              return '🔓 근처의 잠긴 방문(🔒)을 열쇠로 개방했습니다!';
+            }
+            return 'ℹ️ 현재 잠긴 문(🔒) 앞이 아닙니다. 열쇠는 절대 소멸되지 않고 안전하게 보관됩니다.';
+          }
+        },
+        {
+          id: 'clue_safe',
+          cat: 'record',
+          icon: '📄',
+          name: `비상 금고 암호 기록표 (${safeCode})`,
+          owned: true,
+          desc: `현재 구역 디지털 금고 비밀번호 단서(${safeCode} / 614 / 0119)가 적힌 소방 점검표입니다.`,
+          onUse: () => {
+            closeNotebookModalFn();
+            openPuzzleModalFn('safe');
+            return `🔐 디지털 금고 조사 창을 열었습니다 (암호 단서: ${safeCode}).`;
+          }
+        },
+        {
+          id: 'clue_wire',
+          cat: 'record',
+          icon: '📐',
+          name: '배전판 배선 복구 도면 (R=B, B=D, Y=A, G=C)',
+          owned: true,
+          desc: '색약 배려 문자 표기가 포함된 배전판 비상 배선 연결 도면입니다.',
+          onUse: () => {
+            closeNotebookModalFn();
+            openPuzzleModalFn('wire');
+            return '⚡ 배전판 배선 퍼즐 조사 창을 열었습니다.';
+          }
+        },
+        {
+          id: 'towel_mask',
+          cat: 'tool',
+          icon: player.hasMask ? '😷' : (player.wetTowel ? '💧' : '🧣'),
+          name: player.hasMask ? '방연마스크 (착용중)' : (player.wetTowel ? '젖은 수건 (착용중)' : '마른 수건'),
+          owned: player.hasMask || player.wetTowel || player.hasTowel,
+          desc: '유독가스 연기 구역에서 산소 고갈 속도를 대폭 줄여 주는 필수 호흡기 보호구입니다.',
+          onUse: () => {
+            if (player.hasMask || player.wetTowel) {
+              return '✅ 이미 호흡기 보호구(젖은 수건/방연마스크)를 착용하고 있어 유독가스로부터 보호받고 있습니다!';
+            }
+            return '💧 마른 수건 상태입니다. 세면대(🚰) 앞으로 이동해 물에 적셔 주세요! (아이템은 소멸되지 않습니다)';
+          }
+        },
+        {
+          id: 'extinguisher',
+          cat: 'tool',
+          icon: '🧯',
+          name: `ABC 분말소화기 (${player.extinguisherCharges}회)`,
+          owned: player.extinguisherCharges > 0,
+          desc: '일반·식용유·전기 화재를 모두 안전하게 진압할 수 있는 다목적 소화기입니다.',
+          onUse: () => {
+            useExtinguisher();
+            return '🧯 소화기 분사를 시도했습니다!';
+          }
+        },
+        {
+          id: 'axe',
+          cat: 'tool',
+          icon: '🪓',
+          name: '소방 도끼',
+          owned: player.hasAxe,
+          desc: '복도를 가로막는 나무 장애물(🪵)이나 경량칸막이(🧱)를 돌파할 때 사용합니다.',
+          onUse: () => {
+            const adjDebris = findNearestTileOfTypes([TILE.DEBRIS]);
+            if (adjDebris && adjDebris.dist <= 2.2) {
+              triggerInteraction({ kind: 'tile', c: adjDebris.c, r: adjDebris.r, tile: TILE.DEBRIS });
+              return '🪓 근처의 나무 장애물(🪵)을 소방 도끼로 부쉈습니다!';
+            }
+            return 'ℹ️ 근처에 부술 장애물(🪵)이 없습니다. 소방 도끼는 소멸되지 않고 그대로 유지됩니다.';
+          }
+        }
+      ];
+
+      const filtered = activeInvCategory === 'all'
+        ? invEntries
+        : invEntries.filter(e => e.cat === activeInvCategory);
+
+      categorizedInventoryGrid.innerHTML = filtered.map((entry) => `
+        <div class="p-2.5 rounded-xl border ${entry.owned ? 'bg-slate-900 border-emerald-500/40 text-white' : 'bg-slate-950/60 border-slate-800 text-slate-500'} flex flex-col justify-between gap-2">
+          <div class="flex items-start gap-2.5">
+            <span class="text-2xl shrink-0">${entry.icon}</span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-extrabold ${entry.owned ? 'text-amber-300' : 'text-slate-400'}">${entry.name}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black ${entry.owned ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'}">${entry.owned ? '[보유중]' : '[미보유]'}</span>
+              </div>
+              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">${entry.desc}</p>
+            </div>
+          </div>
+          <button type="button" data-inv-id="${entry.id}" class="inv-use-btn w-full py-1.5 rounded-lg text-[11px] font-extrabold transition ${
+            entry.owned
+              ? 'bg-sky-600 hover:bg-sky-500 text-white'
+              : 'bg-slate-800 text-slate-400'
+          }">${entry.owned ? '🔍 점검 / 사용하기' : '🔒 미보유 (사용 불가 안내)'}</button>
+        </div>
+      `).join('');
+
+      categorizedInventoryGrid.querySelectorAll('.inv-use-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          SoundFX.init();
+          const id = btn.getAttribute('data-inv-id');
+          const found = invEntries.find(e => e.id === id);
+          if (!found) return;
+          if (!found.owned) {
+            SoundFX.warning();
+            showToast(`⚠️ [${found.name}] 아이템을 아직 보유하고 있지 않아 사용할 수 없습니다. 건물 내부를 탐색해 먼저 획득하세요!`, 'border-amber-500');
+            return;
+          }
+          const resultMsg = found.onUse();
+          if (resultMsg) showToast(resultMsg, 'border-sky-400');
+          updateHUD();
+        });
+      });
+    }
+  }
+
+  function unlockNotebookHint(stepNum) {
+    SoundFX.init();
+    const hId = `s${currentStageIdx}_hint_${stepNum}`;
+    if (!hintLog.includes(hId)) {
+      hintLog.push(hId);
+      SoundFX.pickup();
+      saveCampaignState();
+    } else {
+      SoundFX.playTone(520, 'sine', 0.05, 0.06);
+    }
+    renderNotebookModal();
+  }
+
+  if (btnUnlockHint1) btnUnlockHint1.addEventListener('click', () => unlockNotebookHint(1));
+  if (btnUnlockHint2) btnUnlockHint2.addEventListener('click', () => unlockNotebookHint(2));
+
+  function switchNotebookTab(tabName) {
+    activeNotebookTab = tabName;
+    const tabs = [
+      { btn: tabBtnTasks, panel: panelNotebookTasks, id: 'tasks' },
+      { btn: tabBtnHints, panel: panelNotebookHints, id: 'hints' },
+      { btn: tabBtnInventory, panel: panelNotebookInventory, id: 'inv' }
+    ];
+    tabs.forEach(({ btn, panel, id }) => {
+      const active = id === tabName;
+      if (btn) {
+        btn.className = active
+          ? 'py-1.5 rounded-lg bg-amber-500 text-slate-950 transition'
+          : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
+      }
+      if (panel) {
+        panel.classList.toggle('hidden', !active);
+      }
+    });
+    renderNotebookModal();
+  }
+
+  function openNotebookModalFn(defaultTab = 'tasks') {
+    if (!notebookModal) return;
+    clearAllInputStates();
+    if (mapEditorInstance) mapEditorInstance.close();
+    const pzModal = document.getElementById('puzzleModal');
+    const stModal = document.getElementById('settingsModal');
+    [certModal, guideModal, classModal, teacherModal, pzModal, stModal, moreToolsDrawer].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+    // PRD Section 6.2: Reading Notebook pauses hazard exposure & fire spread while active elapsed time continues
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    const normalizedTab = defaultTab === 'clues' ? 'tasks' : defaultTab;
+    switchNotebookTab(normalizedTab);
+    notebookModal.classList.remove('hidden');
+    notebookModal.classList.add('flex');
+  }
+
+  function closeNotebookModalFn() {
+    if (!notebookModal) return;
+    clearAllInputStates();
+    notebookModal.classList.add('hidden');
+    notebookModal.classList.remove('flex');
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+    updateHUD();
+  }
+
+  if (btnNotebookTop) btnNotebookTop.addEventListener('click', () => { SoundFX.init(); openNotebookModalFn('tasks'); });
+  if (btnCloseNotebookModal) btnCloseNotebookModal.addEventListener('click', closeNotebookModalFn);
+  if (btnConfirmNotebookModal) btnConfirmNotebookModal.addEventListener('click', closeNotebookModalFn);
+  if (tabBtnTasks) tabBtnTasks.addEventListener('click', () => switchNotebookTab('tasks'));
+  if (tabBtnHints) tabBtnHints.addEventListener('click', () => switchNotebookTab('hints'));
+  if (tabBtnInventory) tabBtnInventory.addEventListener('click', () => switchNotebookTab('inv'));
+
+  if (btnToggleClueZoom) {
+    btnToggleClueZoom.addEventListener('click', () => {
+      isClueZoomed = !isClueZoomed;
+      btnToggleClueZoom.textContent = isClueZoomed ? '🔎 기본 글자크기' : '🔍 글자크게(확대)';
+      renderNotebookModal();
+    });
+  }
+
+  document.querySelectorAll('.inv-cat-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeInvCategory = btn.getAttribute('data-inv-cat') || 'all';
+      document.querySelectorAll('.inv-cat-btn').forEach((b) => {
+        const isAct = (b.getAttribute('data-inv-cat') || 'all') === activeInvCategory;
+        b.className = isAct
+          ? 'inv-cat-btn px-2.5 py-1 rounded-lg bg-sky-600 text-white font-bold'
+          : 'inv-cat-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 font-bold';
+      });
+      renderNotebookModal();
+    });
+  });
+
+  // --- Section 5, F06, T05, T10: Object Inspection & Escape-Room Puzzles (Digital Safe & Accessible Wiring) ---
+  const puzzleModal = document.getElementById('puzzleModal');
+  const btnPuzzleInspector = document.getElementById('btnPuzzleInspector');
+  const btnClosePuzzleModal = document.getElementById('btnClosePuzzleModal');
+  const btnSelectSafePuzzle = document.getElementById('btnSelectSafePuzzle');
+  const btnSelectWirePuzzle = document.getElementById('btnSelectWirePuzzle');
+  const safePuzzleBox = document.getElementById('safePuzzleBox');
+  const wirePuzzleBox = document.getElementById('wirePuzzleBox');
+  const safeWrongBadge = document.getElementById('safeWrongBadge');
+  const safeCodeInput = document.getElementById('safeCodeInput');
+  const btnSubmitSafeCode = document.getElementById('btnSubmitSafeCode');
+  const btnSafeClear = document.getElementById('btnSafeClear');
+  const safeFeedbackMsg = document.getElementById('safeFeedbackMsg');
+  const wireSelectRed = document.getElementById('wireSelectRed');
+  const wireSelectBlue = document.getElementById('wireSelectBlue');
+  const wireSelectYellow = document.getElementById('wireSelectYellow');
+  const wireSelectGreen = document.getElementById('wireSelectGreen');
+  const btnSubmitWirePuzzle = document.getElementById('btnSubmitWirePuzzle');
+  const wireFeedbackMsg = document.getElementById('wireFeedbackMsg');
+
+  function switchPuzzleSubTab(which) {
+    const isSafe = which !== 'wire';
+    if (safePuzzleBox) safePuzzleBox.classList.toggle('hidden', !isSafe);
+    if (wirePuzzleBox) wirePuzzleBox.classList.toggle('hidden', isSafe);
+    if (btnSelectSafePuzzle) {
+      btnSelectSafePuzzle.className = isSafe
+        ? 'py-1.5 rounded-lg bg-cyan-600 text-white transition'
+        : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
+    }
+    if (btnSelectWirePuzzle) {
+      btnSelectWirePuzzle.className = !isSafe
+        ? 'py-1.5 rounded-lg bg-cyan-600 text-white transition'
+        : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
+    }
+  }
+
+  if (btnSelectSafePuzzle) btnSelectSafePuzzle.addEventListener('click', () => switchPuzzleSubTab('safe'));
+  if (btnSelectWirePuzzle) btnSelectWirePuzzle.addEventListener('click', () => switchPuzzleSubTab('wire'));
+
+  function updateSafeLockUI() {
+    if (safeWrongBadge) {
+      safeWrongBadge.textContent = `오답: ${safeWrongCount} / 3회`;
+    }
+    if (!safeFeedbackMsg) return;
+    const targetCode = getStageSafePasscode();
+    if (safeSolved) {
+      if (safeCodeInput) safeCodeInput.value = 'OPEN';
+      safeFeedbackMsg.textContent = `✅ 금고 잠금 해제 완료! (정답 ${targetCode} · 비상 마스터 열쇠 🔑 지급 완료)`;
+      safeFeedbackMsg.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 font-bold text-center';
+      return;
+    }
+
+    if (safeLockUntil > 0 && elapsedSeconds < safeLockUntil) {
+      const rem = Math.max(1, Math.ceil(safeLockUntil - elapsedSeconds));
+      safeFeedbackMsg.textContent = `⏳ 3회 연속 오답으로 금고가 잠겼습니다! (남은 대기시간: ${rem}초 — 플레이·수첩 열람 중 감소)`;
+      safeFeedbackMsg.className = 'p-2 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 font-bold text-center';
+      return;
+    }
+
+    if (safeLockUntil > 0 && elapsedSeconds >= safeLockUntil) {
+      safeLockUntil = 0;
+      safeWrongCount = 0;
+      if (safeWrongBadge) safeWrongBadge.textContent = '오답: 0 / 3회';
+      saveCampaignState();
+    }
+
+    safeFeedbackMsg.textContent = `현재 구역 암호(${targetCode} 또는 614 / 0119)를 입력한 뒤 [잠금 해제]를 누르세요. (오답: ${safeWrongCount}/3회)`;
+    safeFeedbackMsg.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 text-amber-200 font-bold text-center';
+  }
+
+  function updateWirePuzzleUI() {
+    if (!wireFeedbackMsg) return;
+    if (wireSolved) {
+      if (wireSelectRed) wireSelectRed.value = 'B';
+      if (wireSelectBlue) wireSelectBlue.value = 'D';
+      if (wireSelectYellow) wireSelectYellow.value = 'A';
+      if (wireSelectGreen) wireSelectGreen.value = 'C';
+      wireFeedbackMsg.textContent = '✅ 배전판 비상 배선 복구 완료! (전원 차단 + 소화기 1회 추가 충전 완료)';
+      wireFeedbackMsg.className = 'p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 font-bold text-center';
+    } else {
+      wireFeedbackMsg.textContent = '색상과 영문 기호(RED·BLUE·YELLOW·GREEN)를 확인해 알맞은 단자(A·B·C·D)를 선택하세요.';
+      wireFeedbackMsg.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 text-emerald-200 font-bold text-center';
+    }
+  }
+
+  document.querySelectorAll('.safe-digit-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      SoundFX.init();
+      if (safeSolved || !safeCodeInput) return;
+      if (safeLockUntil > 0 && elapsedSeconds < safeLockUntil) {
+        SoundFX.warning();
+        updateSafeLockUI();
+        return;
+      }
+      const digit = btn.getAttribute('data-safe-digit') || '';
+      if (safeCodeInput.value.length < 4) {
+        safeCodeInput.value += String(digit);
+        safeInputBuffer = safeCodeInput.value;
+        SoundFX.playTone(620, 'sine', 0.04, 0.06);
+      }
+    });
+  });
+
+  if (btnSafeClear) {
+    btnSafeClear.addEventListener('click', () => {
+      SoundFX.init();
+      if (safeSolved) return;
+      safeInputBuffer = '';
+      if (safeCodeInput) safeCodeInput.value = '';
+      updateSafeLockUI();
+    });
+  }
+
+  if (btnSubmitSafeCode) {
+    btnSubmitSafeCode.addEventListener('click', () => {
+      SoundFX.init();
+      const targetCode = getStageSafePasscode();
+      if (safeSolved) {
+        showToast('✅ 이미 잠금이 해제된 비상 금고입니다.', 'border-emerald-400');
+        return;
+      }
+      if (safeLockUntil > 0 && elapsedSeconds < safeLockUntil) {
+        SoundFX.warning();
+        updateSafeLockUI();
+        return;
+      }
+      const rawVal = safeCodeInput ? safeCodeInput.value.trim() : safeInputBuffer.trim();
+      // PRD T05 Rule: Empty or incomplete (< 3 digits) input shows guidance and NEVER increments wrong attempt count!
+      if (!rawVal || rawVal.length < 3) {
+        SoundFX.warning();
+        if (safeFeedbackMsg) {
+          safeFeedbackMsg.textContent = '⚠️ 비밀번호 3~4자리를 모두 입력해 주세요! (빈 입력·미완성 입력은 오답 횟수에 포함되지 않습니다)';
+          safeFeedbackMsg.className = 'p-2 rounded-lg bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-center';
+        }
+        return;
+      }
+
+      // PRD T05 Rule: Exact string comparison (preserves leading '0' in '0119', accepts stage code, '614', or '0119')
+      if (String(rawVal) === String(targetCode) || String(rawVal) === '614' || String(rawVal) === '0119') {
+        safeSolved = true;
+        safeWrongCount = 0;
+        safeLockUntil = 0;
+        player.keys += 1;
+        score += 200;
+        SoundFX.win();
+        updateSafeLockUI();
+        updateHUD();
+        saveCampaignState();
+        showToast(`🔓 [비상 금고 해제 성공!] 정답(${rawVal}) 확인! 비상 마스터 열쇠(🔑 +1)와 +200점을 획득했습니다!`, 'border-emerald-400');
+      } else {
+        safeWrongCount += 1;
+        safeInputBuffer = '';
+        if (safeCodeInput) safeCodeInput.value = '';
+        SoundFX.hurt();
+        if (safeWrongCount >= 3) {
+          safeLockUntil = elapsedSeconds + 30;
+          saveCampaignState();
+          updateSafeLockUI();
+          showToast('⏳ 금고 비밀번호 3회 연속 오답! 30초 동안 입력이 잠깁니다. 수첩(H키)에서 단서를 확인하세요!', 'border-red-500');
+        } else {
+          saveCampaignState();
+          updateSafeLockUI();
+          if (safeFeedbackMsg) {
+            safeFeedbackMsg.textContent = `❌ 비밀번호가 일치하지 않습니다! (오답 횟수: ${safeWrongCount} / 3회 — 수첩 단서 원문을 확인하세요)`;
+            safeFeedbackMsg.className = 'p-2 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 font-bold text-center';
+          }
+        }
+      }
+    });
+  }
+
+  if (btnSubmitWirePuzzle) {
+    btnSubmitWirePuzzle.addEventListener('click', () => {
+      SoundFX.init();
+      if (wireSolved) {
+        showToast('✅ 이미 배전판 비상 배선 복구가 완료되었습니다.', 'border-emerald-400');
+        return;
+      }
+      const rVal = wireSelectRed ? wireSelectRed.value : '';
+      const bVal = wireSelectBlue ? wireSelectBlue.value : '';
+      const yVal = wireSelectYellow ? wireSelectYellow.value : '';
+      const gVal = wireSelectGreen ? wireSelectGreen.value : '';
+      if (!rVal || !bVal || !yVal || !gVal) {
+        SoundFX.warning();
+        if (wireFeedbackMsg) {
+          wireFeedbackMsg.textContent = '⚠️ 4개의 전선(빨강·파랑·노랑·초록) 단자를 모두 선택해 주세요!';
+          wireFeedbackMsg.className = 'p-2 rounded-lg bg-amber-950/60 border border-amber-500/50 text-amber-300 font-bold text-center';
+        }
+        return;
+      }
+      if (rVal === 'B' && bVal === 'D' && yVal === 'A' && gVal === 'C') {
+        wireSolved = true;
+        player.breakerClosed = true;
+        player.extinguisherCharges += 1;
+        score += 250;
+        SoundFX.win();
+        updateWirePuzzleUI();
+        updateHUD();
+        saveCampaignState();
+        showToast('⚡ [배전판 배선 복구 완료!] 전원 차단기 안전 조치 완료 & 소화기(+1회)가 충전되었습니다! (+250점)', 'border-sky-400');
+      } else {
+        SoundFX.warning();
+        if (wireFeedbackMsg) {
+          wireFeedbackMsg.textContent = '❌ 배선 연결이 올바르지 않습니다! 단서: 🔴빨강(RED)=B, 🔵파랑(BLUE)=D, 🟡노랑(YELLOW)=A, 🟢초록(GREEN)=C';
+          wireFeedbackMsg.className = 'p-2 rounded-lg bg-rose-950/60 border border-rose-500/50 text-rose-300 font-bold text-center';
+        }
+      }
+    });
+  }
+
+  function openPuzzleModalFn(defaultSubTab = 'safe') {
+    if (!puzzleModal) return;
+    clearAllInputStates();
+    if (mapEditorInstance) mapEditorInstance.close();
+    const stModal = document.getElementById('settingsModal');
+    [certModal, guideModal, classModal, teacherModal, notebookModal, stModal, moreToolsDrawer].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    switchPuzzleSubTab(defaultSubTab);
+    updateSafeLockUI();
+    updateWirePuzzleUI();
+    puzzleModal.classList.remove('hidden');
+    puzzleModal.classList.add('flex');
+  }
+
+  function closePuzzleModalFn() {
+    if (!puzzleModal) return;
+    clearAllInputStates();
+    puzzleModal.classList.add('hidden');
+    puzzleModal.classList.remove('flex');
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+    updateHUD();
+  }
+
+  if (btnPuzzleInspector) btnPuzzleInspector.addEventListener('click', () => { SoundFX.init(); openPuzzleModalFn('safe'); });
+  if (btnClosePuzzleModal) btnClosePuzzleModal.addEventListener('click', closePuzzleModalFn);
+
+  // --- Section 6, F09, T07~T11: Settings, Time/Tension-Relief Policy & Save Export/Import (1MiB limit) ---
+  const settingsModal = document.getElementById('settingsModal');
+  const btnSettingsTop = document.getElementById('btnSettingsTop');
+  const btnCloseSettingsModal = document.getElementById('btnCloseSettingsModal');
+  const btnResumeFromSettings = document.getElementById('btnResumeFromSettings');
+  const settingsTimeSummary = document.getElementById('settingsTimeSummary');
+  const btnModeStandard = document.getElementById('btnModeStandard');
+  const btnModeRelaxed = document.getElementById('btnModeRelaxed');
+  const btnModePractice = document.getElementById('btnModePractice');
+  const tensionPolicyNotice = document.getElementById('tensionPolicyNotice');
+  const btnTogglePracticeMode = document.getElementById('btnTogglePracticeMode');
+  const selectGraphicsQuality = document.getElementById('selectGraphicsQuality');
+  const rangeBrightness = document.getElementById('rangeBrightness');
+  const lblBrightness = document.getElementById('lblBrightness');
+  const rangeSensitivity = document.getElementById('rangeSensitivity');
+  const lblSensitivity = document.getElementById('lblSensitivity');
+  const chkReduceMotion = document.getElementById('chkReduceMotion');
+  const saveSlotStatusBadge = document.getElementById('saveSlotStatusBadge');
+  const btnManualSaveNow = document.getElementById('btnManualSaveNow');
+  const btnExportSaveJson = document.getElementById('btnExportSaveJson');
+  const inputImportSaveJson = document.getElementById('inputImportSaveJson');
+  const saveImportPreviewBox = document.getElementById('saveImportPreviewBox');
+  const saveImportPreviewText = document.getElementById('saveImportPreviewText');
+  const btnConfirmImportSave = document.getElementById('btnConfirmImportSave');
+  const btnCancelImportSave = document.getElementById('btnCancelImportSave');
+  const saveActionFeedback = document.getElementById('saveActionFeedback');
+  const btnSaveAndExitMain = document.getElementById('btnSaveAndExitMain');
+
+  let pendingImportedSave = null;
+
+  function persistAppSettings() {
+    try {
+      localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify({
+        ...appSettings,
+        defaultMode: nextRunOptions.mode
+      }));
+    } catch (e) {}
+  }
+
+  function updateTimePolicyModalUI() {
+    if (settingsTimeSummary) {
+      const m = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+      const s = String(Math.floor(elapsedSeconds % 60)).padStart(2, '0');
+      const curExp = Math.floor(hazardExposure);
+      const limitStr = runOptions.mode === 'practice' || runOptions.hazardLimitSeconds === null
+        ? '무제한(연습)'
+        : `${runOptions.hazardLimitSeconds}s`;
+      settingsTimeSummary.textContent = `경과 ${m}:${s} | 위험노출 ${curExp}s / ${limitStr}`;
+    }
+
+    const modeBtns = [
+      { btn: btnModeStandard, mode: 'standard' },
+      { btn: btnModeRelaxed, mode: 'relaxed' },
+      { btn: btnModePractice, mode: 'practice' }
+    ];
+    modeBtns.forEach(({ btn, mode }) => {
+      if (!btn) return;
+      const isCur = nextRunOptions.mode === mode;
+      btn.className = isCur
+        ? 'py-1.5 px-2 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px]'
+        : 'py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]';
+    });
+
+    if (btnTogglePracticeMode) {
+      const isPrac = runOptions.mode === 'practice';
+      btnTogglePracticeMode.textContent = isPrac ? '켜짐 (해제)' : '연습 모드 켜기';
+      btnTogglePracticeMode.className = isPrac
+        ? 'px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shrink-0'
+        : 'px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-extrabold text-white shrink-0';
+    }
+  }
+
+  // PRD Section 6.3 & T11 Rule:
+  // - 300s -> 480s (Relaxed): Applies immediately to current run AND next run.
+  // - 480s -> 300s (Standard): Keeps 480s for current run if already in progress (elapsedSeconds > 0) so turning off Relaxed Mode at 350s NEVER causes instant failure! Applies 300s starting next new game.
+  function applyTimePolicyMode(targetMode) {
+    if (targetMode === 'relaxed') {
+      runOptions = { mode: 'relaxed', hazardLimitSeconds: 480 };
+      nextRunOptions = { mode: 'relaxed', hazardLimitSeconds: 480 };
+      if (tensionPolicyNotice) {
+        tensionPolicyNotice.textContent = '✅ [긴장 완화 모드(480초)]가 현재 진행 중인 게임부터 즉시 적용되었습니다!';
+      }
+      showToast('🛡️ [긴장 완화 모드 ON] 위험 노출 허용 시간이 480초로 즉시 완화되었습니다!', 'border-emerald-400');
+    } else if (targetMode === 'standard') {
+      nextRunOptions = { mode: 'standard', hazardLimitSeconds: 300 };
+      if (elapsedSeconds > 0 && runOptions.mode === 'relaxed') {
+        if (tensionPolicyNotice) {
+          tensionPolicyNotice.textContent = 'ℹ️ 진행 중인 게임은 즉사 방지를 위해 480초가 유지되며, 다음 새 게임부터 기본 모드(300초)가 적용됩니다.';
+        }
+        showToast('ℹ️ 현재 판은 480초를 유지하며, 다음 새 게임부터 기본 모드(300초)가 적용됩니다.', 'border-sky-400');
+      } else {
+        runOptions = { mode: 'standard', hazardLimitSeconds: 300 };
+        if (tensionPolicyNotice) {
+          tensionPolicyNotice.textContent = '✅ 기본 모드(300초)가 적용되었습니다.';
+        }
+        showToast('⏱️ 기본 모드(위험 노출 300초 기준)로 설정되었습니다.');
+      }
+    } else if (targetMode === 'practice') {
+      runOptions = { mode: 'practice', hazardLimitSeconds: null };
+      nextRunOptions = { mode: 'practice', hazardLimitSeconds: null };
+      if (tensionPolicyNotice) {
+        tensionPolicyNotice.textContent = '✅ [연습·수업 모드(시간 실패 없음)]가 현재 진행 중인 게임부터 즉시 적용되었습니다!';
+      }
+      showToast('🏫 [연습·수업 모드 ON] 시간 초과 실패 없이 모든 퍼즐과 대피 경로를 안전하게 실습할 수 있습니다!', 'border-amber-400');
+    }
+    persistAppSettings();
+    saveCampaignState();
+    updateTimePolicyModalUI();
+  }
+
+  if (btnModeStandard) btnModeStandard.addEventListener('click', () => { SoundFX.init(); applyTimePolicyMode('standard'); });
+  if (btnModeRelaxed) btnModeRelaxed.addEventListener('click', () => { SoundFX.init(); applyTimePolicyMode('relaxed'); });
+  if (btnModePractice) btnModePractice.addEventListener('click', () => { SoundFX.init(); applyTimePolicyMode('practice'); });
+
+  if (btnTogglePracticeMode) {
+    btnTogglePracticeMode.addEventListener('click', () => {
+      SoundFX.init();
+      if (runOptions.mode === 'practice') {
+        applyTimePolicyMode('standard');
+      } else {
+        applyTimePolicyMode('practice');
+      }
+    });
+  }
+
+  function updateSaveStatusUI() {
+    const saved = loadValidCampaignSave();
+    if (!saved) {
+      if (saveSlotStatusBadge) saveSlotStatusBadge.textContent = '슬롯 비어 있음';
+      if (saveActionFeedback) saveActionFeedback.textContent = '현재 자동 저장 슬롯(fire-safety:campaign:v2): 비어 있음 (게임을 시작하면 5초마다 및 주요 행동 시 자동 저장됩니다)';
+    } else {
+      const m = String(Math.floor((saved.elapsedSeconds || 0) / 60)).padStart(2, '0');
+      const s = String(Math.floor((saved.elapsedSeconds || 0) % 60)).padStart(2, '0');
+      if (saveSlotStatusBadge) saveSlotStatusBadge.textContent = `저장됨 (${saved.stageName})`;
+      if (saveActionFeedback) {
+        saveActionFeedback.textContent = `자동 저장됨: [${saved.stageName}] · 점수 ${Number(saved.score || 0).toLocaleString()}점 · 경과 ${m}:${s} · 힌트 ${Array.isArray(saved.hintLog) ? saved.hintLog.length : 0}회`;
+      }
+    }
+  }
+
+  if (btnManualSaveNow) {
+    btnManualSaveNow.addEventListener('click', () => {
+      SoundFX.init();
+      saveCampaignState();
+      updateSaveStatusUI();
+      showToast('💾 현재 진행 상태가 이 브라우저에 즉시 저장되었습니다!', 'border-emerald-400');
+    });
+  }
+
+  function openSettingsModalFn() {
+    if (!settingsModal) return;
+    clearAllInputStates();
+    if (mapEditorInstance) mapEditorInstance.close();
+    [certModal, guideModal, classModal, teacherModal, notebookModal, puzzleModal, moreToolsDrawer].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    if (selectGraphicsQuality) selectGraphicsQuality.value = appSettings.graphicsQuality || 'auto';
+    const bRatio = Number(((appSettings.brightness || 100) / 100).toFixed(1));
+    const sRatio = Number(((appSettings.sensitivity || 100) / 100).toFixed(1));
+    if (rangeBrightness) rangeBrightness.value = String(bRatio);
+    if (lblBrightness) lblBrightness.textContent = bRatio.toFixed(1);
+    if (rangeSensitivity) rangeSensitivity.value = String(sRatio);
+    if (lblSensitivity) lblSensitivity.textContent = sRatio.toFixed(1);
+    if (chkReduceMotion) chkReduceMotion.checked = !!appSettings.reduceMotion;
+    updateTimePolicyModalUI();
+    updateSaveStatusUI();
+    settingsModal.classList.remove('hidden');
+    settingsModal.classList.add('flex');
+  }
+
+  function closeSettingsModalFn() {
+    if (!settingsModal) return;
+    clearAllInputStates();
+    settingsModal.classList.add('hidden');
+    settingsModal.classList.remove('flex');
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+    updateHUD();
+  }
+
+  if (btnSettingsTop) btnSettingsTop.addEventListener('click', () => { SoundFX.init(); openSettingsModalFn(); });
+  if (btnCloseSettingsModal) btnCloseSettingsModal.addEventListener('click', closeSettingsModalFn);
+  if (btnResumeFromSettings) btnResumeFromSettings.addEventListener('click', closeSettingsModalFn);
+
+  if (selectGraphicsQuality) {
+    selectGraphicsQuality.addEventListener('change', () => {
+      appSettings.graphicsQuality = selectGraphicsQuality.value || 'auto';
+      persistAppSettings();
+      resizeCanvas();
+    });
+  }
+  if (rangeBrightness) {
+    rangeBrightness.addEventListener('input', () => {
+      const val = parseFloat(rangeBrightness.value) || 1.0;
+      appSettings.brightness = Math.round(val * 100);
+      if (lblBrightness) lblBrightness.textContent = val.toFixed(1);
+      persistAppSettings();
+      resizeCanvas();
+    });
+  }
+  if (rangeSensitivity) {
+    rangeSensitivity.addEventListener('input', () => {
+      const val = parseFloat(rangeSensitivity.value) || 1.0;
+      appSettings.sensitivity = Math.round(val * 100);
+      if (lblSensitivity) lblSensitivity.textContent = val.toFixed(1);
+      persistAppSettings();
+    });
+  }
+  if (chkReduceMotion) {
+    chkReduceMotion.addEventListener('change', () => {
+      appSettings.reduceMotion = !!chkReduceMotion.checked;
+      persistAppSettings();
+    });
+  }
+
+  // Export Save JSON (exportVersion: 1)
+  if (btnExportSaveJson) {
+    btnExportSaveJson.addEventListener('click', () => {
+      SoundFX.init();
+      if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        saveCampaignState();
+      }
+      const campaign = loadValidCampaignSave() || buildCampaignSnapshot();
+      const exportPayload = {
+        exportVersion: 1,
+        exportedAt: new Date().toISOString(),
+        app: 'fire-safety-3d',
+        campaign
+      };
+      try {
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fire-safety-save-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        SoundFX.pickup();
+        showToast('📤 현재 캠페인 저장 데이터가 JSON 파일로 내보내기 되었습니다!', 'border-emerald-400');
+      } catch (e) {
+        showToast('⚠️ JSON 내보내기 중 오류가 발생했습니다.', 'border-red-500');
+      }
+    });
+  }
+
+  // Import Save JSON with 1MiB (1,048,576 bytes) limit & schema validation & preview (T12, T13)
+  if (inputImportSaveJson) {
+    inputImportSaveJson.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (file.size > 1048576) {
+        SoundFX.warning();
+        showToast('⚠️ 가져오기 실패: 파일 크기가 1MiB(1,048,576 바이트) 제한을 초과합니다!', 'border-red-500');
+        inputImportSaveJson.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || ''));
+          const candidate = (parsed && parsed.exportVersion === 1 && parsed.campaign) ? parsed.campaign : parsed;
+          const validation = validateCampaignSave(candidate);
+          if (!validation.valid) {
+            SoundFX.warning();
+            showToast(`⚠️ 손상되었거나 호환되지 않는 저장 파일입니다: ${validation.reason}`, 'border-red-500');
+            inputImportSaveJson.value = '';
+            return;
+          }
+          pendingImportedSave = candidate;
+          if (saveImportPreviewText && saveImportPreviewBox) {
+            const mins = String(Math.floor((candidate.elapsedSeconds || 0) / 60)).padStart(2, '0');
+            const secs = String(Math.floor((candidate.elapsedSeconds || 0) % 60)).padStart(2, '0');
+            saveImportPreviewText.innerHTML = `✅ <strong>검증 통과:</strong> [${candidate.stageName || `${candidate.stageIdx + 1}단계`}] · 점수 <strong>${Number(candidate.score || 0).toLocaleString()}점</strong> · 경과 <strong>${mins}:${secs}</strong> · 힌트 <strong>${Array.isArray(candidate.hintLog) ? candidate.hintLog.length : 0}회</strong><br/><span class="text-slate-400">기존 슬롯은 자동으로 <code>fire-safety:campaign:backup</code>에 백업됩니다.</span>`;
+            saveImportPreviewBox.classList.remove('hidden');
+          }
+        } catch (err) {
+          SoundFX.warning();
+          showToast('⚠️ JSON 파싱 실패: 올바른 저장 파일 형식이 아닙니다.', 'border-red-500');
+        }
+        inputImportSaveJson.value = '';
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  if (btnConfirmImportSave) {
+    btnConfirmImportSave.addEventListener('click', () => {
+      if (!pendingImportedSave) return;
+      backupCurrentCampaignSave();
+      try {
+        localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(pendingImportedSave));
+      } catch (e) {}
+      const toRestore = pendingImportedSave;
+      pendingImportedSave = null;
+      if (saveImportPreviewBox) saveImportPreviewBox.classList.add('hidden');
+      restoreCampaignState(toRestore);
+    });
+  }
+
+  if (btnCancelImportSave) {
+    btnCancelImportSave.addEventListener('click', () => {
+      pendingImportedSave = null;
+      if (saveImportPreviewBox) saveImportPreviewBox.classList.add('hidden');
+    });
+  }
+
+  if (btnSaveAndExitMain) {
+    btnSaveAndExitMain.addEventListener('click', () => {
+      SoundFX.init();
+      saveCampaignState();
+      closeSettingsModalFn();
+      showMainTitleScreen();
+      showToast('💾 현재 진행 상태를 안전하게 저장하고 메인 화면으로 돌아왔습니다!', 'border-amber-400');
+    });
+  }
+
+  // --- Section 11.4: Post-Activity Reflection .txt Export ---
+  const btnExportReflection = document.getElementById('btnExportReflection');
+  const reflectClueInput = document.getElementById('reflectClueInput');
+  const reflectStrategyInput = document.getElementById('reflectStrategyInput');
+
+  if (btnExportReflection) {
+    btnExportReflection.addEventListener('click', () => {
+      SoundFX.init();
+      const studentName = (studentNameInput && studentNameInput.value.trim()) || '용감한 어린이';
+      const cls = currentClassCode.trim() || '자유 참가반';
+      const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+      const q1 = (reflectClueInput && reflectClueInput.value.trim()) || '(미작성)';
+      const q2 = (reflectStrategyInput && reflectStrategyInput.value.trim()) || '(미작성)';
+      const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+      const secs = String(Math.floor(elapsedSeconds % 60)).padStart(2, '0');
+
+      const lines = [
+        '====================================================',
+        '[화재 탈출 넘버원 3D - 수업 후 성찰·토의 활동 기록]',
+        '====================================================',
+        `작성 일시: ${new Date().toLocaleString('ko-KR')}`,
+        `학급 / 성명: ${cls} / ${studentName}`,
+        `참여 단계: ${st.name} (${st.curriculumFocus || '화재 안전 실습'})`,
+        `최종 등급 / 점수: ${debriefGrade ? debriefGrade.textContent : '-'} / ${score.toLocaleString()}점`,
+        `소요 시간 / 힌트 사용: ${mins}:${secs} / ${hintLog.length}회`,
+        '----------------------------------------------------',
+        '[질문 1] 오늘 가장 결정적이었던 단서·안전 수칙 1가지:',
+        q1,
+        '',
+        '[질문 2] 다시 도전한다면 바꾸고 싶은 대피 전략 1가지:',
+        q2,
+        '===================================================='
+      ].join('\n');
+
+      try {
+        const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `화재안전_성찰기록_${studentName}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        SoundFX.pickup();
+        showToast('💾 수업 후 성찰 기록(.txt) 파일이 저장되었습니다!', 'border-emerald-400');
+      } catch (e) {
+        showToast('⚠️ 성찰 기록 저장 중 오류가 발생했습니다.', 'border-red-500');
+      }
+    });
+  }
+
+  // --- Section 10: ?perf=1 Performance Diagnostic Overlay & JSON Export ---
+  const perfDiagOverlay = document.getElementById('perfDiagOverlay');
+  const btnExportPerfJson = document.getElementById('btnExportPerfJson');
+
+  if (btnExportPerfJson) {
+    btnExportPerfJson.addEventListener('click', () => {
+      const avgMs = perfFrameTimes.reduce((a, b) => a + b, 0) / (perfFrameTimes.length || 1);
+      const sorted = [...perfFrameTimes].sort((a, b) => a - b);
+      const p95Ms = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] || avgMs;
+      const report = {
+        timestamp: new Date().toISOString(),
+        fps: Math.min(120, Math.round(1000 / Math.max(1, avgMs))),
+        p95FrameMs: Number(p95Ms.toFixed(2)),
+        longFramesOver33ms: perfLongFrames,
+        stageIdx: currentStageIdx,
+        cameraMode3D,
+        graphicsQuality: appSettings.graphicsQuality,
+        recentSamplesMs: perfFrameTimes.map(v => Number(v.toFixed(2)))
+      };
+      try {
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fire-safety-perf-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📊 성능 진단 리포트(JSON)가 내보내기 되었습니다!');
+      } catch (e) {}
+    });
+  }
+
   // --- Bug #3 Fix & Feature 4: Automatically Load ?map= and ?class= URL Parameters ---
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
     appInitialized = true;
+
+    if (isPerfDiagEnabled && perfDiagOverlay) {
+      perfDiagOverlay.classList.remove('hidden');
+      perfDiagOverlay.classList.add('flex');
+    }
 
     bestScoreDisplay.textContent = getSavedBestScore().toLocaleString();
     try {
@@ -6758,6 +8328,8 @@
       loadStage(0, true, null);
     }
 
+    selectWorldCard('fire');
+    syncContinueButtonUI();
     resizeCanvas();
     updateOverlaySelectionUI();
     if (animFrameId) cancelAnimationFrame(animFrameId);
