@@ -2603,8 +2603,37 @@
     }
   }
 
-  // --- Mode 2: Real-Time 1st-Person 3D Escape Room Raycaster + Z-Buffer Engine ---
+  // --- Mode 2: Real-Time 1st-Person 3D Escape Room Raycaster + Z-Buffer Engine (with Visible 3D Player Character) ---
   function renderFirstPerson3D(width, height, now, st) {
+    const nextObj = getNextStepObjective();
+    const activelyMoving = (
+      keysPressed.up || keysPressed.down || keysPressed.left || keysPressed.right ||
+      pointerMoveTarget !== null
+    );
+
+    // Smart camera orientation: if stopped and staring straight into a plain wall, face adjacent interactable or nextObj
+    if (!activelyMoving) {
+      const lookC = Math.floor(player.x + (player.dirX || 1) * 0.85);
+      const lookR = Math.floor(player.y + (player.dirY || 0) * 0.85);
+      const facingTile = (grid[lookR] && typeof grid[lookR][lookC] === 'number') ? grid[lookR][lookC] : TILE.WALL;
+      const adjTarget = getInteractTarget();
+      if (adjTarget && facingTile === TILE.WALL) {
+        const tx = (adjTarget.kind === 'item' ? adjTarget.item.c : adjTarget.c) + 0.5;
+        const ty = (adjTarget.kind === 'item' ? adjTarget.item.r : adjTarget.r) + 0.5;
+        const dx = tx - player.x;
+        const dy = ty - player.y;
+        const len = Math.hypot(dx, dy) || 1;
+        player.dirX = dx / len;
+        player.dirY = dy / len;
+      } else if (facingTile === TILE.WALL && nextObj) {
+        const dx = (nextObj.c + 0.5) - player.x;
+        const dy = (nextObj.r + 0.5) - player.y;
+        const len = Math.hypot(dx, dy) || 1;
+        player.dirX = dx / len;
+        player.dirY = dy / len;
+      }
+    }
+
     // Smoothly rotate camera yaw toward player facing vector
     const targetYaw = Math.atan2(player.dirY || 0, player.dirX || 1);
     let diff = targetYaw - fpsCamYaw;
@@ -2784,7 +2813,6 @@
       }
     }
 
-    const nextObj = getNextStepObjective();
     if (nextObj && !player.onFire) {
       sprites.push({
         x: nextObj.c + 0.5,
@@ -2854,25 +2882,196 @@
     ctx.fillStyle = smokeGrad;
     ctx.fillRect(0, 0, width, horizon * 1.15);
 
-    // 5. 1st-Person 3D Hands / Equipped Safety Gear Overlay (Bottom Right)
+    // 5. Visible 3D Player Character Avatar (`나`) + Posture + Equipped Gear + Companions in Foreground
     ctx.save();
-    const bobX = Math.sin(now * 2.5) * 4;
-    const bobY = Math.abs(Math.cos(now * 2.5)) * 4;
-    const handX = width * 0.76 + bobX;
-    const handY = height - 28 + bobY;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.fillRect(handX - 66, handY - 22, 132, 34);
-    ctx.strokeRect(handX - 66, handY - 22, 132, 34);
-    ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
-    ctx.fillStyle = '#e0f2fe';
+    const walkFreq = activelyMoving ? 8.5 : 2.5;
+    const walkAmp = activelyMoving ? 5.5 : 2.0;
+    const bobX = Math.sin(now * walkFreq) * walkAmp;
+    const bobY = Math.abs(Math.cos(now * walkFreq)) * (walkAmp * 0.85);
+    const activeSkin = getSelectedSkin();
+
+    const charX = width * 0.50 + bobX;
+    const charFloorY = height - (player.crouching ? 22 : 28) + bobY;
+    const ringRadiusX = Math.max(44, width * 0.055);
+
+    // 5a. 3D Floor Shadow & Glowing 3D Safety Pedestal Disc beneath Player's Feet
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.75)';
+    ctx.beginPath();
+    ctx.ellipse(charX, charFloorY + 5, ringRadiusX * 1.18, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const auraColor = player.onFire
+      ? '#ef4444'
+      : (player.crouching ? '#10b981' : '#38bdf8');
+    const discFill = player.onFire
+      ? 'rgba(220, 38, 38, 0.32)'
+      : (player.crouching ? 'rgba(16, 185, 129, 0.28)' : 'rgba(37, 99, 235, 0.28)');
+    ctx.fillStyle = discFill;
+    ctx.beginPath();
+    ctx.ellipse(charX, charFloorY, ringRadiusX, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = auraColor;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    //Protective respiratory dome/ring when Wet Towel or Gas Mask is active
+    if (player.wetTowel || player.hasMask) {
+      ctx.strokeStyle = player.hasMask ? '#2dd4bf' : '#7dd3fc';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.ellipse(charX, charFloorY, ringRadiusX * 1.22, 16, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // 5b. Rescued Companion / Pet walking beside the 3D Player Character on the 3D Floor
+    if (player.rescuedNpcs > 0) {
+      const npcX = charX - ringRadiusX * 2.1;
+      const npcY = charFloorY - 4;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(npcX, npcY + 4, 24, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = `${Math.max(32, Math.floor(height * 0.075))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('🧒', npcX, npcY + 2);
+      ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#064e3b';
+      ctx.fillRect(npcX - 28, npcY + 6, 56, 15);
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(npcX - 28, npcY + 6, 56, 15);
+      ctx.fillStyle = '#ecfdf5';
+      ctx.fillText('구출동행', npcX, npcY + 13.5);
+    }
+
+    if (player.rescuedDog) {
+      const dogX = charX + ringRadiusX * 2.1;
+      const dogY = charFloorY - 4;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(dogX, dogY + 4, 22, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = `${Math.max(28, Math.floor(height * 0.068))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('🐶', dogX, dogY + 2);
+      ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(dogX - 26, dogY + 6, 52, 15);
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(dogX - 26, dogY + 6, 52, 15);
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillText('초코동행', dogX, dogY + 13.5);
+    }
+
+    // 5c. Main 3D Player Character Figure (`🏃` Standing / `🧎` Crouching / `🔥` On Fire) Standing on Floor
+    const avatarSize = player.crouching
+      ? Math.max(48, Math.floor(height * 0.115))
+      : Math.max(62, Math.floor(height * 0.145));
+    const avatarBottomY = charFloorY + 4;
+    const mainAvatarIcon = player.onFire ? '🔥' : (player.crouching ? '🧎' : '🏃');
+
+    // Subtle 3D protective aura glow behind character body
+    const bodyGlow = ctx.createRadialGradient(
+      charX, avatarBottomY - avatarSize * 0.5, 4,
+      charX, avatarBottomY - avatarSize * 0.5, avatarSize * 0.75
+    );
+    bodyGlow.addColorStop(0, player.crouching ? 'rgba(16, 185, 129, 0.32)' : 'rgba(56, 189, 248, 0.28)');
+    bodyGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = bodyGlow;
+    ctx.beginPath();
+    ctx.arc(charX, avatarBottomY - avatarSize * 0.5, avatarSize * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = `${avatarSize}px sans-serif`;
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillText(mainAvatarIcon, charX + 3, avatarBottomY + 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(mainAvatarIcon, charX, avatarBottomY);
+
+    // Respiratory gear worn on character (Wet Towel / Gas Mask)
+    if (player.hasMask || player.wetTowel || player.hasTowel) {
+      const respIcon = player.hasMask ? '😷' : '🧣';
+      ctx.font = `${Math.max(20, Math.floor(avatarSize * 0.38))}px sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(respIcon, charX + avatarSize * 0.42, avatarBottomY - avatarSize * 0.68);
+      if (player.wetTowel && !player.hasMask) {
+        ctx.font = `${Math.max(14, Math.floor(avatarSize * 0.26))}px sans-serif`;
+        ctx.fillText('💧', charX + avatarSize * 0.58, avatarBottomY - avatarSize * 0.82);
+      }
+    }
+
+    // 5d. Floating 3D Player Nameplate (`🧒 나 · 🚶 서있는자세` / `🧎 낮은자세 이동중`) above character head
+    const skinEmoji = activeSkin.icon || '🧒';
+    const postureLabel = player.onFire
+      ? `🔥 옷에 불붙음! (구르기 필요)`
+      : (player.crouching ? `${skinEmoji} 나 · 🧎 낮은자세 이동중` : `${skinEmoji} 나 · 🚶 서있는자세`);
+    ctx.font = '900 12px "Noto Sans KR", sans-serif';
     ctx.textBaseline = 'middle';
-    const gearText = player.extinguisherCharges > 0
+    const npW = Math.max(118, ctx.measureText(postureLabel).width + 18);
+    const npH = 22;
+    const npY = avatarBottomY - avatarSize - 14;
+    ctx.fillStyle = player.onFire ? '#dc2626' : (player.crouching ? '#065f46' : '#1e3a8a');
+    ctx.fillRect(charX - npW / 2, npY - npH / 2, npW, npH);
+    ctx.strokeStyle = player.onFire ? '#fca5a5' : (player.crouching ? '#6ee7b7' : '#93c5fd');
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(charX - npW / 2, npY - npH / 2, npW, npH);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(postureLabel, charX, npY + 0.5);
+
+    // 5e. Left & Right 3D Hands + Held Item Icons Flanking the Player Character
+    const leftHandIcon = player.keys > 0 ? '🔑' : (player.hasMask ? '😷' : (player.wetTowel || player.hasTowel ? '🧣' : '🤚'));
+    const leftHandText = player.keys > 0
+      ? `🔑 비상열쇠 (${player.keys}개)`
+      : (player.hasMask ? '😷 방연마스크 보호' : (player.wetTowel ? '🧣 젖은 수건 보호중' : (player.hasTowel ? '🧣 마른 수건 보유' : '🤚 왼손: 온도감지')));
+    const rightHandIcon = player.extinguisherCharges > 0 ? '🧯' : (player.hasAxe ? '🪓' : (player.waterCharges > 0 ? '🪣' : (player.hasFlashlight ? '🔦' : '🤚')));
+    const rightHandText = player.extinguisherCharges > 0
       ? `🧯 소화기 (${player.extinguisherCharges}회)`
-      : (player.hasAxe ? '🪓 소방 도끼 장착' : (player.wetTowel ? '🧣 젖은 수건 보호중' : '🤚 손등 온도감지 준비'));
-    ctx.fillText(gearText, handX, handY - 5);
+      : (player.hasAxe ? '🪓 소방 도끼 장착' : (player.waterCharges > 0 ? `🪣 물양동이 (${player.waterCharges}회)` : (player.hasFlashlight ? '🔦 손전등 점등' : '🤚 오른손: 행동준비')));
+
+    const handCardW = 124;
+    const handCardH = 26;
+    const handY = charFloorY - 12;
+    const leftHandX = Math.max(handCardW * 0.55 + 8, charX - ringRadiusX - handCardW * 0.55 - 10);
+    const rightHandX = Math.min(width - handCardW * 0.55 - 8, charX + ringRadiusX + handCardW * 0.55 + 10);
+
+    // 3D Held Tool Icons floating right beside the player's left & right hands
+    ctx.font = '24px sans-serif';
+    ctx.fillText(leftHandIcon, charX - avatarSize * 0.55, avatarBottomY - avatarSize * 0.38);
+    ctx.fillText(rightHandIcon, charX + avatarSize * 0.55, avatarBottomY - avatarSize * 0.38);
+
+    // Left Hand Label Badge
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+    ctx.strokeStyle = player.wetTowel || player.hasMask ? '#38bdf8' : 'rgba(148, 163, 184, 0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(leftHandX - handCardW / 2, handY - handCardH / 2, handCardW, handCardH);
+    ctx.strokeRect(leftHandX - handCardW / 2, handY - handCardH / 2, handCardW, handCardH);
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillText(leftHandText, leftHandX, handY + 0.5);
+
+    // Right Hand Label Badge
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+    ctx.strokeStyle = (player.extinguisherCharges > 0 || player.hasAxe) ? '#fb923c' : 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(rightHandX - handCardW / 2, handY - handCardH / 2, handCardW, handCardH);
+    ctx.strokeRect(rightHandX - handCardW / 2, handY - handCardH / 2, handCardW, handCardH);
+    ctx.fillStyle = '#fef3c7';
+    ctx.fillText(rightHandText, rightHandX, handY + 0.5);
     ctx.restore();
 
     // 6. Top-Right Interactive 3D Radar Minimap (So player can always see the multi-room layout!)
