@@ -352,13 +352,202 @@
       items: [
         { c: 1, r: 5, type: 'flashlight', name: '점검용 손전등', icon: '🔦' }
       ]
+    },
+    // Index 6 -> Stage 6 (Camping & Kickboard Battery Fire Evacuation)
+    {
+      id: 6,
+      name: '6단계: 캠핑장·배터리 열폭주 탈출',
+      mission: '전동킥보드 리튬배터리 화재(⚡)와 캠핑 화로 불길을 피해 차단기(⚡)를 내리고 경량칸막이(🧱) 또는 비상구로 탈출하세요!',
+      curriculumFocus: '최신 생활안전 트렌드 · 리튬배터리 열폭주 대처 및 캠핑장 일산화탄소·화로 안전',
+      map: [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,5,0,1,0,0,12,0,1,0,0,11,1],
+        [1,0,2,0,0,3,0,2,0,0,3,0,2,0,1],
+        [1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+        [1,1,3,1,1,1,1,3,1,1,1,1,3,1,1],
+        [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,2,2,0,0,0,2,2,0,0,0,0,1],
+        [1,1,10,1,1,1,3,1,1,1,15,1,1,4,1],
+        [1,0,0,0,0,1,0,0,0,1,0,0,0,7,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+      ],
+      playerStart: { x: 1.5, y: 1.5 },
+      guideSigns: [
+        { c: 2, r: 5, dir: '→' },
+        { c: 6, r: 5, dir: '→' },
+        { c: 10, r: 5, dir: '↓' },
+        { c: 12, r: 8, dir: '→' }
+      ],
+      fires: [
+        { c: 2, r: 8, intensity: 1.0, fireType: 'electric' },
+        { c: 7, r: 5, intensity: 1.0, fireType: 'electric' },
+        { c: 8, r: 3, intensity: 0.95, fireType: 'oil' },
+        { c: 11, r: 6, intensity: 0.95, fireType: 'normal' }
+      ],
+      smokes: [
+        { c: 3, r: 5 }, { c: 4, r: 5 }, { c: 5, r: 5 },
+        { c: 6, r: 5 }, { c: 9, r: 5 }, { c: 10, r: 5 }
+      ],
+      items: [
+        { c: 1, r: 3, type: 'towel', name: '캠핑용 수건', icon: '🧣' },
+        { c: 4, r: 1, type: 'extinguisher', name: '캠핑장 전용 소화기', icon: '🧯', charges: 7 },
+        { c: 6, r: 1, type: 'mask', name: '일산화탄소 방연마스크', icon: '😷' },
+        { c: 11, r: 1, type: 'key', name: '비상출입구 열쇠', icon: '🔑' },
+        { c: 13, r: 3, type: 'npc', name: '캠핑장 동생(구조)', icon: '🧒' },
+        { c: 7, r: 8, type: 'extinguisher', name: '비상대피소 소화기', icon: '🧯', charges: 6 }
+      ]
     }
   ];
+
+  var CHARACTER_SKINS = [
+    {
+      id: 'student',
+      name: '용감한 초등학생',
+      icon: '🧒',
+      minBadges: 0,
+      perkDesc: '기본 캐릭터 (균형 잡힌 표준 능력치)',
+      bonusExtinguisher: 0,
+      bonusWater: 0,
+      defaultFlashlight: false,
+      crouchSpeedBonus: 1.0,
+      o2DrainMult: 1.0
+    },
+    {
+      id: 'junior_fire',
+      name: '꼬마 소방관',
+      icon: '👩‍🚒',
+      minBadges: 2,
+      perkDesc: '배지 2개 해금: 스테이지 시작 시 소화기 약제 +2회 기본 보유',
+      bonusExtinguisher: 2,
+      bonusWater: 0,
+      defaultFlashlight: false,
+      crouchSpeedBonus: 1.0,
+      o2DrainMult: 1.0
+    },
+    {
+      id: 'rescue_hero',
+      name: '119 구조대원',
+      icon: '🦺',
+      minBadges: 5,
+      perkDesc: '배지 5개 해금: 비상 손전등 기본 장착 + 낮은 자세 이동속도 15% 상승',
+      bonusExtinguisher: 1,
+      bonusWater: 0,
+      defaultFlashlight: true,
+      crouchSpeedBonus: 1.15,
+      o2DrainMult: 1.0
+    },
+    {
+      id: 'safety_master',
+      name: '안전 마스터 & 구조견',
+      icon: '🐕‍🦺',
+      minBadges: 8,
+      perkDesc: '배지 8개 해금: 소화기+2 · 물+2 · 연기 속 산소 소모량 20% 감소',
+      bonusExtinguisher: 2,
+      bonusWater: 2,
+      defaultFlashlight: true,
+      crouchSpeedBonus: 1.15,
+      o2DrainMult: 0.8
+    }
+  ];
+
+  function generateDailyChallengeStage(dateStr) {
+    var now = new Date();
+    var seedStr = dateStr || (
+      now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0')
+    );
+
+    var hash = 2166136261;
+    for (var i = 0; i < seedStr.length; i++) {
+      hash ^= seedStr.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    function nextRand() {
+      hash += 0x6D2B79F5;
+      var t = hash;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    function randInt(min, max) {
+      return Math.floor(nextRand() * (max - min + 1)) + min;
+    }
+
+    var map = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,5,0,1,0,0,12,0,1,0,0,11,1],
+      [1,0,0,0,0,3,0,0,0,0,3,0,0,0,1],
+      [1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+      [1,1,3,1,1,1,1,3,1,1,1,1,3,1,1],
+      [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,10,1,1,1,3,1,1,1,15,1,1,4,1],
+      [1,0,0,0,0,1,0,0,0,1,0,0,0,7,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    // Place deterministic daily furniture obstacles on safe cells
+    var candidateFurn = [
+      { c: 2, r: 2 }, { c: 3, r: 2 }, { c: 7, r: 2 }, { c: 8, r: 2 }, { c: 12, r: 2 },
+      { c: 3, r: 6 }, { c: 4, r: 6 }, { c: 8, r: 6 }, { c: 9, r: 6 }
+    ];
+    for (var fIdx = 0; fIdx < candidateFurn.length; fIdx++) {
+      if (nextRand() < 0.55) {
+        map[candidateFurn[fIdx].r][candidateFurn[fIdx].c] = 2;
+      }
+    }
+
+    var fireTypes = ['normal', 'electric', 'oil'];
+    var fires = [
+      { c: randInt(3, 4), r: 5, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] },
+      { c: randInt(6, 8), r: 5, intensity: 1.0, fireType: 'electric' },
+      { c: randInt(10, 12), r: 5, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] },
+      { c: randInt(6, 8), r: 8, intensity: 0.9, fireType: 'normal' }
+    ];
+
+    var smokes = [
+      { c: 2, r: 5 }, { c: 5, r: 5 }, { c: 7, r: 5 },
+      { c: 9, r: 5 }, { c: 11, r: 5 }, { c: 11, r: 8 }
+    ];
+
+    var themes = ['복합 상가 돌발 화재', '도서관 야간 누전 화재', '체육관 안전 대피 훈련', '청소년 수련관 비상 탈출'];
+    var themeName = themes[randInt(0, themes.length - 1)];
+
+    return {
+      id: 7,
+      isDailyChallenge: true,
+      dailyDate: seedStr,
+      name: '오늘의 챌린지 (' + seedStr + '): ' + themeName,
+      mission: '[' + seedStr + ' 오늘의 돌발 미션] 매일 구조가 바뀌는 재난 현장에서 젖은 수건·소화기·비상벨을 활용해 탈출하세요!',
+      curriculumFocus: '일일 실전 응용 대피 훈련 · 돌발 재난 상황 판단력 및 안전 수칙 종합 적용',
+      map: map,
+      playerStart: { x: 1.5, y: 1.5 },
+      guideSigns: [
+        { c: 2, r: 5, dir: '→' },
+        { c: 6, r: 5, dir: '→' },
+        { c: 10, r: 5, dir: '↓' },
+        { c: 12, r: 8, dir: '→' }
+      ],
+      fires: fires,
+      smokes: smokes,
+      items: [
+        { c: 1, r: 3, type: 'towel', name: '비상 수건', icon: '🧣' },
+        { c: 4, r: 1, type: 'extinguisher', name: '초기 진압 소화기', icon: '🧯', charges: 7 },
+        { c: 6, r: 1, type: 'mask', name: '구조용 방연마스크', icon: '😷' },
+        { c: 11, r: 1, type: 'key', name: '비상구 마스터키', icon: '🔑' },
+        { c: 13, r: 3, type: 'npc', name: '고립된 친구(구조)', icon: '🧒' },
+        { c: 2, r: 8, type: 'extinguisher', name: '복도 예비 소화기', icon: '🧯', charges: 6 }
+      ]
+    };
+  }
 
   window.FireEscape.TILE = TILE;
   window.FireEscape.COLS = COLS;
   window.FireEscape.ROWS = ROWS;
   window.FireEscape.BADGE_DEFS = BADGE_DEFS;
   window.FireEscape.HAZARD_QUIZZES = HAZARD_QUIZZES;
+  window.FireEscape.CHARACTER_SKINS = CHARACTER_SKINS;
+  window.FireEscape.generateDailyChallengeStage = generateDailyChallengeStage;
   window.FireEscape.STAGES = STAGES;
 })();

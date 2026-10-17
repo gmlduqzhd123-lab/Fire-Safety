@@ -1,7 +1,18 @@
 (function () {
   'use strict';
 
-  const { SoundFX, TILE, COLS, ROWS, BADGE_DEFS, HAZARD_QUIZZES, STAGES, initMapEditor } = window.FireEscape;
+  const {
+    SoundFX,
+    TILE,
+    COLS,
+    ROWS,
+    BADGE_DEFS,
+    HAZARD_QUIZZES,
+    CHARACTER_SKINS,
+    generateDailyChallengeStage,
+    STAGES,
+    initMapEditor
+  } = window.FireEscape;
 
   // --- Storage & Badge Encyclopedia Helpers (Idea #9) ---
   let unlockedBadges = {};
@@ -18,6 +29,71 @@
         localStorage.setItem('fire_escape_badges', JSON.stringify(unlockedBadges));
       } catch (e) {}
     }
+  }
+
+  function getUnlockedBadgeCount() {
+    return BADGE_DEFS.filter(b => unlockedBadges[b.id]).length;
+  }
+
+  let selectedSkinId = 'student';
+  try {
+    selectedSkinId = localStorage.getItem('fire_escape_skin') || 'student';
+  } catch (e) {
+    selectedSkinId = 'student';
+  }
+
+  function getSelectedSkin() {
+    const unlockedCount = getUnlockedBadgeCount();
+    const list = CHARACTER_SKINS || [];
+    const found = list.find(s => s.id === selectedSkinId && unlockedCount >= s.minBadges);
+    return found || list[0] || {
+      id: 'student',
+      name: '용감한 초등학생',
+      icon: '🧒',
+      minBadges: 0,
+      perkDesc: '기본 캐릭터',
+      bonusExtinguisher: 0,
+      bonusWater: 0,
+      defaultFlashlight: false,
+      crouchSpeedBonus: 1.0,
+      o2DrainMult: 1.0
+    };
+  }
+
+  let currentClassCode = '';
+  try {
+    currentClassCode = localStorage.getItem('fire_escape_class_code') || '';
+  } catch (e) {
+    currentClassCode = '';
+  }
+
+  function getClassLeaderboard() {
+    try {
+      return JSON.parse(localStorage.getItem('fire_escape_class_board') || '[]') || [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function recordClassScore(stageName, finalScore, gradeText) {
+    const studentName = (studentNameInput && studentNameInput.value.trim()) || '용감한 어린이';
+    const cls = currentClassCode.trim() || '자유 참가반';
+    const board = getClassLeaderboard();
+    const now = new Date();
+    const timeStr = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    board.push({
+      studentName,
+      classCode: cls,
+      stageName,
+      score: finalScore,
+      grade: gradeText,
+      timeStr
+    });
+    board.sort((a, b) => b.score - a.score);
+    const trimmed = board.slice(0, 30);
+    try {
+      localStorage.setItem('fire_escape_class_board', JSON.stringify(trimmed));
+    } catch (e) {}
   }
 
   function getSavedBestScore() {
@@ -43,12 +119,19 @@
   const canvasContainer = document.getElementById('canvasContainer');
 
   const stageBadge = document.getElementById('stageBadge');
+  const classBanner = document.getElementById('classBanner');
   const btnStage0 = document.getElementById('btnStage0');
   const btnStage1 = document.getElementById('btnStage1');
   const btnStage2 = document.getElementById('btnStage2');
   const btnStage3 = document.getElementById('btnStage3');
   const btnStage4 = document.getElementById('btnStage4');
   const btnStage5 = document.getElementById('btnStage5');
+  const btnStage6 = document.getElementById('btnStage6');
+  const btnDailyStage = document.getElementById('btnDailyStage');
+  const btnCoopToggle = document.getElementById('btnCoopToggle');
+  const coopToggleText = document.getElementById('coopToggleText');
+  const btnClassMode = document.getElementById('btnClassMode');
+  const btnTeacherMode = document.getElementById('btnTeacherMode');
   const btnMapEditor = document.getElementById('btnMapEditor');
   const btnCertModal = document.getElementById('btnCertModal');
   const btnPause = document.getElementById('btnPause');
@@ -92,6 +175,7 @@
   const debriefChecklist = document.getElementById('debriefChecklist');
   const debriefCurriculumNote = document.getElementById('debriefCurriculumNote');
   const replayMinimap = document.getElementById('replayMinimap');
+  const btnReplayAnim = document.getElementById('btnReplayAnim');
   const btnPrimaryAction = document.getElementById('btnPrimaryAction');
   const btnOpenCertFromOverlay = document.getElementById('btnOpenCertFromOverlay');
   const btnSecondaryAction = document.getElementById('btnSecondaryAction');
@@ -107,10 +191,33 @@
   const certModal = document.getElementById('certModal');
   const btnCloseCertModal = document.getElementById('btnCloseCertModal');
   const btnConfirmCertModal = document.getElementById('btnConfirmCertModal');
+  const btnDownloadCertPng = document.getElementById('btnDownloadCertPng');
   const studentNameInput = document.getElementById('studentNameInput');
   const certTotalScore = document.getElementById('certTotalScore');
   const certBadgeCount = document.getElementById('certBadgeCount');
   const badgeCollectionGrid = document.getElementById('badgeCollectionGrid');
+  const skinSelectionGrid = document.getElementById('skinSelectionGrid');
+  const activeSkinBadge = document.getElementById('activeSkinBadge');
+
+  const classModal = document.getElementById('classModal');
+  const btnCloseClassModal = document.getElementById('btnCloseClassModal');
+  const btnConfirmClassModal = document.getElementById('btnConfirmClassModal');
+  const classCodeInput = document.getElementById('classCodeInput');
+  const btnApplyClassCode = document.getElementById('btnApplyClassCode');
+  const btnCopyClassUrl = document.getElementById('btnCopyClassUrl');
+  const classBoardTitle = document.getElementById('classBoardTitle');
+  const btnClearClassBoard = document.getElementById('btnClearClassBoard');
+  const classLeaderboardList = document.getElementById('classLeaderboardList');
+
+  const teacherModal = document.getElementById('teacherModal');
+  const btnCloseTeacherModal = document.getElementById('btnCloseTeacherModal');
+  const btnConfirmTeacherModal = document.getElementById('btnConfirmTeacherModal');
+  const btnToggleBoardZoom = document.getElementById('btnToggleBoardZoom');
+  const btnTeacherUnlockAll = document.getElementById('btnTeacherUnlockAll');
+  const btnPrintWorksheet = document.getElementById('btnPrintWorksheet');
+  const printWorksheetClass = document.getElementById('printWorksheetClass');
+  const printWorksheetName = document.getElementById('printWorksheetName');
+  const printWorksheetStage = document.getElementById('printWorksheetStage');
 
   const guideModal = document.getElementById('guideModal');
   const btnCloseGuide = document.getElementById('btnCloseGuide');
@@ -130,6 +237,8 @@
   let currentStageIdx = 0;
   let activeCustomStage = null;
   let gameState = 'START';
+  let isCoopMode = false;
+  let replayAnimId = null;
   let grid = [];
   let guideSigns = [];
   let fires = [];
@@ -177,6 +286,15 @@
     hurtCooldown: 0
   };
 
+  let player2 = {
+    x: 2.5,
+    y: 1.5,
+    radius: 0.25,
+    dirX: 0,
+    dirY: 1,
+    crouching: false
+  };
+
   let pointerMoveTarget = null;
 
   let metrics = {
@@ -208,11 +326,22 @@
     right: false
   };
 
+  const keysPressed2 = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+  };
+
   function clearAllInputStates() {
     keysPressed.up = false;
     keysPressed.down = false;
     keysPressed.left = false;
     keysPressed.right = false;
+    keysPressed2.up = false;
+    keysPressed2.down = false;
+    keysPressed2.left = false;
+    keysPressed2.right = false;
     pointerMoveTarget = null;
     [btnUp, btnDown, btnLeft, btnRight].forEach(b => b.classList.remove('is-pressed'));
   }
@@ -331,7 +460,9 @@
       gameOverlay.classList.contains('hidden') &&
       guideModal.classList.contains('hidden') &&
       mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden')
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
     ) {
       gameState = 'PLAYING';
       pauseIcon.textContent = '⏸️';
@@ -383,6 +514,8 @@
       }
     }
 
+    const activeSkin = getSelectedSkin();
+
     player.x = st.playerStart.x;
     player.y = st.playerStart.y;
     player.dirX = 0;
@@ -393,12 +526,12 @@
     player.hasTowel = false;
     player.wetTowel = false;
     player.hasMask = false;
-    player.hasFlashlight = false;
+    player.hasFlashlight = !!activeSkin.defaultFlashlight;
     player.onFire = false;
     player.rollNeeded = 0;
     player.keys = 0;
-    player.extinguisherCharges = 0;
-    player.waterCharges = 0;
+    player.extinguisherCharges = activeSkin.bonusExtinguisher || 0;
+    player.waterCharges = activeSkin.bonusWater || 0;
     player.hasAxe = false;
     player.rescuedDog = false;
     player.rescuedNpcs = 0;
@@ -410,6 +543,14 @@
     player.breakerClosed = !hasBreaker;
     player.carryingToy = false;
     player.hurtCooldown = 0;
+
+    player2.x = canMoveTo(st.playerStart.x + 0.85, st.playerStart.y, player2.radius)
+      ? st.playerStart.x + 0.85
+      : st.playerStart.x;
+    player2.y = st.playerStart.y;
+    player2.dirX = 0;
+    player2.dirY = 1;
+    player2.crouching = false;
 
     metrics = {
       smokeTimeTotal: 0,
@@ -436,9 +577,11 @@
       { btn: btnStage3, idx: 2 },
       { btn: btnStage4, idx: 3 },
       { btn: btnStage5, idx: 4 },
-      { btn: btnStage0, idx: 5 }
+      { btn: btnStage0, idx: 5 },
+      { btn: btnStage6, idx: 6 }
     ];
     stageButtons.forEach(({ btn, idx }) => {
+      if (!btn) return;
       if (idx === currentStageIdx && !customStageObj) {
         btn.className = idx === 5
           ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-emerald-600 text-white transition'
@@ -449,6 +592,12 @@
           : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition';
       }
     });
+
+    if (btnDailyStage) {
+      btnDailyStage.className = (customStageObj && customStageObj.isDailyChallenge)
+        ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-amber-600 text-white transition'
+        : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition';
+    }
 
     updateHUD();
     renderCanvas();
@@ -510,7 +659,14 @@
     extAmmoBadge.textContent = `(${player.extinguisherCharges})`;
     waterAmmoBadge.textContent = `(${player.waterCharges})`;
 
+    const activeSkin = getSelectedSkin();
     const badges = [];
+    if (isCoopMode) {
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-500/20 border border-pink-400/40 text-pink-200 text-[11px] font-bold shrink-0">👥 2인협동ON</span>`);
+    }
+    if (activeSkin && activeSkin.id !== 'student') {
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-400/40 text-purple-200 text-[11px] font-bold shrink-0">${activeSkin.icon} ${activeSkin.name}</span>`);
+    }
     if (player.onFire) {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 text-white text-[11px] font-extrabold shrink-0">🔥 착화! 구르기(${player.rollNeeded})</span>`);
     }
@@ -595,20 +751,20 @@
   }
 
   // --- Nearby Interactive Target Detection ---
-  function getInteractTarget() {
-    const pc = Math.floor(player.x);
-    const pr = Math.floor(player.y);
+  function getInteractTargetForActor(actor) {
+    const pc = Math.floor(actor.x);
+    const pr = Math.floor(actor.y);
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      const dist = Math.hypot(player.x - (it.c + 0.5), player.y - (it.r + 0.5));
+      const dist = Math.hypot(actor.x - (it.c + 0.5), actor.y - (it.r + 0.5));
       if (dist < 1.15) {
         return { kind: 'item', index: i, item: it };
       }
     }
 
-    const targetC = Math.floor(player.x + player.dirX * 0.85);
-    const targetR = Math.floor(player.y + player.dirY * 0.85);
+    const targetC = Math.floor(actor.x + actor.dirX * 0.85);
+    const targetR = Math.floor(actor.y + actor.dirY * 0.85);
     const candidates = [
       { c: targetC, r: targetR },
       { c: pc + 1, r: pr },
@@ -645,6 +801,13 @@
       }
     }
 
+    return null;
+  }
+
+  function getInteractTarget() {
+    const t1 = getInteractTargetForActor(player);
+    if (t1) return t1;
+    if (isCoopMode) return getInteractTargetForActor(player2);
     return null;
   }
 
@@ -774,7 +937,7 @@
   }
 
   // --- Extinguisher Spray Action ---
-  function useExtinguisher() {
+  function useExtinguisher(actor = player) {
     if (gameState !== 'PLAYING') return;
     SoundFX.init();
 
@@ -793,13 +956,13 @@
       addFloatText(player.x, player.y - 0.3, '🧯 소화기로 몸의 불 진화!', '#38bdf8');
     }
 
-    const dirAngle = Math.atan2(player.dirY, player.dirX);
+    const dirAngle = Math.atan2(actor.dirY, actor.dirX);
     for (let i = 0; i < 26; i++) {
       const spread = (Math.random() - 0.5) * 0.85;
       const speed = 2.5 + Math.random() * 3.5;
       particles.push({
-        x: player.x + player.dirX * 0.35,
-        y: player.y + player.dirY * 0.35,
+        x: actor.x + actor.dirX * 0.35,
+        y: actor.y + actor.dirY * 0.35,
         vx: Math.cos(dirAngle + spread) * speed,
         vy: Math.sin(dirAngle + spread) * speed,
         life: 0.45 + Math.random() * 0.25,
@@ -815,12 +978,12 @@
       const f = fires[i];
       const fx = f.c + 0.5;
       const fy = f.r + 0.5;
-      const dx = fx - player.x;
-      const dy = fy - player.y;
+      const dx = fx - actor.x;
+      const dy = fy - actor.y;
       const dist = Math.hypot(dx, dy);
 
       if (dist <= 2.8) {
-        const dot = (dx * player.dirX + dy * player.dirY) / (dist || 1);
+        const dot = (dx * actor.dirX + dy * actor.dirY) / (dist || 1);
         if (dot > 0.35 || dist < 1.25) {
           const isSpec = (f.fireType === 'oil' || f.fireType === 'electric');
           fires.splice(i, 1);
@@ -873,6 +1036,7 @@
             metrics.called119 = true;
             score += 300;
             SoundFX.win();
+            SoundFX.speak('119 신고가 접수되었습니다. 소방차가 출동 중이니 침착하게 비상구로 대피하세요.');
             addFloatText(c + 0.5, r + 0.5, '119 신고 완료! +300', '#c084fc');
             closeEduModal();
             showToast('📞 [119 신고 완벽 성공] 주소·발화장소·대피현황을 침착하게 전달했습니다! (+300점)', 'border-purple-400');
@@ -1350,6 +1514,7 @@
           player.alarmRung = true;
           unlockBadge('alarm_npc');
           SoundFX.bell();
+          SoundFX.speak('불이야! 화재가 발생했습니다! 모두 비상구로 대피하세요!');
           score += 250;
           addFloatText(c + 0.5, r + 0.5, '🔔 비상벨 발신! "불이야!" +250', '#facc15');
           showToast('🔔 [화재 비상벨 발신!] "불이야!" 큰 소리로 외치고 비상벨을 눌러 이웃과 친구들에게 대피를 알렸습니다! (+250점)', 'border-yellow-400');
@@ -1386,8 +1551,8 @@
     updateHUD();
   }
 
-  // --- Render Movement Trajectory Replay Minimap ---
-  function renderReplayMinimap() {
+  // --- Render Movement Trajectory Replay Minimap (with Timelapse Animation Support) ---
+  function renderReplayMinimap(maxPointCount = null) {
     if (!replayMinimap) return;
     const mctx = replayMinimap.getContext('2d');
     const mw = replayMinimap.width;
@@ -1418,9 +1583,13 @@
       mctx.fillRect(f.c * tw, f.r * th, tw, th);
     }
 
-    if (pathHistory.length > 1) {
+    const limit = typeof maxPointCount === 'number'
+      ? Math.max(1, Math.min(pathHistory.length, maxPointCount))
+      : pathHistory.length;
+
+    if (limit > 1) {
       mctx.lineWidth = 2.2;
-      for (let i = 1; i < pathHistory.length; i++) {
+      for (let i = 1; i < limit; i++) {
         const p0 = pathHistory[i - 1];
         const p1 = pathHistory[i];
         mctx.strokeStyle = p1.state === 'hurt' ? '#ef4444' : (p1.state === 'crouch' ? '#38bdf8' : '#4ade80');
@@ -1429,13 +1598,54 @@
         mctx.lineTo(p1.x * tw, p1.y * th);
         mctx.stroke();
       }
-      // Draw final endpoint marker
-      const lastPt = pathHistory[pathHistory.length - 1];
+      const lastPt = pathHistory[limit - 1];
       mctx.fillStyle = lastPt.state === 'hurt' ? '#ef4444' : '#fde047';
       mctx.beginPath();
-      mctx.arc(lastPt.x * tw, lastPt.y * th, 3.2, 0, Math.PI * 2);
+      mctx.arc(lastPt.x * tw, lastPt.y * th, 3.8, 0, Math.PI * 2);
+      mctx.fill();
+      mctx.font = '10px sans-serif';
+      mctx.textAlign = 'center';
+      mctx.textBaseline = 'middle';
+      mctx.fillText(lastPt.state === 'crouch' ? '🧎' : '🏃', lastPt.x * tw, lastPt.y * th - 6);
+    } else if (pathHistory.length === 1) {
+      const pt = pathHistory[0];
+      mctx.fillStyle = '#fde047';
+      mctx.beginPath();
+      mctx.arc(pt.x * tw, pt.y * th, 3.5, 0, Math.PI * 2);
       mctx.fill();
     }
+  }
+
+  function animateReplayMinimap() {
+    if (!replayMinimap || pathHistory.length <= 1) {
+      renderReplayMinimap();
+      return;
+    }
+    if (replayAnimId) cancelAnimationFrame(replayAnimId);
+    const startTime = performance.now();
+    const duration = 2600;
+    if (btnReplayAnim) btnReplayAnim.textContent = '⏳ 타임랩스 동선 재생 중...';
+
+    function step(now) {
+      const progress = Math.min(1, (now - startTime) / duration);
+      const count = Math.max(1, Math.ceil(progress * pathHistory.length));
+      renderReplayMinimap(count);
+      if (progress < 1) {
+        replayAnimId = requestAnimationFrame(step);
+      } else {
+        replayAnimId = null;
+        if (btnReplayAnim) btnReplayAnim.textContent = '▶️ 3초 타임랩스 애니메이션 재생';
+      }
+    }
+    replayAnimId = requestAnimationFrame(step);
+  }
+
+  if (btnReplayAnim) {
+    btnReplayAnim.addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.pickup();
+      animateReplayMinimap();
+    });
   }
 
   // --- Build Debriefing Report Card ---
@@ -1454,7 +1664,7 @@
     }
     itemsHtml.push(`<div>${metrics.waterOnSpecialFireMistake === 0 ? '✅' : '❌'} <strong>연소·소화 & 방화문 차단:</strong> 화재 진압 <strong>${metrics.correctExtinguishCount}회</strong> · 방화문 닫기 <strong>${player.fireDoorsClosed}회</strong></div>`);
     itemsHtml.push(`<div>${metrics.backdraftTriggered === 0 ? '✅' : '❌'} <strong>문 온도 확인 & 특수 피난:</strong> 문 확인 <strong>${metrics.doorHeatChecked}회</strong> ${metrics.usedPartition ? '· 🧱경량칸막이 탈출' : ''} ${metrics.usedLifeline ? '· 🪢완강기 탈출' : ''}</div>`);
-    itemsHtml.push(`<div>${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119) ? '✅' : '💡'} <strong>협동·신고 활동:</strong> ${player.alarmRung ? '🔔비상벨 발신 ' : ''}${player.rescuedNpcs > 0 ? `· 🧒이웃구출 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '· 📞119 신고 완료' : ''}</div>`);
+    itemsHtml.push(`<div>${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고 활동:</strong> ${player.alarmRung ? '🔔비상벨 발신 ' : ''}${player.rescuedNpcs > 0 ? `· 🧒이웃구출 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '· 📞119 신고 완료 ' : ''}${isCoopMode ? '· 👥2인 협동 탈출' : ''}</div>`);
 
     debriefChecklist.innerHTML = itemsHtml.join('');
 
@@ -1472,7 +1682,7 @@
       debriefGrade.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]';
     }
 
-    debriefCurriculumNote.innerHTML = `<strong>📚 [교과 & 안전 핵심 정리 - ${st.curriculumFocus}]</strong><br/>우측 미니맵에서 나의 실제 이동 궤적(🟢안전 이동, 🔵낮은 자세, 🔴화상·질식 지점)을 복기하고, [🏅 수료증·도감]에서 획득한 안전 배지를 확인해 보세요!`;
+    debriefCurriculumNote.innerHTML = `<strong>📚 [교과 & 안전 핵심 정리 - ${st.curriculumFocus}]</strong><br/>우측 미니맵에서 나의 실제 이동 궤적(🟢안전 이동, 🔵낮은 자세, 🔴화상·질식 지점)을 복기하고, [🏅 수료증·스킨]에서 배지와 직업 스킨을 확인해 보세요!`;
 
     renderReplayMinimap();
   }
@@ -1481,17 +1691,19 @@
   function handleStageClear() {
     clearAllInputStates();
     SoundFX.win();
+    SoundFX.speak('안전하게 탈출에 성공했습니다! 참 잘했어요!');
 
     // Bug #4 Fix: Push exact exit coordinate so replay trajectory connects to the exit
     pathHistory.push({ x: player.x, y: player.y, state: player.crouching ? 'crouch' : 'safe' });
 
-    if (currentStageIdx === 3 || currentStageIdx === 4) {
+    if (currentStageIdx === 3 || currentStageIdx === 4 || currentStageIdx === 6) {
       unlockBadge('school_metro');
     }
 
     const timeBonus = Math.max(0, Math.round((90 - elapsedSeconds) * 8));
     const vitalsBonus = Math.round((player.hp + player.o2) * 2);
-    const safetyBonus = (player.wetTowel ? 200 : 0) + (player.fireDoorsClosed * 100) + (player.rescuedNpcs * 250) + (player.rescuedDog ? 300 : 0);
+    const coopBonus = isCoopMode ? 300 : 0;
+    const safetyBonus = (player.wetTowel ? 200 : 0) + (player.fireDoorsClosed * 100) + (player.rescuedNpcs * 250) + (player.rescuedDog ? 300 : 0) + coopBonus;
     score += timeBonus + vitalsBonus + safetyBonus;
     saveBestScore(score);
     updateHUD();
@@ -1508,15 +1720,19 @@
     populateDebriefReport(false);
 
     const activeSt = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    recordClassScore(activeSt.name, score, debriefGrade.textContent);
+
     if (activeCustomStage) {
       gameState = 'STAGE_CLEAR';
-      overlayIcon.textContent = '🛠️';
+      overlayIcon.textContent = activeCustomStage.isDailyChallenge ? '🎲' : '🛠️';
       overlaySubtitle.textContent = `${activeSt.name} 클리어!`;
-      overlayTitle.textContent = '직접 설계한 커스텀 대피도를 돌파했습니다!';
-      overlayDesc.innerHTML = `나만의 대피도 탈출 성공! (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
+      overlayTitle.textContent = activeCustomStage.isDailyChallenge
+        ? '오늘의 119 돌발 재난 챌린지를 돌파했습니다!'
+        : '직접 설계한 커스텀 대피도를 돌파했습니다!';
+      overlayDesc.innerHTML = `${activeCustomStage.isDailyChallenge ? '오늘의 돌발 재난' : '나만의 대피도'} 탈출 성공! (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
       btnPrimaryAction.textContent = '1단계 본편으로 이동 ▶';
       btnSecondaryAction.classList.remove('hidden');
-      btnSecondaryAction.textContent = '커스텀 맵 다시하기';
+      btnSecondaryAction.textContent = '이 맵 다시하기';
     } else if (currentStageIdx === 5) {
       gameState = 'STAGE_CLEAR';
       overlayIcon.textContent = '🔍';
@@ -1526,7 +1742,7 @@
       btnPrimaryAction.textContent = '1단계 실전 대피 시작 ▶';
       btnSecondaryAction.classList.remove('hidden');
       btnSecondaryAction.textContent = '예방 점검 다시하기';
-    } else if (currentStageIdx < 4) {
+    } else if (currentStageIdx < 4 || currentStageIdx === 4) {
       gameState = 'STAGE_CLEAR';
       overlayIcon.textContent = '🎉';
       overlaySubtitle.textContent = `${activeSt.name} 돌파 성공!`;
@@ -1540,7 +1756,7 @@
       overlayIcon.textContent = '🏆';
       overlaySubtitle.textContent = '전 스테이지 마스터 달성!';
       overlayTitle.textContent = '모든 재난 현장에서 완벽히 살아남았습니다!';
-      overlayDesc.innerHTML = `축하합니다! 가정·학교 과학실·다중이용시설(지하철) 및 사전 예방 점검까지 모든 화재 안전 수칙을 완벽하게 체득했습니다!`;
+      overlayDesc.innerHTML = `축하합니다! 가정·학교 과학실·다중이용시설(지하철)·캠핑장 배터리 화재 및 사전 예방 점검까지 모든 화재 안전 수칙을 완벽하게 체득했습니다!`;
       btnPrimaryAction.textContent = '1단계부터 다시 도전';
       btnSecondaryAction.classList.add('hidden');
     }
@@ -1595,6 +1811,8 @@
     pathRecordTimer += dt;
     if (player.hurtCooldown > 0) player.hurtCooldown -= dt;
 
+    const activeSkin = getSelectedSkin();
+
     let mvX = 0;
     let mvY = 0;
     if (keysPressed.up) mvY -= 1;
@@ -1623,7 +1841,9 @@
       player.dirX = mvX;
       player.dirY = mvY;
 
-      let baseSpeed = player.crouching ? 2.45 : 3.55;
+      let baseSpeed = player.crouching
+        ? 2.45 * (activeSkin.crouchSpeedBonus || 1.0)
+        : 3.55;
       if (player.carryingToy) baseSpeed *= 0.72;
       const stepX = mvX * baseSpeed * dt;
       const stepY = mvY * baseSpeed * dt;
@@ -1655,12 +1875,49 @@
       }
     }
 
+    // 2P Co-op Movement (Player 2 controlled by Arrow Keys when isCoopMode is ON)
+    if (isCoopMode) {
+      let mv2X = 0;
+      let mv2Y = 0;
+      if (keysPressed2.up) mv2Y -= 1;
+      if (keysPressed2.down) mv2Y += 1;
+      if (keysPressed2.left) mv2X -= 1;
+      if (keysPressed2.right) mv2X += 1;
+
+      if (mv2X !== 0 || mv2Y !== 0) {
+        const len2 = Math.hypot(mv2X, mv2Y);
+        mv2X /= len2;
+        mv2Y /= len2;
+        player2.dirX = mv2X;
+        player2.dirY = mv2Y;
+        const speed2 = player2.crouching ? 2.55 : 3.55;
+        const step2X = mv2X * speed2 * dt;
+        const step2Y = mv2Y * speed2 * dt;
+        if (canMoveTo(player2.x + step2X, player2.y, player2.radius)) {
+          player2.x += step2X;
+        }
+        if (canMoveTo(player2.x, player2.y + step2Y, player2.radius)) {
+          player2.y += step2Y;
+        }
+      }
+    }
+
     const pc = Math.floor(player.x);
     const pr = Math.floor(player.y);
+    const p2c = Math.floor(player2.x);
+    const p2r = Math.floor(player2.y);
 
-    // Check if standing on EXIT
-    if (grid[pr] && grid[pr][pc] === TILE.EXIT) {
-      if (currentStageIdx === 1 && !activeCustomStage && (!player.gasClosed || !player.breakerClosed)) {
+    // Check if standing on EXIT (1P or 2P in Co-op Mode)
+    const p1OnExit = grid[pr] && grid[pr][pc] === TILE.EXIT;
+    const p2OnExit = isCoopMode && grid[p2r] && grid[p2r][p2c] === TILE.EXIT;
+    if (p1OnExit || p2OnExit) {
+      if (isCoopMode && !(p1OnExit && p2OnExit) && Math.hypot(player.x - player2.x, player.y - player2.y) > 1.45) {
+        if (player.hurtCooldown <= 0) {
+          player.hurtCooldown = 1.6;
+          SoundFX.warning();
+          showToast('👥 [2인 협동 모드] 1P와 2P 두 명 모두 비상구(EXIT)에 모여야 함께 탈출할 수 있습니다!', 'border-indigo-400');
+        }
+      } else if (currentStageIdx === 1 && !activeCustomStage && (!player.gasClosed || !player.breakerClosed)) {
         if (player.hurtCooldown <= 0) {
           player.hurtCooldown = 1.5;
           SoundFX.warning();
@@ -1696,6 +1953,7 @@
       if (!player.onFire) {
         player.onFire = true;
         player.rollNeeded = 2;
+        SoundFX.speak('옷에 불이 붙었습니다! 뛰지 말고 멈춰서 바닥에 엎드려 구르세요!');
         showToast('🔥 옷에 불이 옮겨붙었습니다! 뛰지 말고 즉시 [🔄 구르기(F키)] 버튼을 연타하세요!', 'border-red-500');
       }
       if (player.hurtCooldown <= 0) {
@@ -1731,7 +1989,7 @@
       metrics.smokeTimeTotal += dt;
       if (player.crouching) metrics.smokeTimeCrouched += dt;
 
-      let drainRate = 18.0;
+      let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0);
       if (player.crouching) drainRate *= 0.35;
       if (player.hasMask) drainRate *= 0.15;
       else if (player.wetTowel) drainRate *= 0.4;
@@ -2252,7 +2510,8 @@
       ctx.fill();
     }
 
-    // 7. Draw Player
+    // 7. Draw Player 1 (with Equipped Character Skin)
+    const activeSkin = getSelectedSkin();
     ctx.fillStyle = player.onFire ? '#ef4444' : (player.crouching ? '#10b981' : '#3b82f6');
     ctx.beginPath();
     ctx.arc(px, py, pRad, 0, Math.PI * 2);
@@ -2275,7 +2534,16 @@
     ctx.font = `${Math.floor(tileSize * (player.crouching ? 0.42 : 0.48))}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(player.onFire ? '🔥' : (player.crouching ? '🧎' : '🏃'), px, py);
+    const p1Icon = player.onFire
+      ? '🔥'
+      : (activeSkin && activeSkin.id !== 'student' ? activeSkin.icon : (player.crouching ? '🧎' : '🏃'));
+    ctx.fillText(p1Icon, px, py);
+
+    if (isCoopMode) {
+      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.2))}px sans-serif`;
+      ctx.fillStyle = '#93c5fd';
+      ctx.fillText('1P', px, py - pRad - 5);
+    }
 
     if (player.wetTowel || player.hasMask) {
       ctx.strokeStyle = player.hasMask ? 'rgba(45, 212, 191, 0.85)' : 'rgba(56, 189, 248, 0.65)';
@@ -2285,6 +2553,41 @@
       ctx.arc(px, py, pRad + 4, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    // 7.5 Draw Player 2 (When 2P Co-op Mode is Active)
+    if (isCoopMode) {
+      const p2x = player2.x * tileSize;
+      const p2y = player2.y * tileSize;
+      const p2Rad = 0.30 * tileSize * (player2.crouching ? 0.82 : 1.0);
+
+      ctx.fillStyle = player2.crouching ? '#059669' : '#ec4899';
+      ctx.beginPath();
+      ctx.arc(p2x, p2y, p2Rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fbcfe8';
+      ctx.stroke();
+
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(
+        p2x + player2.dirX * (p2Rad * 0.75),
+        p2y + player2.dirY * (p2Rad * 0.75),
+        Math.max(3, tileSize * 0.07),
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.font = `${Math.floor(tileSize * (player2.crouching ? 0.4 : 0.45))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(player2.crouching ? '🧎' : '👩‍🚒', p2x, p2y);
+
+      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.2))}px sans-serif`;
+      ctx.fillStyle = '#f9a8d4';
+      ctx.fillText('2P', p2x, p2y - p2Rad - 5);
     }
 
     if (player.rescuedDog) {
@@ -2330,11 +2633,12 @@
 
   // --- High-DPI Canvas Resize ---
   function resizeCanvas() {
-    const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, 980);
+    const isBoardZoom = document.body.classList.contains('smartboard-zoom');
+    const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, isBoardZoom ? 1160 : 980);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     cssCanvasW = Math.max(280, Math.floor(containerW));
     const aspectH = Math.floor(cssCanvasW * (ROWS / COLS));
-    const maxViewportH = Math.max(320, Math.min(540, Math.floor(window.innerHeight * 0.55)));
+    const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
     cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
     canvasContainer.style.height = cssCanvasH + 'px';
     canvas.style.width = cssCanvasW + 'px';
@@ -2506,6 +2810,22 @@
       return;
     }
 
+    if (classModal && !classModal.classList.contains('hidden')) {
+      if ((e.code === 'Escape' || e.code === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        closeClassModalFn();
+      }
+      return;
+    }
+
+    if (teacherModal && !teacherModal.classList.contains('hidden')) {
+      if ((e.code === 'Escape' || e.code === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        closeTeacherModalFn();
+      }
+      return;
+    }
+
     if (!mapEditorModal.classList.contains('hidden')) {
       if (e.code === 'Escape' && !e.repeat) {
         e.preventDefault();
@@ -2549,23 +2869,38 @@
       if (gameState === 'PLAYING') e.preventDefault();
     }
 
-    if (e.code === 'ArrowUp' || e.code === 'KeyW') { keysPressed.up = true; pointerMoveTarget = null; }
-    if (e.code === 'ArrowDown' || e.code === 'KeyS') { keysPressed.down = true; pointerMoveTarget = null; }
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keysPressed.left = true; pointerMoveTarget = null; }
-    if (e.code === 'ArrowRight' || e.code === 'KeyD') { keysPressed.right = true; pointerMoveTarget = null; }
+    if (isCoopMode) {
+      // 1P: WASD / 2P: Arrow Keys
+      if (e.code === 'KeyW') { keysPressed.up = true; pointerMoveTarget = null; }
+      if (e.code === 'KeyS') { keysPressed.down = true; pointerMoveTarget = null; }
+      if (e.code === 'KeyA') { keysPressed.left = true; pointerMoveTarget = null; }
+      if (e.code === 'KeyD') { keysPressed.right = true; pointerMoveTarget = null; }
 
-    if ((e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
+      if (e.code === 'ArrowUp') { keysPressed2.up = true; }
+      if (e.code === 'ArrowDown') { keysPressed2.down = true; }
+      if (e.code === 'ArrowLeft') { keysPressed2.left = true; }
+      if (e.code === 'ArrowRight') { keysPressed2.right = true; }
+    } else {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { keysPressed.up = true; pointerMoveTarget = null; }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { keysPressed.down = true; pointerMoveTarget = null; }
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keysPressed.left = true; pointerMoveTarget = null; }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') { keysPressed.right = true; pointerMoveTarget = null; }
+    }
+
+    if ((e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Slash') && !e.repeat) {
       if (gameState === 'PLAYING') {
         if (player.onFire) {
           performStopDropRoll();
           return;
         }
-        const target = getInteractTarget();
+        const is2PKey = isCoopMode && (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Slash');
+        const actor = is2PKey ? player2 : player;
+        const target = is2PKey ? (getInteractTargetForActor(player2) || getInteractTargetForActor(player)) : getInteractTarget();
         const hasFireAhead = player.extinguisherCharges > 0 && fires.some((f) => {
-          const dx = (f.c + 0.5) - player.x;
-          const dy = (f.r + 0.5) - player.y;
+          const dx = (f.c + 0.5) - actor.x;
+          const dy = (f.r + 0.5) - actor.y;
           const dist = Math.hypot(dx, dy);
-          const dot = (dx * player.dirX + dy * player.dirY) / (dist || 1);
+          const dot = (dx * actor.dirX + dy * actor.dirY) / (dist || 1);
           return dist <= 2.4 && (dot > 0.45 || dist < 1.15);
         });
         const isPassiveTile = target && target.kind === 'tile' && (
@@ -2577,11 +2912,11 @@
           (target.tile === TILE.ALARM_BELL && player.alarmRung)
         );
         if (hasFireAhead && (!target || isPassiveTile)) {
-          useExtinguisher();
+          useExtinguisher(actor);
         } else if (target) {
           triggerInteraction(target);
         } else {
-          useExtinguisher();
+          useExtinguisher(actor);
         }
       }
     }
@@ -2591,8 +2926,18 @@
     if (e.code === 'KeyF') {
       if (gameState === 'PLAYING') performStopDropRoll();
     }
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
+    if (e.code === 'ShiftLeft' || e.code === 'KeyC') {
       if (gameState === 'PLAYING') toggleCrouch();
+    }
+    if (e.code === 'ShiftRight') {
+      if (gameState === 'PLAYING') {
+        if (isCoopMode) {
+          player2.crouching = !player2.crouching;
+          showToast(player2.crouching ? '🧎 [2P 낮은 자세] 2P 대원이 자세를 낮췄습니다!' : '🚶 [2P 서서 이동] 2P 대원이 일어섰습니다.');
+        } else {
+          toggleCrouch();
+        }
+      }
     }
     if (e.code === 'KeyR') {
       if (gameState === 'PLAYING' || gameState === 'PAUSED') {
@@ -2613,10 +2958,21 @@
   });
 
   window.addEventListener('keyup', (e) => {
-    if (e.code === 'ArrowUp' || e.code === 'KeyW') keysPressed.up = false;
-    if (e.code === 'ArrowDown' || e.code === 'KeyS') keysPressed.down = false;
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keysPressed.left = false;
-    if (e.code === 'ArrowRight' || e.code === 'KeyD') keysPressed.right = false;
+    if (isCoopMode) {
+      if (e.code === 'KeyW') keysPressed.up = false;
+      if (e.code === 'KeyS') keysPressed.down = false;
+      if (e.code === 'KeyA') keysPressed.left = false;
+      if (e.code === 'KeyD') keysPressed.right = false;
+      if (e.code === 'ArrowUp') keysPressed2.up = false;
+      if (e.code === 'ArrowDown') keysPressed2.down = false;
+      if (e.code === 'ArrowLeft') keysPressed2.left = false;
+      if (e.code === 'ArrowRight') keysPressed2.right = false;
+    } else {
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') keysPressed.up = false;
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') keysPressed.down = false;
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keysPressed.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keysPressed.right = false;
+    }
   });
 
   function bindDirectionButton(btn, dirKey) {
@@ -2652,7 +3008,7 @@
 
   function hideAllModalsAndResume() {
     gameOverlay.classList.add('hidden');
-    [eduModal, mapEditorModal, certModal, guideModal].forEach((m) => {
+    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal].forEach((m) => {
       if (m) {
         m.classList.add('hidden');
         m.classList.remove('flex');
@@ -2667,6 +3023,10 @@
     SoundFX.init();
     loadStage(idx, true, null);
     hideAllModalsAndResume();
+    if (!STAGES[idx].isPreventionMode) {
+      SoundFX.siren();
+      SoundFX.speak(`${STAGES[idx].name} 대피 훈련을 시작합니다. 낮은 자세로 안전하게 탈출하세요.`);
+    }
     showToast(`🚩 ${STAGES[idx].name} 시작! ${STAGES[idx].mission}`);
   }
 
@@ -2676,6 +3036,46 @@
   btnStage4.addEventListener('click', () => selectStageManual(3));
   btnStage5.addEventListener('click', () => selectStageManual(4));
   btnStage0.addEventListener('click', () => selectStageManual(5));
+  if (btnStage6) {
+    btnStage6.addEventListener('click', () => selectStageManual(6));
+  }
+
+  // --- Feature 5: Daily Challenge Stage Button ---
+  if (btnDailyStage && typeof generateDailyChallengeStage === 'function') {
+    btnDailyStage.addEventListener('click', () => {
+      SoundFX.init();
+      const dailyStage = generateDailyChallengeStage();
+      loadStage(0, true, dailyStage);
+      hideAllModalsAndResume();
+      SoundFX.siren();
+      SoundFX.speak('오늘의 일일구 돌발 재난 챌린지를 시작합니다. 침착하게 탈출하세요!');
+      showToast(`🎲 ${dailyStage.name} 시작! 매일 자정 새로운 구조로 바뀝니다!`, 'border-amber-400');
+    });
+  }
+
+  // --- Feature 2: 2-Player Co-op Mode Toggle ---
+  if (btnCoopToggle) {
+    btnCoopToggle.addEventListener('click', () => {
+      SoundFX.init();
+      isCoopMode = !isCoopMode;
+      if (coopToggleText) {
+        coopToggleText.textContent = isCoopMode ? '2인협동:켜짐' : '2인협동:꺼짐';
+      }
+      btnCoopToggle.className = isCoopMode
+        ? 'px-2 py-1 text-[11px] sm:text-xs font-extrabold rounded-lg bg-pink-600 text-white border border-pink-300 transition flex items-center gap-1 shadow'
+        : 'px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1';
+      if (isCoopMode) {
+        player2.x = canMoveTo(player.x + 0.8, player.y, player2.radius) ? player.x + 0.8 : player.x;
+        player2.y = player.y;
+        SoundFX.pickup();
+        showToast('👥 [2인 협동 대피 모드 ON!] 1P는 [WASD + Space], 2P는 [방향키 + Enter]로 함께 탈출하세요! (+300점 협동 보너스)', 'border-pink-400');
+      } else {
+        showToast('👤 1인 단독 대피 모드로 전환되었습니다.');
+      }
+      updateHUD();
+      renderCanvas();
+    });
+  }
 
   // --- Map Editor Integration ---
   function closeMapEditorModal() {
@@ -2686,7 +3086,9 @@
       gameOverlay.classList.contains('hidden') &&
       eduModal.classList.contains('hidden') &&
       guideModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden')
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
     ) {
       gameState = 'PLAYING';
       pauseIcon.textContent = '⏸️';
@@ -2717,10 +3119,9 @@
 
   btnMapEditor.addEventListener('click', () => {
     clearAllInputStates();
-    certModal.classList.add('hidden');
-    certModal.classList.remove('flex');
-    guideModal.classList.add('hidden');
-    guideModal.classList.remove('flex');
+    [certModal, guideModal, classModal, teacherModal].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -2729,12 +3130,63 @@
     mapEditorInstance.open();
   });
 
-  // --- Certificate & Badge Encyclopedia Modal Logic ---
+  // --- Feature 1 & 6: Certificate PNG Download, Skin Selector & Badge Encyclopedia ---
   function renderCertificateModal() {
     const best = Math.max(score, getSavedBestScore());
     certTotalScore.textContent = `최고 점수: ${best.toLocaleString()}점`;
-    const unlockedCount = BADGE_DEFS.filter(b => unlockedBadges[b.id]).length;
+    const unlockedCount = getUnlockedBadgeCount();
     certBadgeCount.textContent = `획득 배지: ${unlockedCount} / ${BADGE_DEFS.length}개`;
+
+    const currentSkin = getSelectedSkin();
+    if (activeSkinBadge && currentSkin) {
+      activeSkinBadge.textContent = `장착중: ${currentSkin.icon} ${currentSkin.name}`;
+    }
+
+    if (skinSelectionGrid && Array.isArray(CHARACTER_SKINS)) {
+      skinSelectionGrid.innerHTML = CHARACTER_SKINS.map((sk) => {
+        const isUnlocked = unlockedCount >= sk.minBadges;
+        const isEquipped = currentSkin && currentSkin.id === sk.id;
+        return `<button type="button" data-skin-id="${sk.id}" class="skin-select-btn p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 ${
+          isEquipped
+            ? 'bg-emerald-950/80 border-emerald-400 text-white shadow-md'
+            : (isUnlocked ? 'bg-slate-950 hover:bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-950/40 border-slate-800/80 text-slate-500 opacity-60')
+        }">
+          <span class="text-2xl shrink-0">${isUnlocked ? sk.icon : '🔒'}</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-extrabold flex items-center justify-between gap-1">
+              <span class="${isEquipped ? 'text-emerald-300' : (isUnlocked ? 'text-amber-300' : 'text-slate-400')}">${sk.name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded ${isEquipped ? 'bg-emerald-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-300'}">${
+                isEquipped ? '장착중' : (isUnlocked ? '선택가능' : `배지 ${sk.minBadges}개 필요`)
+              }</span>
+            </div>
+            <div class="text-[10px] text-slate-400 leading-tight mt-0.5">${sk.perkDesc}</div>
+          </div>
+        </button>`;
+      }).join('');
+
+      skinSelectionGrid.querySelectorAll('.skin-select-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const skId = btn.getAttribute('data-skin-id');
+          const targetSkin = (CHARACTER_SKINS || []).find(s => s.id === skId);
+          if (!targetSkin) return;
+          if (getUnlockedBadgeCount() < targetSkin.minBadges) {
+            SoundFX.warning();
+            showToast(`🔒 [${targetSkin.name}] 스킨은 안전 배지 ${targetSkin.minBadges}개 이상 획득 시 해금됩니다!`, 'border-amber-500');
+            return;
+          }
+          selectedSkinId = targetSkin.id;
+          try {
+            localStorage.setItem('fire_escape_skin', selectedSkinId);
+          } catch (e) {}
+          if (targetSkin.defaultFlashlight) player.hasFlashlight = true;
+          SoundFX.pickup();
+          renderCertificateModal();
+          updateHUD();
+          renderCanvas();
+          showToast(`🦸 [${targetSkin.icon} ${targetSkin.name}] 스킨이 장착되었습니다! (${targetSkin.perkDesc})`, 'border-emerald-400');
+        });
+      });
+    }
 
     badgeCollectionGrid.innerHTML = BADGE_DEFS.map((b) => {
       const has = !!unlockedBadges[b.id];
@@ -2746,11 +3198,142 @@
     }).join('');
   }
 
+  function downloadCertificatePng() {
+    SoundFX.init();
+    const cleanName = (studentNameInput.value || '').trim() || '용감한 어린이';
+    const best = Math.max(score, getSavedBestScore());
+    const unlockedCount = getUnlockedBadgeCount();
+    const activeSkin = getSelectedSkin();
+    const clsText = currentClassCode.trim() || '자유 참가 대원';
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = 900;
+    offCanvas.height = 620;
+    const cctx = offCanvas.getContext('2d');
+
+    // Background & Gold Border
+    const bgGrad = cctx.createLinearGradient(0, 0, 900, 620);
+    bgGrad.addColorStop(0, '#0f172a');
+    bgGrad.addColorStop(0.5, '#1e293b');
+    bgGrad.addColorStop(1, '#1e1b4b');
+    cctx.fillStyle = bgGrad;
+    cctx.fillRect(0, 0, 900, 620);
+
+    cctx.strokeStyle = '#f59e0b';
+    cctx.lineWidth = 6;
+    cctx.strokeRect(20, 20, 860, 580);
+    cctx.strokeStyle = '#fde047';
+    cctx.lineWidth = 2;
+    cctx.strokeRect(30, 30, 840, 560);
+
+    // Header
+    cctx.fillStyle = '#fbbf24';
+    cctx.font = 'bold 18px "Noto Sans KR", sans-serif';
+    cctx.textAlign = 'center';
+    cctx.fillText('제 2026-119 호 · 2022 개정 초등 교육과정 연계 안전 인증', 450, 78);
+
+    cctx.fillStyle = '#ffffff';
+    cctx.font = '900 38px "Noto Sans KR", sans-serif';
+    cctx.fillText('🏅 명예 어린이 소방안전 대원 임명장', 450, 132);
+
+    // Student Name & Class Box
+    cctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+    cctx.fillRect(140, 158, 620, 86);
+    cctx.strokeStyle = 'rgba(251, 191, 36, 0.5)';
+    cctx.strokeRect(140, 158, 620, 86);
+
+    cctx.fillStyle = '#fde047';
+    cctx.font = 'bold 28px "Noto Sans KR", sans-serif';
+    cctx.fillText(`${activeSkin.icon} 대원 성명 : ${cleanName}`, 450, 198);
+
+    cctx.fillStyle = '#93c5fd';
+    cctx.font = 'bold 17px "Noto Sans KR", sans-serif';
+    cctx.fillText(`소속 학급: ${clsText}   |   최고 점수: ${best.toLocaleString()}점   |   안전 배지: ${unlockedCount}/${BADGE_DEFS.length}개`, 450, 229);
+
+    // Citation Text
+    cctx.fillStyle = '#e2e8f0';
+    cctx.font = '18px "Noto Sans KR", sans-serif';
+    cctx.fillText('위 어린이는 화재 탈출 넘버원 시뮬레이션을 통해 연소와 소화 원리, 대류 현상 대응,', 450, 286);
+    cctx.fillText('완강기·경량칸막이·방화문 닫기 등 실전 화재 대피 요령을 모범적으로 이수하였기에', 450, 316);
+    cctx.fillText('명예 어린이 소방안전 대원으로 자랑스럽게 임명합니다.', 450, 346);
+
+    // Unlocked Badges Row
+    cctx.fillStyle = '#fbbf24';
+    cctx.font = 'bold 15px "Noto Sans KR", sans-serif';
+    cctx.fillText('🎖️ 달성한 안전 마스터 배지 컬렉션', 450, 390);
+
+    const startX = 95;
+    const gapX = 78;
+    BADGE_DEFS.forEach((b, idx) => {
+      const bx = startX + idx * gapX;
+      const by = 435;
+      const has = !!unlockedBadges[b.id];
+      cctx.fillStyle = has ? 'rgba(245, 158, 11, 0.2)' : 'rgba(30, 41, 59, 0.6)';
+      cctx.beginPath();
+      cctx.arc(bx, by, 26, 0, Math.PI * 2);
+      cctx.fill();
+      cctx.strokeStyle = has ? '#fbbf24' : '#475569';
+      cctx.lineWidth = 2;
+      cctx.stroke();
+
+      cctx.font = '24px sans-serif';
+      cctx.fillStyle = has ? '#ffffff' : 'rgba(148, 163, 184, 0.35)';
+      cctx.fillText(b.icon, bx, by + 2);
+
+      cctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      cctx.fillStyle = has ? '#fde68a' : '#64748b';
+      cctx.fillText(b.name.slice(0, 6), bx, by + 42);
+    });
+
+    // Footer Date & Official Stamp
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
+    cctx.fillStyle = '#cbd5e1';
+    cctx.font = 'bold 17px "Noto Sans KR", sans-serif';
+    cctx.fillText(dateStr, 450, 522);
+
+    cctx.fillStyle = '#ffffff';
+    cctx.font = '900 22px "Noto Sans KR", sans-serif';
+    cctx.fillText('화재 탈출 넘버원 어린이 소방안전 교육본부', 450, 558);
+
+    // Red Official Seal
+    cctx.save();
+    cctx.translate(715, 535);
+    cctx.rotate(-0.12);
+    cctx.strokeStyle = 'rgba(239, 68, 68, 0.88)';
+    cctx.lineWidth = 3.5;
+    cctx.strokeRect(-36, -36, 72, 72);
+    cctx.fillStyle = 'rgba(239, 68, 68, 0.88)';
+    cctx.font = '900 15px "Noto Sans KR", sans-serif';
+    cctx.fillText('명예소방', 0, -8);
+    cctx.fillText('인증직인', 0, 14);
+    cctx.restore();
+
+    try {
+      const dataUrl = offCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `명예소방관_수료증_${cleanName}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      SoundFX.win();
+      showToast(`🖼️ [${cleanName}] 대원의 고화질 명예 소방관 수료증(PNG)이 저장되었습니다!`, 'border-amber-400');
+    } catch (e) {
+      showToast('⚠️ 이미지 저장 중 오류가 발생했습니다.', 'border-red-500');
+    }
+  }
+
+  if (btnDownloadCertPng) {
+    btnDownloadCertPng.addEventListener('click', downloadCertificatePng);
+  }
+
   function openCertModalFn() {
     clearAllInputStates();
     if (mapEditorInstance) mapEditorInstance.close();
-    guideModal.classList.add('hidden');
-    guideModal.classList.remove('flex');
+    [guideModal, classModal, teacherModal].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -2770,7 +3353,9 @@
       gameOverlay.classList.contains('hidden') &&
       eduModal.classList.contains('hidden') &&
       guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden')
+      mapEditorModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
     ) {
       gameState = 'PLAYING';
       pauseIcon.textContent = '⏸️';
@@ -2790,6 +3375,225 @@
     closeCertModalFn();
     showToast(`🏅 [${cleanName}] 명예 소방안전 대원 정보가 브라우저에 저장되었습니다!`, 'border-emerald-400');
   });
+
+  // --- Feature 4: Class Safety Ranking & Code Modal Logic ---
+  function updateClassBanner() {
+    if (!classBanner) return;
+    const clean = (currentClassCode || '').trim();
+    if (clean) {
+      classBanner.textContent = `🏫 ${clean}`;
+      classBanner.classList.remove('hidden');
+    } else {
+      classBanner.classList.add('hidden');
+    }
+  }
+
+  function renderClassModal() {
+    if (!classLeaderboardList) return;
+    if (classCodeInput) classCodeInput.value = currentClassCode;
+    const filterCode = (currentClassCode || '').trim();
+    if (classBoardTitle) {
+      classBoardTitle.textContent = filterCode
+        ? `🏆 [${filterCode}] 안전 대피 명예의 전당`
+        : '🏆 전체 학급 안전 대피 명예의 전당';
+    }
+    const allRecords = getClassLeaderboard();
+    const filtered = filterCode
+      ? allRecords.filter(r => r.classCode === filterCode)
+      : allRecords;
+
+    if (filtered.length === 0) {
+      classLeaderboardList.innerHTML = `<div class="text-slate-500 text-center py-4">아직 등록된 대피 완료 기록이 없습니다. 스테이지를 클리어하면 자동 등재됩니다!</div>`;
+    } else {
+      classLeaderboardList.innerHTML = filtered.slice(0, 12).map((rec, i) => {
+        const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i + 1}위`));
+        return `<div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-800">
+          <div class="flex items-center gap-2 truncate">
+            <span class="font-extrabold text-amber-300 w-7 shrink-0">${medal}</span>
+            <span class="font-bold text-white">${rec.studentName}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300">${rec.classCode}</span>
+            <span class="text-[10px] text-slate-400 truncate">${rec.stageName}</span>
+          </div>
+          <div class="text-right shrink-0 ml-2">
+            <span class="font-mono font-extrabold text-emerald-400">${Number(rec.score || 0).toLocaleString()}점</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  function openClassModalFn() {
+    clearAllInputStates();
+    if (mapEditorInstance) mapEditorInstance.close();
+    [certModal, guideModal, teacherModal].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    renderClassModal();
+    classModal.classList.remove('hidden');
+    classModal.classList.add('flex');
+  }
+
+  function closeClassModalFn() {
+    if (!classModal) return;
+    clearAllInputStates();
+    classModal.classList.add('hidden');
+    classModal.classList.remove('flex');
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+  }
+
+  if (btnClassMode) btnClassMode.addEventListener('click', openClassModalFn);
+  if (btnCloseClassModal) btnCloseClassModal.addEventListener('click', closeClassModalFn);
+  if (btnConfirmClassModal) btnConfirmClassModal.addEventListener('click', closeClassModalFn);
+
+  if (btnApplyClassCode) {
+    btnApplyClassCode.addEventListener('click', () => {
+      currentClassCode = (classCodeInput.value || '').trim();
+      try {
+        localStorage.setItem('fire_escape_class_code', currentClassCode);
+      } catch (e) {}
+      updateClassBanner();
+      renderClassModal();
+      SoundFX.pickup();
+      showToast(
+        currentClassCode
+          ? `🏫 소속 학급이 [${currentClassCode}](으)로 설정되었습니다!`
+          : '🏫 학급 필터가 해제되어 전체 랭킹을 표시합니다.',
+        'border-sky-400'
+      );
+    });
+  }
+
+  if (btnCopyClassUrl) {
+    btnCopyClassUrl.addEventListener('click', () => {
+      const code = (classCodeInput.value || currentClassCode || '서울초 5학년 2반').trim();
+      currentClassCode = code;
+      if (classCodeInput) classCodeInput.value = code;
+      try {
+        localStorage.setItem('fire_escape_class_code', currentClassCode);
+      } catch (e) {}
+      updateClassBanner();
+      renderClassModal();
+      const baseUrl = window.location.origin && window.location.origin !== 'null'
+        ? `${window.location.origin}${window.location.pathname}`
+        : window.location.href.split('?')[0];
+      const shareUrl = `${baseUrl}?class=${encodeURIComponent(code)}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).catch(() => {});
+      }
+      showToast(`🔗 [${code}] 우리 반 전용 접속 링크(?class=...)가 복사되었습니다!`, 'border-sky-400');
+    });
+  }
+
+  if (btnClearClassBoard) {
+    btnClearClassBoard.addEventListener('click', () => {
+      try {
+        localStorage.removeItem('fire_escape_class_board');
+      } catch (e) {}
+      renderClassModal();
+      showToast('🗑️ 학급 명예의 전당 기록이 초기화되었습니다.');
+    });
+  }
+
+  // --- Feature 10: Teacher Smartboard Mode & Printable Worksheet Modal ---
+  function openTeacherModalFn() {
+    clearAllInputStates();
+    if (mapEditorInstance) mapEditorInstance.close();
+    [certModal, guideModal, classModal].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    teacherModal.classList.remove('hidden');
+    teacherModal.classList.add('flex');
+  }
+
+  function closeTeacherModalFn() {
+    if (!teacherModal) return;
+    clearAllInputStates();
+    teacherModal.classList.add('hidden');
+    teacherModal.classList.remove('flex');
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+  }
+
+  if (btnTeacherMode) btnTeacherMode.addEventListener('click', openTeacherModalFn);
+  if (btnCloseTeacherModal) btnCloseTeacherModal.addEventListener('click', closeTeacherModalFn);
+  if (btnConfirmTeacherModal) btnConfirmTeacherModal.addEventListener('click', closeTeacherModalFn);
+
+  if (btnToggleBoardZoom) {
+    btnToggleBoardZoom.addEventListener('click', () => {
+      const enabled = document.body.classList.toggle('smartboard-zoom');
+      btnToggleBoardZoom.textContent = enabled ? '켜짐 (해제)' : '켜기';
+      btnToggleBoardZoom.className = enabled
+        ? 'px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shrink-0'
+        : 'px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-extrabold text-white shrink-0';
+      resizeCanvas();
+      showToast(
+        enabled
+          ? '🖥️ [전자칠판 대형 화면 모드 ON] 교실 TV/칠판 시연에 맞춰 화면과 자막이 확대되었습니다!'
+          : '🖥️ 전자칠판 대형 화면 모드가 해제되었습니다.',
+        'border-purple-400'
+      );
+    });
+  }
+
+  if (btnTeacherUnlockAll) {
+    btnTeacherUnlockAll.addEventListener('click', () => {
+      BADGE_DEFS.forEach((b) => {
+        unlockedBadges[b.id] = true;
+      });
+      try {
+        localStorage.setItem('fire_escape_badges', JSON.stringify(unlockedBadges));
+      } catch (e) {}
+      SoundFX.win();
+      updateHUD();
+      showToast('🔓 [교사 시연 모드] 안전 배지 10종과 직업 스킨 4종이 모두 해금되었습니다! [수료증·스킨]에서 확인하세요.', 'border-amber-400');
+    });
+  }
+
+  if (btnPrintWorksheet) {
+    btnPrintWorksheet.addEventListener('click', () => {
+      const activeSt = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+      if (printWorksheetClass) printWorksheetClass.textContent = currentClassCode.trim() || '________초등학교 ___학년 ___반';
+      if (printWorksheetName) printWorksheetName.textContent = (studentNameInput && studentNameInput.value.trim()) || '______________';
+      if (printWorksheetStage) printWorksheetStage.textContent = `${activeSt.name} (${activeSt.curriculumFocus || '안전 대피 실습'})`;
+      showToast('🖨️ A4 화재안전 수업 활동지 인쇄 창을 호출합니다!');
+      setTimeout(() => {
+        try { window.print(); } catch (e) {}
+      }, 150);
+    });
+  }
 
   // Pause Button
   btnPause.addEventListener('click', () => {
@@ -2822,15 +3626,19 @@
     SoundFX.init();
     SoundFX.muted = !SoundFX.muted;
     btnSound.textContent = SoundFX.muted ? '🔇' : '🔊';
-    showToast(SoundFX.muted ? '🔇 효과음이 꺼졌습니다.' : '🔊 효과음이 켜졌습니다.');
+    if (SoundFX.muted && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    showToast(SoundFX.muted ? '🔇 효과음 및 음성 안내가 꺼졌습니다.' : '🔊 효과음 및 음성 안내가 켜졌습니다.');
   });
 
   // Safety Guide Modal
   btnGuide.addEventListener('click', () => {
     clearAllInputStates();
     if (mapEditorInstance) mapEditorInstance.close();
-    certModal.classList.add('hidden');
-    certModal.classList.remove('flex');
+    [certModal, classModal, teacherModal].forEach((m) => {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -2849,7 +3657,9 @@
       gameOverlay.classList.contains('hidden') &&
       eduModal.classList.contains('hidden') &&
       mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden')
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden'))
     ) {
       gameState = 'PLAYING';
       pauseIcon.textContent = '⏸️';
@@ -2866,16 +3676,27 @@
       loadStage(currentStageIdx, true, activeCustomStage);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      SoundFX.siren();
+      SoundFX.speak('화재 경보 발생! 젖은 수건으로 코와 입을 막고 낮은 자세로 비상구까지 대피하세요.');
       showToast(
         activeCustomStage
           ? '🛠️ 공유된 커스텀 대피도 플레이를 시작합니다! 안전하게 비상구로 탈출하세요!'
           : '🚨 화재 경보 발생! 수건을 적시고 비상벨(🔔)을 울려 유도등(🟩→)을 따라 대피하세요!'
       );
     } else if (gameState === 'STAGE_CLEAR') {
-      const nextIdx = (activeCustomStage || currentStageIdx === 5) ? 0 : (currentStageIdx + 1);
+      let nextIdx = 0;
+      if (activeCustomStage || currentStageIdx === 5) {
+        nextIdx = 0;
+      } else if (currentStageIdx === 4) {
+        nextIdx = 6; // Advance from Stage 5 (idx 4) to Stage 6 (idx 6, Camping & Battery Fire)
+      } else {
+        nextIdx = currentStageIdx + 1;
+      }
       loadStage(nextIdx, false, null);
       gameOverlay.classList.add('hidden');
       gameState = 'PLAYING';
+      SoundFX.siren();
+      SoundFX.speak(`${STAGES[currentStageIdx].name} 대피를 시작합니다.`);
       showToast(`🚩 ${STAGES[currentStageIdx].name}! ${STAGES[currentStageIdx].mission}`);
     } else if (gameState === 'GAME_OVER') {
       score = stageStartScore;
@@ -2905,7 +3726,7 @@
     }
   });
 
-  // --- Bug #3 Fix: Automatically Load Shared Custom Map from ?map= URL Parameter ---
+  // --- Bug #3 Fix & Feature 4: Automatically Load ?map= and ?class= URL Parameters ---
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
@@ -2920,11 +3741,20 @@
     let sharedCustomStage = null;
     try {
       const params = new URLSearchParams(window.location.search);
+      const sharedClass = params.get('class');
+      if (sharedClass && sharedClass.trim()) {
+        currentClassCode = sharedClass.trim();
+        try {
+          localStorage.setItem('fire_escape_class_code', currentClassCode);
+        } catch (e) {}
+      }
       const sharedMap = params.get('map');
       if (sharedMap && mapEditorInstance) {
         sharedCustomStage = mapEditorInstance.loadFromRawCode(sharedMap, true);
       }
     } catch (e) {}
+
+    updateClassBanner();
 
     if (sharedCustomStage) {
       loadStage(0, true, sharedCustomStage);

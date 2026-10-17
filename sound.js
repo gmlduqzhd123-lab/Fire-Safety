@@ -103,6 +103,23 @@
       notes.forEach((n, idx) => {
         setTimeout(() => this.playTone(n, 'sawtooth', 0.28, 0.14), idx * 140);
       });
+    },
+    siren() {
+      if (this.muted) return;
+      this.playTone(580, 'sawtooth', 0.22, 0.1, 860);
+      setTimeout(() => this.playTone(860, 'sawtooth', 0.25, 0.1, 580), 220);
+    },
+    speak(text, rate = 1.08, pitch = 1.0) {
+      if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'ko-KR';
+        utter.rate = rate;
+        utter.pitch = pitch;
+        utter.volume = 0.85;
+        window.speechSynthesis.speak(utter);
+      } catch (e) {}
     }
   };
 

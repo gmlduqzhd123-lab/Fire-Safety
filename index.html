@@ -28,6 +28,7 @@
           <h1 class="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 flex-wrap">
             <span>화재 탈출 넘버원</span>
             <span id="stageBadge" class="text-[11px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 font-bold">1단계: 2층 침실</span>
+            <span id="classBanner" class="hidden text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold">🏫 학급 미지정</span>
           </h1>
         </div>
       </div>
@@ -41,16 +42,33 @@
           <button id="btnStage3" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition">최종탈출</button>
           <button id="btnStage4" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="4단계: 초등학교 과학실">🏫과학실</button>
           <button id="btnStage5" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="5단계: 다중이용시설 지하철·쇼핑몰">🚇다중시설</button>
+          <button id="btnStage6" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition" title="6단계: 캠핑장·전동킥보드 배터리 화재">⛺캠핑·배터리</button>
+          <button id="btnDailyStage" type="button" class="px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition" title="오늘의 119 돌발 재난 챌린지 (매일 자정 새 맵)">🎲오늘의챌린지</button>
         </div>
+
+        <button id="btnCoopToggle" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1" title="1대 기기 2인 협동 대피 모드 (1P: WASD / 2P: 방향키)">
+          <span>👥</span>
+          <span id="coopToggleText" class="hidden md:inline">2인협동:꺼짐</span>
+        </button>
+
+        <button id="btnClassMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 transition flex items-center gap-1" title="우리 반 안전 랭킹 & 학급 대항전 코드">
+          <span>🏫</span>
+          <span class="hidden md:inline">학급랭킹</span>
+        </button>
+
+        <button id="btnTeacherMode" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 transition flex items-center gap-1" title="교사용 전자칠판 브리핑 & 활동지 인쇄">
+          <span>👩‍🏫</span>
+          <span class="hidden md:inline">교사모드</span>
+        </button>
 
         <button id="btnMapEditor" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1" title="우리 집·교실 대피도 맵 에디터">
           <span>🛠️</span>
           <span class="hidden md:inline">맵에디터</span>
         </button>
 
-        <button id="btnCertModal" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1" title="명예 소방관 수료증 및 배지 도감">
+        <button id="btnCertModal" type="button" class="px-2 py-1 text-[11px] sm:text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1" title="명예 소방관 수료증·스킨·배지 도감">
           <span>🏅</span>
-          <span class="hidden md:inline">수료증·도감</span>
+          <span class="hidden md:inline">수료증·스킨</span>
         </button>
 
         <button id="btnPause" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="일시정지">
@@ -63,7 +81,7 @@
           <span id="pauseRestartText" class="hidden lg:inline">재시작</span>
         </button>
 
-        <button id="btnSound" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition" title="소리 켜기/끄기">
+        <button id="btnSound" type="button" class="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition" title="소리 및 음성 안내 켜기/끄기">
           🔊
         </button>
 
@@ -172,17 +190,17 @@
             <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-orange-400">2022 개정 교육과정 & 10대 확장 에디션</span>
             <h2 id="overlayTitle" class="text-base sm:text-2xl font-black text-white mt-0.5">불타는 집·학교·지하철에서 탈출하라!</h2>
             <p id="overlayDesc" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-              사전 화재예방 점검부터 아파트 경량칸막이 파괴, 방화문 닫기, 옷에 불붙었을 때 구르기(Stop·Drop·Roll), 과학실·다중이용시설 탈출, 맵 에디터까지 모두 체험해 보세요!
+              사전 화재예방 점검부터 아파트 경량칸막이 파괴, 방화문 닫기, 옷에 불붙었을 때 구르기(Stop·Drop·Roll), 과학실·다중이용시설·캠핑장 탈출, 2인 협동, 오늘의 챌린지까지 모두 체험해 보세요!
             </p>
           </div>
 
           <!-- Stage Objectives Box -->
           <div id="overlayTipsBox" class="bg-slate-950/90 border border-slate-800 rounded-xl p-2.5 text-left text-[11px] sm:text-xs space-y-1 text-slate-300">
-            <div class="font-bold text-amber-400 flex items-center gap-1">💡 10대 핵심 안전 기능 가이드</div>
+            <div class="font-bold text-amber-400 flex items-center gap-1">💡 핵심 안전 기능 & 신규 10대 업데이트 가이드</div>
             <div>• <strong>경량칸막이(🧱) & 방화문 닫기(🚪):</strong> 옆집 경량칸막이를 부숴 탈출하거나, 지나간 문을 다시 닫아 연기 확산을 물리적으로 차단하세요.</div>
             <div>• <strong>구르기(🔄) & 방연마스크(😷)·손전등(🔦):</strong> 옷에 불이 붙으면 즉시 [구르기]를 연타하고, 마스크와 손전등으로 어두운 연기를 돌파하세요.</div>
-            <div>• <strong>비상벨(🔔) & 이웃 구조(🧒):</strong> 복도 비상벨을 울려 이웃과 친구를 깨워 함께 탈출하면 협동 보너스를 얻습니다.</div>
-            <div>• <strong>예방점검(🔍) · 과학실(🏫) · 지하철(🚇) · 맵에디터(🛠️) · 수료증(🏅) · 동선리플레이</strong> 완비!</div>
+            <div>• <strong>2인 협동 모드(👥) & 음성 방송(🔊):</strong> 상단 [2인협동]을 켜면 1P(WASD)와 2P(방향키)가 한 화면에서 함께 탈출할 수 있습니다!</div>
+            <div>• <strong>캠핑·배터리(⛺) · 오늘의 챌린지(🎲) · 학급 랭킹(🏫) · 수료증 PNG 저장(🖼️) · 교사모드(👩‍🏫)</strong> 완비!</div>
           </div>
 
           <!-- Stats Summary (Shown on Clear/GameOver) -->
@@ -210,9 +228,10 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
               <div id="debriefChecklist" class="sm:col-span-7 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
-              <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800">
-                <span class="text-[9px] text-slate-400 mb-1">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
+              <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
+                <span class="text-[9px] text-slate-400">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
                 <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
+                <button id="btnReplayAnim" type="button" class="w-full py-1 px-2 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition">▶️ 3초 타임랩스 애니메이션 재생</button>
               </div>
             </div>
 
@@ -347,11 +366,25 @@
       </div>
 
       <!-- Export / Import Code -->
-      <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
-        <input id="editorMapCodeInput" type="text" placeholder="맵 공유 코드 또는 공유 URL이 여기에 표시됩니다" class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono" />
-        <button id="btnCopyMapCode" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200">📋 코드복사</button>
-        <button id="btnCopyMapUrl" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-300">🔗 공유링크 복사</button>
-        <button id="btnLoadMapCode" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">📥 불러오기</button>
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-1.5">
+        <input id="editorMapCodeInput" type="text" placeholder="맵 공유 코드 또는 공유 URL이 여기에 표시됩니다" class="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono" />
+        <button id="btnCopyMapCode" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200">📋 코드복사</button>
+        <button id="btnCopyMapUrl" type="button" class="px-2.5 py-1.5 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-300">🔗 링크복사</button>
+        <button id="btnShowMapQr" type="button" class="px-2.5 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-xs font-bold text-emerald-300">📱 QR생성</button>
+        <button id="btnLoadMapCode" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">📥 불러오기</button>
+      </div>
+
+      <!-- QR Code Instant Preview Box -->
+      <div id="qrCodeContainer" class="hidden bg-slate-950 border border-emerald-500/40 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left">
+        <div class="bg-white p-2 rounded-lg shadow shrink-0 flex items-center justify-center">
+          <img id="qrCodeImg" alt="대피도 공유 QR코드" class="w-32 h-32 hidden" />
+          <canvas id="qrCodeCanvas" width="128" height="128" class="w-32 h-32"></canvas>
+        </div>
+        <div class="space-y-1 text-xs">
+          <div class="font-extrabold text-emerald-400">📱 태블릿·스마트폰 카메라로 QR코드를 스캔하세요!</div>
+          <p class="text-slate-300 text-[11px]">별도 로그인이나 긴 코드 입력 없이 내가 만든 우리 집·교실 대피도가 친구의 화면에 즉시 열립니다.</p>
+          <div id="qrShareUrlText" class="text-[10px] font-mono text-slate-400 break-all bg-slate-900 px-2 py-1 rounded border border-slate-800"></div>
+        </div>
       </div>
 
       <div class="flex gap-2 pt-1">
@@ -367,19 +400,23 @@
 
   <!-- Honorary Junior Firefighter Certificate & Badge Encyclopedia Modal -->
   <div id="certModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[95vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
-        <h3 class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🏅 어린이 명예 소방관 수료증 & 안전 배지 도감</h3>
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-3.5 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🏅 어린이 명예 소방관 수료증 · 스킨 · 배지 도감</h3>
         <button id="btnCloseCertModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
       </div>
 
       <!-- Certificate Card -->
-      <div class="p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30 border-2 border-amber-400/60 text-center space-y-2 shadow-inner">
+      <div class="p-3.5 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30 border-2 border-amber-400/60 text-center space-y-2 shadow-inner">
         <div class="text-xs font-bold text-amber-400 tracking-widest">제 2026-119 호 · 어린이 소방안전 교육 수료증</div>
         <div class="text-lg sm:text-xl font-black text-white">명예 어린이 소방안전 대원 임명장</div>
-        <div class="flex items-center justify-center gap-2 py-1">
+        <div class="flex flex-wrap items-center justify-center gap-2 py-1">
           <label for="studentNameInput" class="text-xs font-bold text-slate-300">대원 이름:</label>
           <input id="studentNameInput" type="text" value="용감한 어린이" maxlength="16" class="px-2.5 py-1 rounded-lg bg-slate-950 border border-amber-500/50 text-amber-200 font-extrabold text-xs sm:text-sm text-center w-36" />
+          <button id="btnDownloadCertPng" type="button" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow transition flex items-center gap-1">
+            <span>🖼️</span>
+            <span>수료증 이미지(PNG) 저장</span>
+          </button>
         </div>
         <p id="certSummaryText" class="text-xs text-slate-300 leading-relaxed">
           위 어린이는 2022 개정 초등 교육과정 연계 화재 대피 시뮬레이션을 통해 연소와 소화 원리, 대류 현상 대응, 완강기 및 경량칸막이 피난 요령을 성실히 익혔으므로 명예 소방안전 대원으로 임명합니다.
@@ -390,14 +427,105 @@
         </div>
       </div>
 
+      <!-- Character Skin Selection Grid (Feature 6) -->
+      <div>
+        <div class="text-xs font-bold text-amber-300 mb-1.5 flex items-center justify-between">
+          <span>🦸 배지 연동 캐릭터 & 직업 스킨 선택 (장착 시 고유 능력 발동)</span>
+          <span id="activeSkinBadge" class="text-[11px] text-emerald-300">장착중: 🧒 용감한 초등학생</span>
+        </div>
+        <div id="skinSelectionGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+      </div>
+
       <!-- 10 Safety Badges Grid -->
       <div>
-        <div class="text-xs font-bold text-slate-300 mb-2">🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</div>
+        <div class="text-xs font-bold text-slate-300 mb-1.5">🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</div>
         <div id="badgeCollectionGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
       </div>
 
       <button id="btnConfirmCertModal" type="button" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition">
         확인 및 저장하기
+      </button>
+    </div>
+  </div>
+
+  <!-- Class Safety Ranking & Code System Modal (Feature 4) -->
+  <div id="classModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-sky-500/50 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-3.5 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">학교·학급 대항전 시스템</span>
+          <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5">🏫 우리 반 안전 랭킹 & 학급 코드</h3>
+        </div>
+        <button id="btnCloseClassModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        학교·학급 이름(예: <strong>서울초 5학년 2반</strong>)을 설정하고 공유 링크를 전달하면, 우리 반 친구들이 탈출할 때마다 학급 명예의 전당 보드에 기록이 남습니다!
+      </p>
+
+      <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
+        <input id="classCodeInput" type="text" placeholder="예: 서울초 5학년 2반" maxlength="24" class="flex-1 min-w-[150px] px-3 py-1.5 rounded-lg bg-slate-950 border border-sky-500/50 text-xs text-sky-200 font-bold" />
+        <button id="btnApplyClassCode" type="button" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-extrabold text-white">🏫 학급 적용</button>
+        <button id="btnCopyClassUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">🔗 학급링크 복사</button>
+      </div>
+
+      <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+          <span id="classBoardTitle" class="text-xs font-extrabold text-amber-300">🏆 우리 반 안전 대피 명예의 전당</span>
+          <button id="btnClearClassBoard" type="button" class="text-[10px] text-slate-400 hover:text-rose-400">기록 초기화</button>
+        </div>
+        <div id="classLeaderboardList" class="space-y-1.5 max-h-48 overflow-y-auto text-xs text-slate-300"></div>
+      </div>
+
+      <button id="btnConfirmClassModal" type="button" class="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm transition">
+        닫기
+      </button>
+    </div>
+  </div>
+
+  <!-- Teacher Smartboard Briefing & Printable Worksheet Modal (Feature 10) -->
+  <div id="teacherModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-purple-500/50 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-3.5 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">수업 지원 키트</span>
+          <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5">👩‍🏫 교사용 전자칠판 브리핑 & 활동지 인쇄</h3>
+        </div>
+        <button id="btnCloseTeacherModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        교실 전자칠판(TV) 시연과 오프라인 안전 수업을 즉시 진행할 수 있는 교사 전용 편의 도구입니다.
+      </p>
+
+      <div class="space-y-2.5">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-purple-300">🖥️ 전자칠판 대형 화면 & 큰 자막 모드</div>
+            <div class="text-[11px] text-slate-400">교실 뒷자리 학생도 잘 보이도록 게임 화면 폭과 자막 크기를 확대합니다.</div>
+          </div>
+          <button id="btnToggleBoardZoom" type="button" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-extrabold text-white shrink-0">켜기</button>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-amber-300">🔓 수업 시연용 전체 배지 & 캐릭터 스킨 일괄 해금</div>
+            <div class="text-[11px] text-slate-400">10종 안전 배지와 4종 직업 스킨을 즉시 해금하여 학생들에게 시연합니다.</div>
+          </div>
+          <button id="btnTeacherUnlockAll" type="button" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-extrabold text-white shrink-0">전체 해금</button>
+        </div>
+
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-emerald-300">🖨️ A4 1장 화재안전 대피 수업 활동지 인쇄</div>
+            <div class="text-[11px] text-slate-400">현재 스테이지 지도·핵심 수칙·서술형 빈칸 문제가 담긴 A4 학습지를 바로 인쇄합니다.</div>
+          </div>
+          <button id="btnPrintWorksheet" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shrink-0">🖨️ 인쇄하기</button>
+        </div>
+      </div>
+
+      <button id="btnConfirmTeacherModal" type="button" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm transition">
+        닫기
       </button>
     </div>
   </div>
@@ -426,6 +554,48 @@
       <button id="btnConfirmGuide" type="button" class="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition">
         확인했습니다
       </button>
+    </div>
+  </div>
+
+  <!-- Printable A4 Fire Evacuation Worksheet (Hidden on screen, visible on print) -->
+  <div id="printableWorksheet" class="hidden">
+    <div style="border: 2px solid #0f172a; padding: 18px; border-radius: 12px; font-family: 'Noto Sans KR', sans-serif; color: #0f172a;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px;">
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #ea580c;">2022 개정 초등 교육과정 연계 안전 체험 활동지</div>
+          <h1 style="font-size: 22px; font-weight: 900; margin: 2px 0;">🔥 화재 탈출 넘버원: 나의 안전 대피 계획서</h1>
+        </div>
+        <div style="font-size: 13px; text-align: right; line-height: 1.7;">
+          <div>학급: <span id="printWorksheetClass">______________</span></div>
+          <div>이름: <span id="printWorksheetName">______________</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px; font-size: 13px; line-height: 1.6;">
+        <strong>1. 오늘 실습한 화재 대피 단계:</strong> <span id="printWorksheetStage">1단계: 2층 침실 탈출</span>
+      </div>
+
+      <div style="margin-bottom: 14px; padding: 12px; border: 1px solid #475569; border-radius: 8px;">
+        <div style="font-weight: 800; font-size: 14px; margin-bottom: 8px;">2. 핵심 과학·안전 수칙 빈칸 채우기</div>
+        <ol style="font-size: 13px; line-height: 2.0; padding-left: 20px; margin: 0;">
+          <li>불이 나면 뜨거운 연기는 위로 올라가는 <strong>( 대류 )</strong> 현상이 일어나므로, 젖은 수건으로 코와 입을 막고 <strong>( 낮은 자세 )</strong>로 이동해야 합니다.</li>
+          <li>식용유 화재나 전기 배터리 화재에 <strong>( 물 )</strong>을 뿌리면 불길이 번지거나 감전될 수 있으므로 반드시 전용 <strong>( 소화기 )</strong>를 사용합니다.</li>
+          <li>아파트 현관이 불길로 막혔을 때는 베란다의 9mm 석고보드 <strong>( 경량칸막이 )</strong>를 부수거나 <strong>( 완강기 )</strong>를 타고 탈출합니다.</li>
+          <li>몸이나 옷에 불이 붙었을 때는 뛰지 말고 즉시 멈춰 바닥에 엎드려 <strong>( 구르기 )</strong>를 해야 불이 꺼집니다.</li>
+        </ol>
+      </div>
+
+      <div style="margin-bottom: 14px; padding: 12px; border: 1px solid #475569; border-radius: 8px;">
+        <div style="font-weight: 800; font-size: 14px; margin-bottom: 8px;">3. 우리 집·우리 교실 비상 대피 경로 그려보기</div>
+        <div style="height: 180px; border: 1px dashed #64748b; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 12px;">
+          (이곳에 내 방/교실에서 비상구까지 가는 가장 안전한 화살표 동선과 소화기 위치를 그려 보세요)
+        </div>
+      </div>
+
+      <div style="padding: 12px; border: 1px solid #475569; border-radius: 8px;">
+        <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">4. 오늘 시뮬레이션을 통해 새롭게 알게 된 점이나 다짐 한 줄 쓰기</div>
+        <div style="height: 48px; border-bottom: 1px solid #94a3b8;"></div>
+      </div>
     </div>
   </div>
 

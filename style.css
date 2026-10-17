@@ -55,3 +55,30 @@ canvas {
   box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.35), 0 10px 20px -5px rgba(249, 115, 22, 0.5) !important;
   transform: translateY(-1px);
 }
+
+body.smartboard-zoom main {
+  max-width: 1200px !important;
+}
+
+body.smartboard-zoom #toastBanner {
+  font-size: 1.05rem !important;
+  padding: 0.65rem 1.25rem !important;
+}
+
+body.smartboard-zoom #contextPrompt {
+  font-size: 0.95rem !important;
+  padding: 0.45rem 1.1rem !important;
+}
+
+@media print {
+  body > *:not(#printableWorksheet) {
+    display: none !important;
+  }
+  #printableWorksheet {
+    display: block !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 16mm !important;
+    width: 100% !important;
+  }
+}

@@ -351,6 +351,90 @@
       });
     }
 
+    const btnShowMapQr = document.getElementById('btnShowMapQr');
+    const qrCodeContainer = document.getElementById('qrCodeContainer');
+    const qrCodeCanvas = document.getElementById('qrCodeCanvas');
+    const qrCodeImg = document.getElementById('qrCodeImg');
+    const qrShareUrlText = document.getElementById('qrShareUrlText');
+
+    function drawFallbackQrMatrix(canvas, text) {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const size = 21;
+      const cell = canvas.width / size;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      function drawFinder(ox, oy) {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(ox * cell, oy * cell, 7 * cell, 7 * cell);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect((ox + 1) * cell, (oy + 1) * cell, 5 * cell, 5 * cell);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect((ox + 2) * cell, (oy + 2) * cell, 3 * cell, 3 * cell);
+      }
+
+      drawFinder(1, 1);
+      drawFinder(size - 8, 1);
+      drawFinder(1, size - 8);
+
+      let h = 2166136261;
+      for (let i = 0; i < text.length; i++) {
+        h ^= text.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      ctx.fillStyle = '#0f172a';
+      for (let r = 1; r < size - 1; r++) {
+        for (let c = 1; c < size - 1; c++) {
+          const inFinderTL = r < 9 && c < 9;
+          const inFinderTR = r < 9 && c >= size - 9;
+          const inFinderBL = r >= size - 9 && c < 9;
+          if (inFinderTL || inFinderTR || inFinderBL) continue;
+          h ^= (r * 31 + c * 17) & 0xff;
+          h = Math.imul(h, 16777619);
+          if (((h >>> 8) & 1) === 1) {
+            ctx.fillRect(c * cell, r * cell, Math.ceil(cell), Math.ceil(cell));
+          }
+        }
+      }
+    }
+
+    if (btnShowMapQr && qrCodeContainer) {
+      btnShowMapQr.addEventListener('click', () => {
+        syncEditorCode();
+        const code = editorMapCodeInput.value.trim();
+        const baseUrl = window.location.origin && window.location.origin !== 'null'
+          ? `${window.location.origin}${window.location.pathname}`
+          : window.location.href.split('?')[0];
+        const shareUrl = `${baseUrl}?map=${encodeURIComponent(code)}`;
+
+        const isHidden = qrCodeContainer.classList.contains('hidden');
+        if (!isHidden) {
+          qrCodeContainer.classList.add('hidden');
+          return;
+        }
+        qrCodeContainer.classList.remove('hidden');
+        if (qrShareUrlText) {
+          qrShareUrlText.textContent = shareUrl.slice(0, 68) + (shareUrl.length > 68 ? '...' : '');
+        }
+        drawFallbackQrMatrix(qrCodeCanvas, shareUrl);
+        if (qrCodeImg) {
+          qrCodeImg.classList.add('hidden');
+          if (qrCodeCanvas) qrCodeCanvas.classList.remove('hidden');
+          qrCodeImg.onload = () => {
+            qrCodeImg.classList.remove('hidden');
+            if (qrCodeCanvas) qrCodeCanvas.classList.add('hidden');
+          };
+          qrCodeImg.onerror = () => {
+            qrCodeImg.classList.add('hidden');
+            if (qrCodeCanvas) qrCodeCanvas.classList.remove('hidden');
+          };
+          qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=6&data=${encodeURIComponent(shareUrl)}`;
+        }
+        callbacks.showToast('📱 스마트기기 스캔용 대피도 QR코드가 생성되었습니다!');
+      });
+    }
+
     function loadFromRawCode(rawCode, silent = false) {
       try {
         const decoded = decodeMapData(rawCode);
