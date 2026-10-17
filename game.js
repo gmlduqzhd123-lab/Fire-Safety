@@ -1674,11 +1674,16 @@
 
   // --- Household Fire Hazard Inspection (사전 예방 점검 모드) ---
   const HAZARD_COORD_MAP = {
+    '1,2': 0,
     '1,3': 0,
     '1,7': 1,
     '1,8': 1,
+    '1,12': 1,
     '1,13': 2,
+    '8,12': 2,
     '7,2': 3,
+    '8,2': 3,
+    '2,7': 4,
     '7,8': 4,
     '8,8': 4
   };
@@ -4793,19 +4798,26 @@
             draw3DPerspectiveBox(c + 0.12, r + 0.12, c + 0.88, r + 0.26, 0, 0.46, '#92400e', '#78350f', '#451a03', '#fbbf24');
             draw3DPerspectiveBox(c + 0.24, r + 0.24, c + 0.76, r + 0.42, 0.24, 0.30, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
           } else if (fKind === 1) {
-            // 3D Study Desk + Archive Terminal (자정의 서가 자료관리 컴퓨터 & 디지털 금고)
+            // 3D Study Desk + Digital Safe (🔐 614)
             draw3DPerspectiveBox(c + 0.14, r + 0.18, c + 0.86, r + 0.82, 0, 0.32, '#d97706', '#b45309', '#78350f', '#fde68a');
             draw3DPerspectiveBox(c + 0.28, r + 0.30, c + 0.72, r + 0.56, 0.32, 0.54, '#0284c7', '#0369a1', '#0f172a', '#38bdf8');
+            const sp = project3DPoint(c + 0.5, r + 0.5, 0.60);
+            if (sp && sp.depth < 6.0 && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
+              ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              ctx.fillStyle = safeSolved ? '#6ee7b7' : '#fde047';
+              ctx.textAlign = 'center';
+              ctx.fillText(safeSolved ? '🔓금고(해제됨)' : '🔐비상금고(614)', sp.x, sp.y);
+            }
           } else {
-            // 3D Escape-Room Safe & Multi-Tier Clue Bookshelf (No Giant Flat Brown Cube!)
+            // 3D Escape-Room Archive Bookshelf & Direction-Lock Cabinet
             draw3DPerspectiveBox(c + 0.18, r + 0.18, c + 0.82, r + 0.82, 0, 0.30, '#475569', '#334155', '#1e293b', '#94a3b8');
             draw3DPerspectiveBox(c + 0.24, r + 0.24, c + 0.76, r + 0.76, 0.30, 0.52, '#0f172a', '#1e293b', '#090d16', '#22d3ee');
             const sp = project3DPoint(c + 0.5, r + 0.5, 0.60);
             if (sp && sp.depth < 6.0 && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
               ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
-              ctx.fillStyle = safeSolved ? '#6ee7b7' : '#67e8f9';
+              ctx.fillStyle = (bookSortSolved && dirLockSolved) ? '#6ee7b7' : '#c4b5fd';
               ctx.textAlign = 'center';
-              ctx.fillText(safeSolved ? '🔓금고(해제됨)' : '🔐비상금고(614)', sp.x, sp.y);
+              ctx.fillText((bookSortSolved && dirLockSolved) ? '📚보관함(해제됨)' : '📚서가·🧭자물쇠', sp.x, sp.y);
             }
           }
         } else if (t === TILE.SINK) {
@@ -6152,8 +6164,8 @@
         }
         if (tappedTile === TILE.FURNITURE && typeof openPuzzleModalFn === 'function') {
           pointerMoveTarget = null;
-          const stationKind = (c + r) % 3;
-          const tab = stationKind === 0 ? 'safe' : (stationKind === 1 ? 'books' : 'dirlock');
+          const stationKind = (r + c * 3) % 3;
+          const tab = stationKind === 1 ? 'safe' : (stationKind === 2 ? (!bookSortSolved ? 'books' : 'dirlock') : 'safe');
           openPuzzleModalFn(tab);
           return;
         }
