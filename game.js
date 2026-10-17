@@ -2128,18 +2128,37 @@
     updateHUD();
   }
 
-  // --- Coordinate Helper for Canvas Touch / Click ---
+  // --- Coordinate Helper for Canvas & D-Pad Touch / Click (Supports Forced 90deg Landscape Rotation) ---
+  window.getElementLocalCoords = function (el, clientX, clientY) {
+    const rect = el.getBoundingClientRect();
+    if (
+      document.body.classList.contains('force-landscape') &&
+      document.body.classList.contains('is-portrait-viewport')
+    ) {
+      return {
+        x: clientY - rect.top,
+        y: rect.right - clientX,
+        width: rect.height,
+        height: rect.width
+      };
+    }
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+      width: rect.width,
+      height: rect.height
+    };
+  };
+
   function getCanvasGridCoords(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const cx = clientX - rect.left;
-    const cy = clientY - rect.top;
-    const tileW = rect.width / COLS;
-    const tileH = rect.height / ROWS;
+    const local = window.getElementLocalCoords(canvas, clientX, clientY);
+    const tileW = local.width / COLS;
+    const tileH = local.height / ROWS;
     const tileSize = Math.min(tileW, tileH);
-    const offsetX = (rect.width - tileSize * COLS) / 2;
-    const offsetY = (rect.height - tileSize * ROWS) / 2;
-    const gx = (cx - offsetX) / tileSize;
-    const gy = (cy - offsetY) / tileSize;
+    const offsetX = (local.width - tileSize * COLS) / 2;
+    const offsetY = (local.height - tileSize * ROWS) / 2;
+    const gx = (local.x - offsetX) / tileSize;
+    const gy = (local.y - offsetY) / tileSize;
     return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
   }
 
@@ -2647,21 +2666,70 @@
     animFrameId = requestAnimationFrame(gameLoop);
   }
 
-  // --- High-DPI Canvas Resize ---
-  function resizeCanvas() {
-    const isBoardZoom = document.body.classList.contains('smartboard-zoom');
-    const isMobileViewport = window.innerWidth < 640;
-    const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, isBoardZoom ? 1160 : 980);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cssCanvasW = Math.max(280, Math.floor(containerW));
-    const aspectH = Math.floor(cssCanvasW * (ROWS / COLS));
-    if (isMobileViewport) {
-      cssCanvasH = Math.max(200, aspectH);
-    } else {
-      const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
-      cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
+  // --- Mobile Landscape Console Orientation & High-DPI Canvas Resize ---
+  const btnLandscapeToggle = document.getElementById('btnLandscapeToggle');
+  const landscapeToggleText = document.getElementById('landscapeToggleText');
+  let userLandscapePref = null; // null = auto (landscape on mobile), true = force landscape, false = force portrait
+
+  function syncViewportOrientation() {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    document.documentElement.style.setProperty('--vp-w', `${vw}px`);
+    document.documentElement.style.setProperty('--vp-h', `${vh}px`);
+
+    const isPortraitViewport = vw < vh;
+    const isMobileDevice = Math.min(vw, vh) <= 540;
+    const isPhysicalMobileLandscape = vw > vh && vh <= 540;
+
+    let enableLandscapeConsole = false;
+    let enableForceRotation = false;
+
+    if (userLandscapePref === true) {
+      enableLandscapeConsole = true;
+      enableForceRotation = isPortraitViewport;
+    } else if (userLandscapePref === false) {
+      enableLandscapeConsole = isPhysicalMobileLandscape;
+      enableForceRotation = false;
+    } else if (isMobileDevice) {
+      enableLandscapeConsole = true;
+      enableForceRotation = isPortraitViewport;
     }
-    canvasContainer.style.height = cssCanvasH + 'px';
+
+    document.body.classList.toggle('is-portrait-viewport', isPortraitViewport);
+    document.body.classList.toggle('landscape-console', enableLandscapeConsole);
+    document.body.classList.toggle('force-landscape', enableForceRotation);
+
+    if (landscapeToggleText) {
+      landscapeToggleText.textContent = enableLandscapeConsole ? '세로전환' : '가로모드';
+    }
+  }
+
+  function resizeCanvas() {
+    syncViewportOrientation();
+    const isLandscapeConsole = document.body.classList.contains('landscape-console');
+    const isBoardZoom = document.body.classList.contains('smartboard-zoom');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    if (isLandscapeConsole) {
+      canvasContainer.style.height = '';
+      const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 290);
+      const availH = canvasContainer.clientHeight || Math.max(200, Math.min(window.innerWidth, window.innerHeight) - 52);
+      cssCanvasW = Math.max(240, Math.floor(availW));
+      cssCanvasH = Math.max(180, Math.floor(availH));
+    } else {
+      const isMobileViewport = window.innerWidth < 640;
+      const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, isBoardZoom ? 1160 : 980);
+      cssCanvasW = Math.max(280, Math.floor(containerW));
+      const aspectH = Math.floor(cssCanvasW * (ROWS / COLS));
+      if (isMobileViewport) {
+        cssCanvasH = Math.max(200, aspectH);
+      } else {
+        const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
+        cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
+      }
+      canvasContainer.style.height = cssCanvasH + 'px';
+    }
+
     canvas.style.width = cssCanvasW + 'px';
     canvas.style.height = cssCanvasH + 'px';
     canvas.width = Math.floor(cssCanvasW * dpr);
@@ -3015,6 +3083,29 @@
     });
   }
 
+  if (btnLandscapeToggle) {
+    btnLandscapeToggle.addEventListener('click', () => {
+      SoundFX.init();
+      const currentlyLandscape = document.body.classList.contains('landscape-console');
+      userLandscapePref = !currentlyLandscape;
+      if (userLandscapePref && screen.orientation && typeof screen.orientation.lock === 'function') {
+        try {
+          screen.orientation.lock('landscape').catch(() => {});
+        } catch (e) {}
+      } else if (!userLandscapePref && screen.orientation && typeof screen.orientation.unlock === 'function') {
+        try {
+          screen.orientation.unlock();
+        } catch (e) {}
+      }
+      resizeCanvas();
+      showToast(
+        userLandscapePref
+          ? '📱 [가로 콘솔 모드 ON] 좌측 십자키와 우측 액션 버튼으로 넓고 쾌적하게 플레이하세요!'
+          : '📱 [세로 화면 모드 ON] 상단 [가로모드] 버튼으로 언제든 가로 화면으로 전환할 수 있습니다.'
+      );
+    });
+  }
+
   function updateDpadVisuals() {
     btnUp.classList.toggle('is-pressed', !!keysPressed.up);
     btnDown.classList.toggle('is-pressed', !!keysPressed.down);
@@ -3038,11 +3129,11 @@
   if (dpadPad) {
     let dpadPointerId = null;
     const handleDpadMove = (clientX, clientY) => {
-      const rect = dpadPad.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = clientX - cx;
-      const dy = clientY - cy;
+      const local = window.getElementLocalCoords(dpadPad, clientX, clientY);
+      const cx = local.width / 2;
+      const cy = local.height / 2;
+      const dx = local.x - cx;
+      const dy = local.y - cy;
       const dist = Math.hypot(dx, dy);
       pointerMoveTarget = null;
       if (dist < 8) {

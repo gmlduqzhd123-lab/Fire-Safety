@@ -259,9 +259,14 @@
     let lastPaintR = -1;
 
     function applyEditorBrushAt(clientX, clientY) {
-      const rect = editorCanvas.getBoundingClientRect();
-      const c = Math.floor(((clientX - rect.left) / rect.width) * COLS);
-      const r = Math.floor(((clientY - rect.top) / rect.height) * ROWS);
+      const local = typeof window.getElementLocalCoords === 'function'
+        ? window.getElementLocalCoords(editorCanvas, clientX, clientY)
+        : (() => {
+            const rect = editorCanvas.getBoundingClientRect();
+            return { x: clientX - rect.left, y: clientY - rect.top, width: rect.width, height: rect.height };
+          })();
+      const c = Math.floor((local.x / (local.width || 1)) * COLS);
+      const r = Math.floor((local.y / (local.height || 1)) * ROWS);
       if (c <= 0 || c >= COLS - 1 || r <= 0 || r >= ROWS - 1) return;
       if (c === 1 && r === 1) return; // Keep player start tile clear
       if (c === lastPaintC && r === lastPaintR) return;
