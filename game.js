@@ -622,32 +622,38 @@
 
     if (player.onFire) {
       rollStatusBadge.textContent = `(${player.rollNeeded}회연타!)`;
-      btnRoll.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-red-600 animate-bounce border-2 border-yellow-300 text-[10px] sm:text-xs font-extrabold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow-lg leading-tight';
+      btnRoll.classList.remove('hidden');
+      btnRoll.classList.add('flex');
+      btnWaterBucket.classList.add('hidden');
+      btnWaterBucket.classList.remove('flex');
     } else {
       rollStatusBadge.textContent = `(안전)`;
-      btnRoll.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[10px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
+      btnRoll.classList.add('hidden');
+      btnRoll.classList.remove('flex');
+      btnWaterBucket.classList.remove('hidden');
+      btnWaterBucket.classList.add('flex');
     }
 
     if (st.isPreventionMode) {
       postureStatus.textContent = player.crouching ? '🧎 하층 점검' : '🔍 사전점검';
-      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-emerald-400';
+      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
       convectionMarker.style.top = player.crouching ? '20px' : '12px';
       convectionHint.textContent = '화재 전 쾌적한 실내 공기';
       btnCrouch.className = player.crouching
-        ? 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[10px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight'
-        : 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
+        ? 'btn-control px-2 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 shadow'
+        : 'btn-control px-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-amber-300 flex items-center justify-center gap-1.5 shadow';
     } else if (player.crouching) {
-      postureStatus.textContent = '🧎 하층(안전)';
-      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-emerald-400';
+      postureStatus.textContent = '🧎 낮은자세(안전)';
+      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
       convectionMarker.style.top = '20px';
       convectionHint.textContent = '바닥 신선한 공기 호흡';
-      btnCrouch.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[10px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
+      btnCrouch.className = 'btn-control px-2 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 shadow';
     } else {
-      postureStatus.textContent = '🚶 상층(연기)';
-      postureStatus.className = 'text-[11px] sm:text-xs font-extrabold text-amber-400';
+      postureStatus.textContent = '🚶 서있음(연기주의)';
+      postureStatus.className = 'text-[11px] font-extrabold text-amber-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
       convectionMarker.style.top = '3px';
       convectionHint.textContent = '상층 유독가스 주의!';
-      btnCrouch.className = 'btn-control px-1 sm:px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[10px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-0 sm:min-w-[68px] shadow leading-tight';
+      btnCrouch.className = 'btn-control px-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-amber-300 flex items-center justify-center gap-1.5 shadow';
     }
 
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
@@ -706,7 +712,7 @@
     }
 
     if (badges.length === 0) {
-      inventoryList.innerHTML = `<span class="text-[11px] text-slate-500 italic">아이템 없음 (화면 터치 또는 방향키로 탐색)</span>`;
+      inventoryList.innerHTML = `<span class="text-[11px] text-slate-500 whitespace-nowrap shrink-0">보유 장비 없음</span>`;
     } else {
       inventoryList.innerHTML = badges.join('');
     }
@@ -2990,36 +2996,106 @@
     }
   });
 
-  function bindDirectionButton(btn, dirKey) {
-    const startHold = (e) => {
-      e.preventDefault();
+  const dpadPad = document.getElementById('dpadPad');
+  const dpadKnob = document.getElementById('dpadKnob');
+  const btnMoreMenu = document.getElementById('btnMoreMenu');
+  const moreToolsDrawer = document.getElementById('moreToolsDrawer');
+
+  if (btnMoreMenu && moreToolsDrawer) {
+    btnMoreMenu.addEventListener('click', () => {
       SoundFX.init();
-      pointerMoveTarget = null;
-      keysPressed[dirKey] = true;
-      btn.classList.add('is-pressed');
-    };
-    const endHold = (e) => {
-      e.preventDefault();
-      keysPressed[dirKey] = false;
-      btn.classList.remove('is-pressed');
-    };
-    btn.addEventListener('pointerdown', startHold);
-    btn.addEventListener('pointerup', endHold);
-    btn.addEventListener('pointerleave', endHold);
-    btn.addEventListener('pointercancel', endHold);
-    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      const isHidden = moreToolsDrawer.classList.contains('hidden');
+      if (isHidden) {
+        moreToolsDrawer.classList.remove('hidden');
+        moreToolsDrawer.classList.add('flex');
+      } else {
+        moreToolsDrawer.classList.add('hidden');
+        moreToolsDrawer.classList.remove('flex');
+      }
+    });
   }
 
-  bindDirectionButton(btnUp, 'up');
-  bindDirectionButton(btnDown, 'down');
-  bindDirectionButton(btnLeft, 'left');
-  bindDirectionButton(btnRight, 'right');
+  function updateDpadVisuals() {
+    btnUp.classList.toggle('is-pressed', !!keysPressed.up);
+    btnDown.classList.toggle('is-pressed', !!keysPressed.down);
+    btnLeft.classList.toggle('is-pressed', !!keysPressed.left);
+    btnRight.classList.toggle('is-pressed', !!keysPressed.right);
+    if (dpadKnob) {
+      const kx = (keysPressed.right ? 10 : 0) - (keysPressed.left ? 10 : 0);
+      const ky = (keysPressed.down ? 10 : 0) - (keysPressed.up ? 10 : 0);
+      dpadKnob.style.transform = `translate(${kx}px, ${ky}px)`;
+    }
+  }
+
+  function clearDpadSlideState() {
+    keysPressed.up = false;
+    keysPressed.down = false;
+    keysPressed.left = false;
+    keysPressed.right = false;
+    updateDpadVisuals();
+  }
+
+  if (dpadPad) {
+    let dpadPointerId = null;
+    const handleDpadMove = (clientX, clientY) => {
+      const rect = dpadPad.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = clientX - cx;
+      const dy = clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      pointerMoveTarget = null;
+      if (dist < 8) {
+        clearDpadSlideState();
+        return;
+      }
+      const nx = dx / dist;
+      const ny = dy / dist;
+      keysPressed.right = nx > 0.36;
+      keysPressed.left = nx < -0.36;
+      keysPressed.down = ny > 0.36;
+      keysPressed.up = ny < -0.36;
+      updateDpadVisuals();
+    };
+
+    dpadPad.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      SoundFX.init();
+      dpadPointerId = e.pointerId;
+      try {
+        dpadPad.setPointerCapture(e.pointerId);
+      } catch (err) {}
+      handleDpadMove(e.clientX, e.clientY);
+    });
+
+    dpadPad.addEventListener('pointermove', (e) => {
+      if (dpadPointerId === null || e.pointerId !== dpadPointerId) return;
+      e.preventDefault();
+      handleDpadMove(e.clientX, e.clientY);
+    });
+
+    const endDpadSlide = (e) => {
+      if (dpadPointerId !== null && e.pointerId === dpadPointerId) {
+        dpadPointerId = null;
+        clearDpadSlideState();
+      }
+    };
+    dpadPad.addEventListener('pointerup', endDpadSlide);
+    dpadPad.addEventListener('pointercancel', endDpadSlide);
+    dpadPad.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
 
   btnRoll.addEventListener('click', () => performStopDropRoll());
   btnCrouch.addEventListener('click', () => toggleCrouch());
   btnWaterBucket.addEventListener('click', () => useWaterBucket());
   btnExtinguish.addEventListener('click', () => useExtinguisher());
-  btnAction.addEventListener('click', () => triggerInteraction());
+  btnAction.addEventListener('click', () => {
+    if (player.onFire) {
+      performStopDropRoll();
+    } else {
+      triggerInteraction();
+    }
+  });
 
   function hideAllModalsAndResume() {
     gameOverlay.classList.add('hidden');
