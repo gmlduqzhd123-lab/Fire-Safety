@@ -30,12 +30,8 @@
     return JSON.parse(jsonStr);
   }
 
-  // --- BFS Reachability Check from Player Start (1, 1) to Any Exit ---
-  function validateCustomMapReachable(gridData) {
-    const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-    const queue = [{ c: 1, r: 1 }];
-    visited[1][1] = true;
-
+  // --- BFS Reachability Check from Player Start (1, 1) to Any Exit (with Key/Locked Door Verification) ---
+  function validateCustomMapReachable(gridData, itemsData = []) {
     const dirs = [
       { dc: 1, dr: 0 },
       { dc: -1, dr: 0 },
@@ -43,36 +39,86 @@
       { dc: 0, dr: -1 }
     ];
 
-    while (queue.length > 0) {
-      const { c, r } = queue.shift();
-      const t = gridData[r][c];
-      if (t === TILE.EXIT || t === TILE.PARTITION || t === TILE.LIFELINE) {
-        return true;
-      }
-      for (const { dc, dr } of dirs) {
-        const nc = c + dc;
-        const nr = r + dr;
-        if (nc <= 0 || nc >= COLS - 1 || nr <= 0 || nr >= ROWS - 1) continue;
-        if (visited[nr][nc]) continue;
-        const nt = gridData[nr][nc];
-        // Walls, furniture, sinks, elevators, and alarm bells block movement; doors/exits/floors are passable
-        const isPassable = (
-          nt === TILE.FLOOR ||
-          nt === TILE.DOOR ||
-          nt === TILE.OPEN_DOOR ||
-          nt === TILE.LOCKED_DOOR ||
-          nt === TILE.EXIT ||
-          nt === TILE.PARTITION ||
-          nt === TILE.LIFELINE ||
-          nt === TILE.DEBRIS
-        );
-        if (isPassable) {
-          visited[nr][nc] = true;
-          queue.push({ c: nc, r: nr });
+    function canReachExit(ignoreLocks) {
+      const unlockedDoors = new Set();
+      const collectedKeys = new Set();
+      let availableKeys = 0;
+
+      while (true) {
+        const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+        const queue = [{ c: 1, r: 1 }];
+        visited[1][1] = true;
+        const frontierLockedDoors = [];
+        let foundNewKey = false;
+
+        while (queue.length > 0) {
+          const { c, r } = queue.shift();
+          const t = gridData[r][c];
+          if (t === TILE.EXIT || t === TILE.PARTITION || t === TILE.LIFELINE) {
+            return true;
+          }
+
+          // Check for keys on this reachable tile
+          itemsData.forEach((it, idx) => {
+            if (it.type === 'key' && it.c === c && it.r === r && !collectedKeys.has(idx)) {
+              collectedKeys.add(idx);
+              availableKeys++;
+              foundNewKey = true;
+            }
+          });
+
+          for (const { dc, dr } of dirs) {
+            const nc = c + dc;
+            const nr = r + dr;
+            if (nc <= 0 || nc >= COLS - 1 || nr <= 0 || nr >= ROWS - 1) continue;
+            if (visited[nr][nc]) continue;
+            const nt = gridData[nr][nc];
+            const doorKey = `${nr},${nc}`;
+
+            if (nt === TILE.LOCKED_DOOR && !ignoreLocks && !unlockedDoors.has(doorKey)) {
+              frontierLockedDoors.push(doorKey);
+              continue;
+            }
+
+            const isPassable = (
+              nt === TILE.FLOOR ||
+              nt === TILE.DOOR ||
+              nt === TILE.OPEN_DOOR ||
+              nt === TILE.EXIT ||
+              nt === TILE.PARTITION ||
+              nt === TILE.LIFELINE ||
+              (nt === TILE.LOCKED_DOOR && (ignoreLocks || unlockedDoors.has(doorKey)))
+            );
+            if (isPassable) {
+              visited[nr][nc] = true;
+              queue.push({ c: nc, r: nr });
+            }
+          }
         }
+
+        if (availableKeys > 0 && frontierLockedDoors.length > 0) {
+          for (const dk of frontierLockedDoors) {
+            if (!unlockedDoors.has(dk)) {
+              unlockedDoors.add(dk);
+            }
+          }
+          availableKeys--;
+          continue;
+        }
+
+        if (!foundNewKey) break;
       }
+
+      return false;
     }
-    return false;
+
+    if (canReachExit(false)) {
+      return { ok: true };
+    }
+    if (canReachExit(true)) {
+      return { ok: false, reason: 'missing_key' };
+    }
+    return { ok: false, reason: 'blocked' };
   }
 
   function createCustomStageObject(gridData, firesData, smokesData, itemsData) {
@@ -133,6 +179,7 @@
           else if (t === TILE.FURNITURE) editorCtx.fillStyle = '#451a03';
           else if (t === TILE.EXIT) editorCtx.fillStyle = '#059669';
           else if (t === TILE.HOT_DOOR) editorCtx.fillStyle = '#991b1b';
+          else if (t === TILE.PHONE_119) editorCtx.fillStyle = '#581c87';
           else editorCtx.fillStyle = '#1e293b';
 
           editorCtx.fillRect(x, y, tw - 1, th - 1);
@@ -147,6 +194,12 @@
           else if (t === TILE.LIFELINE) editorCtx.fillText('🪢', x + tw / 2, y + th / 2);
           else if (t === TILE.SINK) editorCtx.fillText('🚰', x + tw / 2, y + th / 2);
           else if (t === TILE.ALARM_BELL) editorCtx.fillText('🔔', x + tw / 2, y + th / 2);
+          else if (t === TILE.PHONE_119) editorCtx.fillText('📞', x + tw / 2, y + th / 2);
+          else if (t === TILE.GAS_VALVE) editorCtx.fillText('🔴', x + tw / 2, y + th / 2);
+          else if (t === TILE.BREAKER) editorCtx.fillText('⚡', x + tw / 2, y + th / 2);
+          else if (t === TILE.ELEVATOR) editorCtx.fillText('🛗', x + tw / 2, y + th / 2);
+          else if (t === TILE.DEBRIS) editorCtx.fillText('🪵', x + tw / 2, y + th / 2);
+          else if (t === TILE.HAZARD) editorCtx.fillText('⚠️', x + tw / 2, y + th / 2);
           else if (t === TILE.EXIT) editorCtx.fillText('🏃', x + tw / 2, y + th / 2);
         }
       }
@@ -202,12 +255,18 @@
     });
 
     let isEditorDrawing = false;
+    let lastPaintC = -1;
+    let lastPaintR = -1;
+
     function applyEditorBrushAt(clientX, clientY) {
       const rect = editorCanvas.getBoundingClientRect();
       const c = Math.floor(((clientX - rect.left) / rect.width) * COLS);
       const r = Math.floor(((clientY - rect.top) / rect.height) * ROWS);
       if (c <= 0 || c >= COLS - 1 || r <= 0 || r >= ROWS - 1) return;
       if (c === 1 && r === 1) return; // Keep player start tile clear
+      if (c === lastPaintC && r === lastPaintR) return;
+      lastPaintC = c;
+      lastPaintR = r;
 
       editorFires = editorFires.filter(f => !(f.c === c && f.r === r));
       editorSmokes = editorSmokes.filter(s => !(s.c === c && s.r === r));
@@ -223,14 +282,18 @@
       else if (editorBrush === 'lifeline') editorGrid[r][c] = TILE.LIFELINE;
       else if (editorBrush === 'sink') editorGrid[r][c] = TILE.SINK;
       else if (editorBrush === 'bell') editorGrid[r][c] = TILE.ALARM_BELL;
+      else if (editorBrush === 'phone_119') editorGrid[r][c] = TILE.PHONE_119;
       else if (editorBrush === 'exit') editorGrid[r][c] = TILE.EXIT;
       else if (editorBrush === 'fire') editorFires.push({ c, r, intensity: 1.0, fireType: 'normal' });
       else if (editorBrush === 'oil_fire') editorFires.push({ c, r, intensity: 1.0, fireType: 'oil' });
       else if (editorBrush === 'elec_fire') editorFires.push({ c, r, intensity: 1.0, fireType: 'electric' });
       else if (editorBrush === 'smoke') editorSmokes.push({ c, r });
       else if (editorBrush === 'extinguisher') editorItems.push({ c, r, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 });
+      else if (editorBrush === 'towel') editorItems.push({ c, r, type: 'towel', name: '마른 수건', icon: '🧣' });
       else if (editorBrush === 'mask') editorItems.push({ c, r, type: 'mask', name: '방연마스크', icon: '😷' });
+      else if (editorBrush === 'flashlight') editorItems.push({ c, r, type: 'flashlight', name: '비상 손전등', icon: '🔦' });
       else if (editorBrush === 'key') editorItems.push({ c, r, type: 'key', name: '비상열쇠', icon: '🔑' });
+      else if (editorBrush === 'npc') editorItems.push({ c, r, type: 'npc', name: '이웃/친구(구조)', icon: '🧒' });
 
       syncEditorCode();
       drawEditorCanvas();
@@ -239,6 +302,8 @@
     editorCanvas.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       isEditorDrawing = true;
+      lastPaintC = -1;
+      lastPaintR = -1;
       applyEditorBrushAt(e.clientX, e.clientY);
     });
     editorCanvas.addEventListener('pointermove', (e) => {
@@ -247,6 +312,8 @@
     });
     window.addEventListener('pointerup', () => {
       isEditorDrawing = false;
+      lastPaintC = -1;
+      lastPaintR = -1;
     });
 
     function copyTextWithFallback(text, successMsg) {
@@ -287,11 +354,22 @@
     function loadFromRawCode(rawCode, silent = false) {
       try {
         const decoded = decodeMapData(rawCode);
-        if (decoded && Array.isArray(decoded.g) && decoded.g.length === ROWS) {
-          editorGrid = decoded.g;
-          editorFires = decoded.f || [];
-          editorSmokes = decoded.s || [];
-          editorItems = decoded.i || [];
+        if (
+          decoded &&
+          Array.isArray(decoded.g) &&
+          decoded.g.length === ROWS &&
+          decoded.g.every(row => Array.isArray(row) && row.length === COLS)
+        ) {
+          editorGrid = decoded.g.map((row, r) =>
+            row.map((val, c) => {
+              if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) return TILE.WALL;
+              if (r === 1 && c === 1) return TILE.FLOOR;
+              return typeof val === 'number' ? val : TILE.FLOOR;
+            })
+          );
+          editorFires = Array.isArray(decoded.f) ? decoded.f : [];
+          editorSmokes = Array.isArray(decoded.s) ? decoded.s : [];
+          editorItems = Array.isArray(decoded.i) ? decoded.i : [];
           syncEditorCode();
           drawEditorCanvas();
           if (!silent) {
@@ -329,9 +407,14 @@
         drawEditorCanvas();
       }
 
-      // 2. Validate BFS path from player start (1,1) to any exit
-      if (!validateCustomMapReachable(editorGrid)) {
-        callbacks.showToast('⚠️ 시작 위치(🧍)에서 비상구까지 이동할 수 있는 통로가 벽이나 가구로 완전히 막혀 있습니다! 통로를 열어주세요.', 'border-red-500');
+      // 2. Validate BFS path (including key availability for locked doors) from player start (1,1) to any exit
+      const validation = validateCustomMapReachable(editorGrid, editorItems);
+      if (!validation.ok) {
+        if (validation.reason === 'missing_key') {
+          callbacks.showToast('⚠️ 잠긴 문(🔒)으로만 출구가 연결되어 있는데 도달 가능한 열쇠(🔑)가 없습니다! 열쇠를 배치하거나 일반 방화문(🚪)으로 바꿔주세요.', 'border-amber-500');
+        } else {
+          callbacks.showToast('⚠️ 시작 위치(🧍)에서 비상구까지 이동할 수 있는 통로가 벽이나 가구로 완전히 막혀 있습니다! 통로를 열어주세요.', 'border-red-500');
+        }
         return;
       }
 

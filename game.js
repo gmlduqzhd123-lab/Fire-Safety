@@ -373,9 +373,13 @@
     interactedDoors = new Set();
 
     let hazardCount = 0;
+    let hasGasValve = false;
+    let hasBreaker = false;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (grid[r][c] === TILE.HAZARD) hazardCount++;
+        if (grid[r][c] === TILE.GAS_VALVE) hasGasValve = true;
+        if (grid[r][c] === TILE.BREAKER) hasBreaker = true;
       }
     }
 
@@ -402,8 +406,8 @@
     player.fireDoorsClosed = 0;
     player.hazardsFixed = 0;
     player.totalHazards = hazardCount;
-    player.gasClosed = (currentStageIdx !== 1 || !!customStageObj);
-    player.breakerClosed = (currentStageIdx !== 1 || !!customStageObj);
+    player.gasClosed = !hasGasValve;
+    player.breakerClosed = !hasBreaker;
     player.carryingToy = false;
     player.hurtCooldown = 0;
 
@@ -436,9 +440,13 @@
     ];
     stageButtons.forEach(({ btn, idx }) => {
       if (idx === currentStageIdx && !customStageObj) {
-        btn.className = 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition';
+        btn.className = idx === 5
+          ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-emerald-600 text-white transition'
+          : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md bg-orange-600 text-white transition';
       } else {
-        btn.className = 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition';
+        btn.className = idx === 5
+          ? 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-emerald-300 hover:text-white transition'
+          : 'px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-bold rounded-md text-slate-300 hover:text-white transition';
       }
     });
 
@@ -448,6 +456,7 @@
 
   // --- HUD Update ---
   function updateHUD() {
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     const hpPct = Math.max(0, Math.min(100, Math.round(player.hp)));
     const o2Pct = Math.max(0, Math.min(100, Math.round(player.o2)));
 
@@ -470,7 +479,15 @@
       btnRoll.className = 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-500/40 text-[11px] sm:text-xs font-bold text-rose-200 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
     }
 
-    if (player.crouching) {
+    if (st.isPreventionMode) {
+      postureStatus.textContent = player.crouching ? '🧎 하층 점검' : '🔍 사전점검';
+      postureStatus.className = 'text-xs font-extrabold text-emerald-400';
+      convectionMarker.style.top = player.crouching ? '20px' : '12px';
+      convectionHint.textContent = '화재 전 쾌적한 실내 공기';
+      btnCrouch.className = player.crouching
+        ? 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-[11px] sm:text-xs font-bold text-white flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow'
+        : 'btn-control px-2 sm:px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] sm:text-xs font-bold text-amber-300 flex flex-col items-center justify-center min-w-[60px] sm:min-w-[68px] shadow';
+    } else if (player.crouching) {
       postureStatus.textContent = '🧎 하층(안전)';
       postureStatus.className = 'text-xs font-extrabold text-emerald-400';
       convectionMarker.style.top = '20px';
@@ -723,7 +740,7 @@
       if (dist <= 2.6) {
         const dot = (dx * player.dirX + dy * player.dirY) / (dist || 1);
         if (dot > 0.3 || dist < 1.2) {
-          if (f.fireType === 'oil' || f.fireType === 'electric') {
+          if (f.fireType === 'oil' || (f.fireType === 'electric' && !player.breakerClosed)) {
             hazardTriggered = f.fireType;
             metrics.waterOnSpecialFireMistake++;
             player.hp = Math.max(5, player.hp - 12);
@@ -737,7 +754,7 @@
             normalExtinguished++;
             metrics.correctExtinguishCount++;
             score += 150;
-            addFloatText(fx, fy, '🪣 냉각 소화(발화점↓)! +150', '#60a5fa');
+            addFloatText(fx, fy, f.fireType === 'electric' ? '⚡ 전원차단 후 냉각소화! +150' : '🪣 냉각 소화(발화점↓)! +150', '#60a5fa');
           }
         }
       }
@@ -746,9 +763,9 @@
     if (hazardTriggered === 'oil') {
       showToast('🚨 [과학 원리 경고] 식용유·알코올 화재(🍳)에 물을 부으면 불길이 번집니다! 소화기(🧯질식소화)를 쓰세요!', 'border-red-500');
     } else if (hazardTriggered === 'electric') {
-      showToast('🚨 [과학 원리 경고] 전기 화재(⚡)에 물을 부으면 감전됩니다! 차단기(⚡)를 내리고 소화기(🧯)를 쓰세요!', 'border-red-500');
+      showToast('🚨 [과학 원리 경고] 전원이 켜진 전기 화재(⚡)에 물을 부으면 감전됩니다! 차단기(⚡)를 내리거나 소화기(🧯)를 쓰세요!', 'border-red-500');
     } else if (normalExtinguished > 0) {
-      showToast(`🪣 [냉각 소화 성공] 물로 온도를 발화점 아래로 낮춰 일반 화재 ${normalExtinguished}곳을 진압했습니다!`, 'border-blue-400');
+      showToast(`🪣 [냉각 소화 성공] 물로 온도를 발화점 아래로 낮춰 화재 ${normalExtinguished}곳을 진압했습니다!`, 'border-blue-400');
     } else {
       showToast('🪣 물을 뿌렸습니다. 일반 화재(🔥)를 향해 사용하세요!', 'border-slate-600');
     }
@@ -769,6 +786,12 @@
 
     player.extinguisherCharges--;
     SoundFX.spray();
+
+    if (player.onFire) {
+      player.onFire = false;
+      player.rollNeeded = 0;
+      addFloatText(player.x, player.y - 0.3, '🧯 소화기로 몸의 불 진화!', '#38bdf8');
+    }
 
     const dirAngle = Math.atan2(player.dirY, player.dirX);
     for (let i = 0; i < 26; i++) {
@@ -967,8 +990,18 @@
   }
 
   // --- Household Fire Hazard Inspection (사전 예방 점검 모드) ---
+  const HAZARD_COORD_MAP = {
+    '1,3': 0,
+    '1,7': 1,
+    '1,13': 2,
+    '7,2': 3,
+    '8,8': 4
+  };
+
   function inspectHazardTile(c, r) {
-    const q = HAZARD_QUIZZES[player.hazardsFixed % HAZARD_QUIZZES.length];
+    const mappedIdx = HAZARD_COORD_MAP[`${r},${c}`];
+    const quizIdx = typeof mappedIdx === 'number' ? mappedIdx : (player.hazardsFixed % HAZARD_QUIZZES.length);
+    const q = HAZARD_QUIZZES[quizIdx % HAZARD_QUIZZES.length];
     openEduModal(
       `화재 예방 사전 점검 (${player.hazardsFixed + 1}/${player.totalHazards})`,
       q.title,
@@ -1406,7 +1439,7 @@
   }
 
   // --- Build Debriefing Report Card ---
-  function populateDebriefReport() {
+  function populateDebriefReport(isGameOver = false) {
     debriefReportBox.classList.remove('hidden');
     const crouchPct = metrics.smokeTimeTotal > 0.5
       ? Math.round((metrics.smokeTimeCrouched / metrics.smokeTimeTotal) * 100)
@@ -1415,7 +1448,7 @@
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     const itemsHtml = [];
     if (st.isPreventionMode) {
-      itemsHtml.push(`<div>✅ <strong>가정 내 화재 위험요소 사전 점검:</strong> 총 <strong>${player.hazardsFixed} / ${player.totalHazards}곳</strong> 안전 조치 완료</div>`);
+      itemsHtml.push(`<div>${player.hazardsFixed >= player.totalHazards ? '✅' : '⚠️'} <strong>가정 내 화재 위험요소 사전 점검:</strong> 총 <strong>${player.hazardsFixed} / ${player.totalHazards}곳</strong> 안전 조치 완료</div>`);
     } else {
       itemsHtml.push(`<div>${(player.wetTowel || player.hasMask) ? '✅' : '⚠️'} <strong>호흡기 보호 & 낮은 자세:</strong> ${player.hasMask ? '방연마스크 착용' : (player.wetTowel ? '젖은 수건 착용' : '미착용')} · 낮은 자세 유지율 <strong>${crouchPct}%</strong></div>`);
     }
@@ -1425,13 +1458,19 @@
 
     debriefChecklist.innerHTML = itemsHtml.join('');
 
-    let gradeText = '최우수 안전 대원 (S등급)';
-    if (metrics.waterOnSpecialFireMistake > 0 || metrics.backdraftTriggered > 0) {
-      gradeText = '안전 수칙 복습 필요 (B등급)';
+    if (isGameOver) {
+      debriefGrade.textContent = '대피 실패 · 재도전 필요 (미수료)';
+      debriefGrade.className = 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px] sm:text-[11px]';
+    } else if (metrics.waterOnSpecialFireMistake > 0 || metrics.backdraftTriggered > 0) {
+      debriefGrade.textContent = '안전 수칙 복습 필요 (B등급)';
+      debriefGrade.className = 'px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px] sm:text-[11px]';
     } else if (crouchPct < 60 || !metrics.ignoredOrDroppedToy) {
-      gradeText = '우수 안전 대원 (A등급)';
+      debriefGrade.textContent = '우수 안전 대원 (A등급)';
+      debriefGrade.className = 'px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold text-[10px] sm:text-[11px]';
+    } else {
+      debriefGrade.textContent = '최우수 안전 대원 (S등급)';
+      debriefGrade.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]';
     }
-    debriefGrade.textContent = gradeText;
 
     debriefCurriculumNote.innerHTML = `<strong>📚 [교과 & 안전 핵심 정리 - ${st.curriculumFocus}]</strong><br/>우측 미니맵에서 나의 실제 이동 궤적(🟢안전 이동, 🔵낮은 자세, 🔴화상·질식 지점)을 복기하고, [🏅 수료증·도감]에서 획득한 안전 배지를 확인해 보세요!`;
 
@@ -1466,7 +1505,7 @@
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
-    populateDebriefReport();
+    populateDebriefReport(false);
 
     const activeSt = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     if (activeCustomStage) {
@@ -1483,7 +1522,7 @@
       overlayIcon.textContent = '🔍';
       overlaySubtitle.textContent = '우리 집 화재 예방 사전 점검 완료!';
       overlayTitle.textContent = '집 안의 위험요소 5곳을 모두 해결했습니다!';
-      overlayDesc.innerHTML = `훌륭합니다! 문어발 콘센트·가스불·적치물을 모두 안전하게 조치했습니다. (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
+      overlayDesc.innerHTML = `훌륭합니다! 문어발 콘센트·가스불·적치물·난방기구·소방시설을 모두 안전하게 조치했습니다. (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
       btnPrimaryAction.textContent = '1단계 실전 대피 시작 ▶';
       btnSecondaryAction.classList.remove('hidden');
       btnSecondaryAction.textContent = '예방 점검 다시하기';
@@ -1530,7 +1569,7 @@
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
-    populateDebriefReport();
+    populateDebriefReport(true);
 
     overlayIcon.textContent = '⚠️';
     overlaySubtitle.textContent = '대피 실패 · 동선 리플레이 분석';
@@ -1621,11 +1660,15 @@
 
     // Check if standing on EXIT
     if (grid[pr] && grid[pr][pc] === TILE.EXIT) {
-      if (currentStageIdx === 1 && !activeCustomStage && !player.gasClosed) {
+      if (currentStageIdx === 1 && !activeCustomStage && (!player.gasClosed || !player.breakerClosed)) {
         if (player.hurtCooldown <= 0) {
           player.hurtCooldown = 1.5;
           SoundFX.warning();
-          showToast('⚠️ 주방의 가스 밸브(🔴)를 먼저 잠가야 폭발을 막고 탈출할 수 있습니다!', 'border-red-500');
+          if (!player.gasClosed) {
+            showToast('⚠️ 주방의 가스 밸브(🔴)를 먼저 잠가야 폭발을 막고 탈출할 수 있습니다!', 'border-red-500');
+          } else {
+            showToast('⚠️ 거실의 전원 차단기(⚡)를 먼저 내려야 누전 화재를 막고 탈출할 수 있습니다!', 'border-sky-500');
+          }
         }
       } else if (currentStageIdx === 5 && !activeCustomStage && player.hazardsFixed < player.totalHazards) {
         if (player.hurtCooldown <= 0) {
@@ -2043,7 +2086,7 @@
       }
     }
 
-    // 1.5 Draw Green Evacuation Guide Signs
+    // 1.5 Draw Green Evacuation Guide Signs & Glowing Exits
     function drawGuideSignsAndExits(isGlowLayer = false) {
       for (const gs of guideSigns) {
         const gx = (gs.c + 0.5) * tileSize;
@@ -2057,6 +2100,31 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`🏃${gs.dir}`, gx, gy);
+      }
+
+      if (isGlowLayer) {
+        const glow = 0.65 + 0.35 * Math.sin(now * 2);
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] === TILE.EXIT) {
+              const x = c * tileSize;
+              const y = r * tileSize;
+              ctx.fillStyle = `rgba(16, 185, 129, ${glow * 0.85})`;
+              ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+              ctx.strokeStyle = '#6ee7b7';
+              ctx.lineWidth = 2;
+              ctx.strokeRect(x + 3, y + 3, tileSize - 6, tileSize - 6);
+              ctx.lineWidth = 1;
+              ctx.fillStyle = '#ffffff';
+              ctx.font = `900 ${Math.floor(tileSize * 0.25)}px sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('EXIT', x + tileSize * 0.5, y + tileSize * 0.35);
+              ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+              ctx.fillText('🏃', x + tileSize * 0.5, y + tileSize * 0.72);
+            }
+          }
+        }
       }
     }
     drawGuideSignsAndExits(false);
@@ -2536,6 +2604,12 @@
         showToast('🔄 현재 스테이지를 처음부터 다시 시작합니다.');
       }
     }
+    if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) {
+      if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        e.preventDefault();
+        btnPause.click();
+      }
+    }
   });
 
   window.addEventListener('keyup', (e) => {
@@ -2591,7 +2665,7 @@
 
   function selectStageManual(idx) {
     SoundFX.init();
-    loadStage(idx, false, null);
+    loadStage(idx, true, null);
     hideAllModalsAndResume();
     showToast(`🚩 ${STAGES[idx].name} 시작! ${STAGES[idx].mission}`);
   }
