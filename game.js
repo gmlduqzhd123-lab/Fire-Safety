@@ -611,10 +611,17 @@
     player.carryingToy = false;
     player.hurtCooldown = 0;
 
-    player2.x = canMoveTo(st.playerStart.x + 0.85, st.playerStart.y, player2.radius)
-      ? st.playerStart.x + 0.85
-      : st.playerStart.x;
-    player2.y = st.playerStart.y;
+    const p2Offsets = [
+      { dx: 0.85, dy: 0 },
+      { dx: -0.85, dy: 0 },
+      { dx: 0, dy: 0.85 },
+      { dx: 0, dy: -0.85 }
+    ];
+    const safeP2 = p2Offsets.find(off =>
+      canMoveTo(st.playerStart.x + off.dx, st.playerStart.y + off.dy, player2.radius)
+    );
+    player2.x = safeP2 ? st.playerStart.x + safeP2.dx : st.playerStart.x;
+    player2.y = safeP2 ? st.playerStart.y + safeP2.dy : st.playerStart.y;
     player2.dirX = 0;
     player2.dirY = 1;
     player2.crouching = false;
@@ -918,7 +925,8 @@
     }
 
     // Step 9: Final Escape Goal (EXIT)
-    const exitTile = findNearestTileOfTypes([TILE.EXIT, TILE.LIFELINE, TILE.PARTITION]);
+    const exitTile =
+      findNearestTileOfTypes([TILE.EXIT]) || findNearestTileOfTypes([TILE.LIFELINE, TILE.PARTITION]);
     if (exitTile) {
       return {
         c: exitTile.c,
@@ -7480,7 +7488,7 @@
     if (!obj || typeof obj !== 'object') {
       return { valid: false, reason: '저장 데이터가 올바른 JSON 객체가 아닙니다.' };
     }
-    if (obj.version !== 2 || obj.layoutVersion !== 4) {
+    if (obj.version !== 2 || obj.layoutVersion !== 5) {
       return { valid: false, reason: `지원하지 않는 저장 버전입니다 (version=${obj.version}, layoutVersion=${obj.layoutVersion}).` };
     }
     if (obj.worldId !== 'fire') {
@@ -7520,7 +7528,7 @@
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     return {
       version: 2,
-      layoutVersion: 4,
+      layoutVersion: 5,
       worldId: 'fire',
       stageIdx: currentStageIdx,
       stageName: st.name || `${currentStageIdx + 1}단계`,
