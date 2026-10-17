@@ -1965,6 +1965,7 @@
     overlayStats.classList.remove('hidden');
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
+    if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
     populateDebriefReport(false);
 
@@ -2033,6 +2034,7 @@
     overlayStats.classList.remove('hidden');
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
+    if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
     populateDebriefReport(true);
 
@@ -3023,10 +3025,14 @@
     animFrameId = requestAnimationFrame(gameLoop);
   }
 
-  // --- Mobile Landscape Console Orientation & High-DPI Canvas Resize ---
+  // --- Landscape-Only Mode & Smartphone Portrait '가로로 돌려주세요' Prompt ---
+  const rotateNoticeOverlay = document.getElementById('rotateNoticeOverlay');
+  const btnForceLandscapeFallback = document.getElementById('btnForceLandscapeFallback');
+  const btnHomeMain = document.getElementById('btnHomeMain');
+  const btnMainGuide = document.getElementById('btnMainGuide');
   const btnLandscapeToggle = document.getElementById('btnLandscapeToggle');
   const landscapeToggleText = document.getElementById('landscapeToggleText');
-  let userLandscapePref = null; // null = auto (landscape on mobile), true = force landscape, false = force portrait
+  let userForceRotateFallback = false;
 
   function syncViewportOrientation() {
     const vw = window.innerWidth;
@@ -3035,57 +3041,42 @@
     document.documentElement.style.setProperty('--vp-h', `${vh}px`);
 
     const isPortraitViewport = vw < vh;
-    const isMobileDevice = Math.min(vw, vh) <= 540;
-    const isPhysicalMobileLandscape = vw > vh && vh <= 540;
-
-    let enableLandscapeConsole = false;
-    let enableForceRotation = false;
-
-    if (userLandscapePref === true) {
-      enableLandscapeConsole = true;
-      enableForceRotation = isPortraitViewport;
-    } else if (userLandscapePref === false) {
-      enableLandscapeConsole = isPhysicalMobileLandscape;
-      enableForceRotation = false;
-    } else if (isMobileDevice) {
-      enableLandscapeConsole = true;
-      enableForceRotation = isPortraitViewport;
+    if (!isPortraitViewport) {
+      userForceRotateFallback = false;
     }
 
+    // Always run in horizontal console layout (가로 모드 전용)
+    document.body.classList.add('landscape-console');
     document.body.classList.toggle('is-portrait-viewport', isPortraitViewport);
-    document.body.classList.toggle('landscape-console', enableLandscapeConsole);
+
+    const showPortraitNotice = isPortraitViewport && !userForceRotateFallback;
+    const enableForceRotation = isPortraitViewport && userForceRotateFallback;
     document.body.classList.toggle('force-landscape', enableForceRotation);
 
+    if (rotateNoticeOverlay) {
+      if (showPortraitNotice) {
+        rotateNoticeOverlay.classList.remove('hidden');
+        rotateNoticeOverlay.classList.add('flex');
+      } else {
+        rotateNoticeOverlay.classList.add('hidden');
+        rotateNoticeOverlay.classList.remove('flex');
+      }
+    }
+
     if (landscapeToggleText) {
-      landscapeToggleText.textContent = enableLandscapeConsole ? '세로전환' : '가로모드';
+      landscapeToggleText.textContent = '가로전용';
     }
   }
 
   function resizeCanvas() {
     syncViewportOrientation();
-    const isLandscapeConsole = document.body.classList.contains('landscape-console');
-    const isBoardZoom = document.body.classList.contains('smartboard-zoom');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    if (isLandscapeConsole) {
-      canvasContainer.style.height = '';
-      const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 290);
-      const availH = canvasContainer.clientHeight || Math.max(200, Math.min(window.innerWidth, window.innerHeight) - 52);
-      cssCanvasW = Math.max(240, Math.floor(availW));
-      cssCanvasH = Math.max(180, Math.floor(availH));
-    } else {
-      const isMobileViewport = window.innerWidth < 640;
-      const containerW = canvasContainer.clientWidth || Math.min(window.innerWidth - 16, isBoardZoom ? 1160 : 980);
-      cssCanvasW = Math.max(280, Math.floor(containerW));
-      const aspectH = Math.floor(cssCanvasW * (ROWS / COLS));
-      if (isMobileViewport) {
-        cssCanvasH = Math.max(200, aspectH);
-      } else {
-        const maxViewportH = Math.max(320, Math.min(isBoardZoom ? 660 : 540, Math.floor(window.innerHeight * (isBoardZoom ? 0.65 : 0.55))));
-        cssCanvasH = Math.max(320, Math.min(Math.max(aspectH, 320), maxViewportH));
-      }
-      canvasContainer.style.height = cssCanvasH + 'px';
-    }
+    canvasContainer.style.height = '';
+    const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 290);
+    const availH = canvasContainer.clientHeight || Math.max(200, Math.min(window.innerWidth, window.innerHeight) - 52);
+    cssCanvasW = Math.max(240, Math.floor(availW));
+    cssCanvasH = Math.max(180, Math.floor(availH));
 
     canvas.style.width = cssCanvasW + 'px';
     canvas.style.height = cssCanvasH + 'px';
@@ -3440,26 +3431,54 @@
     });
   }
 
-  if (btnLandscapeToggle) {
-    btnLandscapeToggle.addEventListener('click', () => {
+  if (btnForceLandscapeFallback) {
+    btnForceLandscapeFallback.addEventListener('click', () => {
       SoundFX.init();
-      const currentlyLandscape = document.body.classList.contains('landscape-console');
-      userLandscapePref = !currentlyLandscape;
-      if (userLandscapePref && screen.orientation && typeof screen.orientation.lock === 'function') {
+      userForceRotateFallback = true;
+      if (screen.orientation && typeof screen.orientation.lock === 'function') {
         try {
           screen.orientation.lock('landscape').catch(() => {});
         } catch (e) {}
-      } else if (!userLandscapePref && screen.orientation && typeof screen.orientation.unlock === 'function') {
-        try {
-          screen.orientation.unlock();
-        } catch (e) {}
       }
       resizeCanvas();
-      showToast(
-        userLandscapePref
-          ? '📱 [가로 콘솔 모드 ON] 좌측 십자키와 우측 액션 버튼으로 넓고 쾌적하게 플레이하세요!'
-          : '📱 [세로 화면 모드 ON] 상단 [가로모드] 버튼으로 언제든 가로 화면으로 전환할 수 있습니다.'
-      );
+      showToast('📱 화면 회전 잠금 상태에서도 플레이할 수 있도록 가로 화면으로 전환했습니다!');
+    });
+  }
+
+  function showMainTitleScreen() {
+    clearAllInputStates();
+    gameState = 'START';
+    overlayIcon.textContent = '🔥';
+    overlaySubtitle.textContent = '2022 개정 교육과정 연계 · 인터랙티브 화재 안전 게임';
+    overlayTitle.textContent = '화재 탈출 넘버원';
+    overlayDesc.innerHTML = '불타는 건물과 유독가스 속에서 <strong>올바른 안전 수칙</strong>을 실천하며 <strong>비상구(EXIT)</strong>까지 탈출하는 생존 시뮬레이션 게임입니다.';
+    overlayTipsBox.classList.remove('hidden');
+    overlayStats.classList.add('hidden');
+    overlayStats.classList.remove('grid');
+    debriefReportBox.classList.add('hidden');
+    if (btnMainGuide) btnMainGuide.classList.remove('hidden');
+    btnOpenCertFromOverlay.classList.remove('hidden');
+    btnSecondaryAction.classList.add('hidden');
+    btnPrimaryAction.textContent = '▶️ 게임 시작하기';
+    gameOverlay.classList.remove('hidden');
+    overlaySelectedIndex = 0;
+    setTimeout(updateOverlaySelectionUI, 20);
+  }
+
+  if (btnHomeMain) {
+    btnHomeMain.addEventListener('click', () => {
+      SoundFX.init();
+      if (moreToolsDrawer) {
+        moreToolsDrawer.classList.add('hidden');
+        moreToolsDrawer.classList.remove('flex');
+      }
+      showMainTitleScreen();
+    });
+  }
+
+  if (btnMainGuide) {
+    btnMainGuide.addEventListener('click', () => {
+      if (btnGuide) btnGuide.click();
     });
   }
 

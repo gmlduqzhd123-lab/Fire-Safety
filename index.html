@@ -14,7 +14,30 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
 </head>
-<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
+
+  <!-- Smartphone Portrait Warning Overlay ('가로로 돌려주세요') -->
+  <div id="rotateNoticeOverlay" class="fixed inset-0 z-[100] hidden flex-col items-center justify-center bg-slate-950/98 backdrop-blur-md p-6 text-center select-none">
+    <div class="relative w-24 h-24 mb-5 flex items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500/20 to-red-600/20 border border-orange-500/40 shadow-2xl shadow-orange-600/20">
+      <div class="rotate-phone-anim text-5xl">📱</div>
+      <span class="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-orange-600 text-[10px] font-black text-white tracking-wider uppercase shadow">LANDSCAPE ONLY</span>
+    </div>
+    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight mb-2">
+      화면을 <span class="text-amber-400 underline decoration-orange-500/60 underline-offset-4">가로로 돌려주세요</span>
+    </h2>
+    <p class="text-xs sm:text-sm text-slate-300 max-w-xs leading-relaxed mb-5">
+      <strong>화재 탈출 넘버원</strong>은 넓은 대피 시야와 편리한 양손 조작을 위해 <strong>가로 모드 전용</strong>으로 실행됩니다.<br/>
+      스마트폰을 옆으로 눕히면 자동으로 실행됩니다!
+    </p>
+    <div class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-amber-300 font-bold mb-4">
+      <span>🔄</span>
+      <span>스마트폰을 가로 방향으로 회전해 주세요</span>
+    </div>
+    <button id="btnForceLandscapeFallback" type="button" class="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-[11px] text-slate-400 hover:text-slate-200 font-semibold transition">
+      🔒 화면 회전이 잠겨 있다면 여기를 눌러 가로 화면으로 시작
+    </button>
+  </div>
+
   <div id="appRoot" class="w-full min-h-screen flex flex-col bg-slate-950 text-slate-100">
 
   <!-- Top Navigation & Live Step-by-Step Objective Header -->
@@ -40,9 +63,13 @@
 
         <!-- Right: Only 3 Essential Buttons -->
         <div class="flex items-center gap-1 shrink-0">
-          <button id="btnLandscapeToggle" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/50 text-orange-300 transition flex items-center gap-1" title="가로/세로 화면 전환">
-            <span>📱</span>
-            <span id="landscapeToggleText" class="text-[11px] sm:text-xs">가로모드</span>
+          <button id="btnHomeMain" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="메인 화면으로">
+            <span>🏠</span>
+            <span class="text-[11px] sm:text-xs">메인화면</span>
+          </button>
+
+          <button id="btnLandscapeToggle" type="button" class="hidden">
+            <span id="landscapeToggleText">가로전용</span>
           </button>
 
           <button id="btnRestartTop" type="button" class="px-2 py-1 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="다시 시작">
@@ -177,36 +204,57 @@
         우측 [✋ 행동하기] 버튼을 누르세요!
       </div>
 
-      <!-- Start / Stage Intro / Game Over / Victory Overlay Modal -->
-      <div id="gameOverlay" class="fixed sm:absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-4 sm:p-5 shadow-2xl text-center flex flex-col gap-3 my-auto max-h-[96%] overflow-y-auto">
-          <div id="overlayIcon" class="w-10 h-10 sm:w-12 sm:h-12 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-xl sm:text-2xl shadow-lg shadow-red-600/30 shrink-0">
-            🚨
-          </div>
-          <div>
-            <span id="overlaySubtitle" class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-orange-400">한눈에 보고 쉽게 배우는 화재 안전 게임</span>
-            <h2 id="overlayTitle" class="text-lg sm:text-2xl font-black text-white mt-0.5">🔥 화재 탈출 넘버원</h2>
-            <p id="overlayDesc" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
-              노란색 점선 화살표(<strong>🎯 다음 목표</strong>)를 따라 움직이며 안전하게 비상구(<strong>EXIT</strong>)로 탈출하세요!
+      <!-- Sleek Main Title Screen / Stage Clear / Game Over Overlay -->
+      <div id="gameOverlay" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-5 overflow-y-auto no-scrollbar">
+        <!-- Decorative Ambient Glows -->
+        <div class="pointer-events-none fixed top-0 left-1/4 w-72 h-72 bg-orange-600/15 rounded-full blur-3xl"></div>
+        <div class="pointer-events-none fixed bottom-0 right-1/4 w-72 h-72 bg-sky-500/10 rounded-full blur-3xl"></div>
+
+        <div id="overlayCard" class="relative bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-3.5 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-center flex flex-col gap-2 sm:gap-3.5 my-auto max-h-[96%] overflow-y-auto no-scrollbar break-keep">
+          <!-- Hero Title & Game Introduction -->
+          <div class="flex flex-col items-center gap-1">
+            <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 shadow-sm">
+              <span id="overlayIcon" class="text-sm sm:text-base">🔥</span>
+              <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-extrabold tracking-wide text-orange-300">2022 개정 교육과정 연계 · 인터랙티브 화재 안전 게임</span>
+            </div>
+
+            <h2 id="overlayTitle" class="text-xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-300 bg-clip-text text-transparent mt-0.5">
+              화재 탈출 넘버원
+            </h2>
+
+            <p id="overlayDesc" class="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+              불타는 건물과 유독가스 속에서 <strong>올바른 안전 수칙</strong>을 실천하며 <strong>비상구(EXIT)</strong>까지 탈출하는 화재 안전 체험 게임입니다.
             </p>
           </div>
 
-          <!-- Simple 3-Step Visual Guide Box -->
-          <div id="overlayTipsBox" class="grid grid-cols-3 gap-2 text-center text-xs">
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center gap-1">
-              <span class="text-2xl">🧣🚰</span>
-              <span class="font-extrabold text-sky-300">1. 수건 적시기</span>
-              <span class="text-[10px] text-slate-400 leading-tight">수건을 주워 세면대 물에 적셔요</span>
+          <!-- Main Screen Game Guide & 3-Step Visual Box -->
+          <div id="overlayTipsBox" class="flex flex-col gap-2">
+            <div class="grid grid-cols-3 gap-2 sm:gap-2.5 text-center text-xs">
+              <div class="bg-slate-950/90 border border-sky-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 tracking-wider">STEP 01</span>
+                <span class="text-xl sm:text-2xl mt-0.5">🧣🚰</span>
+                <span class="font-extrabold text-sky-300 text-[11px] sm:text-xs">수건 적시기</span>
+                <span class="text-[10px] text-slate-400 leading-tight">수건을 주워 세면대 물에 적셔 호흡기를 보호해요</span>
+              </div>
+              <div class="bg-slate-950/90 border border-amber-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 tracking-wider">STEP 02</span>
+                <span class="text-xl sm:text-2xl mt-0.5">🧎💨</span>
+                <span class="font-extrabold text-amber-300 text-[11px] sm:text-xs">낮은 자세 이동</span>
+                <span class="text-[10px] text-slate-400 leading-tight">연기가 자욱한 곳에선 자세를 낮춰 이동해요</span>
+              </div>
+              <div class="bg-slate-950/90 border border-emerald-500/30 rounded-2xl p-2 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 tracking-wider">STEP 03</span>
+                <span class="text-xl sm:text-2xl mt-0.5">🎯🚪</span>
+                <span class="font-extrabold text-emerald-300 text-[11px] sm:text-xs">화살표 따라 탈출</span>
+                <span class="text-[10px] text-slate-400 leading-tight">노란 점선 화살표를 따라 비상구(EXIT)로 탈출해요</span>
+              </div>
             </div>
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center gap-1">
-              <span class="text-2xl">🧎💨</span>
-              <span class="font-extrabold text-amber-300">2. 낮은 자세</span>
-              <span class="text-[10px] text-slate-400 leading-tight">연기 속에선 자세를 낮춰 이동해요</span>
-            </div>
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col items-center gap-1">
-              <span class="text-2xl">🏃🟩</span>
-              <span class="font-extrabold text-emerald-300">3. 비상구 탈출</span>
-              <span class="text-[10px] text-slate-400 leading-tight">노란 화살표를 따라 EXIT로 탈출!</span>
+
+            <div class="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800/90 text-[10.5px] sm:text-xs text-slate-300 flex items-center justify-center gap-2 flex-wrap">
+              <span class="text-amber-300 font-extrabold">🕹️ 간편 조작법</span>
+              <span>좌측 <strong>십자키(방향키)</strong>로 이동</span>
+              <span class="text-slate-600">•</span>
+              <span>우측 <strong>[✋ 행동하기]</strong>와 <strong>[🚶 자세 낮추기]</strong> 2개 버튼으로 모든 행동 수행</span>
             </div>
           </div>
 
@@ -245,14 +293,17 @@
             <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-2 pt-0.5">
-            <button id="btnPrimaryAction" type="button" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-black text-sm sm:text-base shadow-lg shadow-orange-600/30 transition">
+          <div class="flex flex-row items-center gap-2 pt-0.5">
+            <button id="btnPrimaryAction" type="button" class="flex-1 py-2.5 sm:py-3.5 px-5 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition">
               ▶️ 게임 시작하기
             </button>
-            <button id="btnOpenCertFromOverlay" type="button" class="hidden py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm transition">
-              🏅 수료증·도감 보기
+            <button id="btnMainGuide" type="button" class="py-2.5 sm:py-3.5 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition shrink-0">
+              🧯 안전수칙
             </button>
-            <button id="btnSecondaryAction" type="button" class="hidden py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition">
+            <button id="btnOpenCertFromOverlay" type="button" class="py-2.5 sm:py-3.5 px-3.5 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold text-xs sm:text-sm transition shrink-0">
+              🏅 수료증·도감
+            </button>
+            <button id="btnSecondaryAction" type="button" class="hidden py-2.5 sm:py-3.5 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0">
               처음부터 다시
             </button>
           </div>

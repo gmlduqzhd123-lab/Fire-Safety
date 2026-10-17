@@ -268,33 +268,51 @@ body.landscape-console #actionButtonsWrapper > button:not(.hidden) {
   padding: 4px 6px !important;
 }
 
+/* Smartphone Portrait Rotate Prompt Animation */
+.rotate-phone-anim {
+  display: inline-block;
+  animation: rotatePhoneHint 2.2s infinite ease-in-out;
+}
+
+@keyframes rotatePhoneHint {
+  0%, 15% {
+    transform: rotate(0deg) scale(1);
+  }
+  50%, 75% {
+    transform: rotate(-90deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
 /* Fullscreen overlay modals in Landscape Console Mode */
 body.landscape-console #gameOverlay,
 body.landscape-console #eduModal {
   position: fixed !important;
   inset: 0 !important;
   z-index: 50 !important;
-  padding: 6px 12px !important;
+  padding: 8px 14px !important;
 }
 
-body.landscape-console #gameOverlay > div,
-body.landscape-console #eduModal > div {
-  max-width: 620px !important;
-  max-height: 94% !important;
-  padding: 10px 16px !important;
-  gap: 6px !important;
+body.landscape-console #overlayCard {
+  max-width: 680px !important;
+  max-height: 95% !important;
 }
 
-body.landscape-console #overlayIcon {
-  width: 32px !important;
-  height: 32px !important;
-  font-size: 16px !important;
-}
-
-body.landscape-console #btnLandscapeToggle {
-  background-color: rgba(249, 115, 22, 0.35) !important;
-  border-color: rgba(251, 146, 60, 0.8) !important;
-  color: #ffffff !important;
+/* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) */
+@media (max-height: 460px) {
+  body.landscape-console #overlayCard {
+    padding: 10px 16px !important;
+    gap: 6px !important;
+  }
+  body.landscape-console #overlayTitle {
+    font-size: 1.25rem !important;
+    line-height: 1.5rem !important;
+  }
+  body.landscape-console #overlayTipsBox > div:first-child > div {
+    padding: 6px 8px !important;
+  }
 }
 
 @media print {
