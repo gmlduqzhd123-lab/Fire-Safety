@@ -2744,7 +2744,8 @@
       }
     }
     if (inFire) {
-      player.hp -= 24 * dt;
+      const fireMult = st.fireDamageMult || 1.0;
+      player.hp -= 24 * fireMult * dt;
       if (!player.onFire) {
         player.onFire = true;
         player.rollNeeded = 2;
@@ -2759,7 +2760,7 @@
     }
 
     if (player.onFire) {
-      const burnRate = isMoving ? 9.5 : 3.5;
+      const burnRate = (isMoving ? 9.5 : 3.5) * (st.fireDamageMult || 1.0);
       player.hp -= burnRate * dt;
       burnBeepTimer += dt;
       if (burnBeepTimer >= 0.9) {
@@ -2784,7 +2785,7 @@
       metrics.smokeTimeTotal += dt;
       if (player.crouching) metrics.smokeTimeCrouched += dt;
 
-      let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0);
+      let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0) * (st.smokeO2DrainMult || 1.0);
       if (player.crouching) drainRate *= 0.35;
       if (player.hasMask) drainRate *= 0.15;
       else if (player.wetTowel) drainRate *= 0.4;
@@ -2806,8 +2807,9 @@
       pathHistory.push({ x: player.x, y: player.y, state: ptState });
     }
 
-    // Physical Fire Door & Smoke Spread Simulation
-    const spreadInterval = player.fireDoorsClosed > 0 ? 11.5 : 7.0;
+    // Physical Fire Door & Smoke Spread Simulation (Scaled by Stage Difficulty)
+    const baseSpread = st.fireSpreadInterval || 11.0;
+    const spreadInterval = player.fireDoorsClosed > 0 ? baseSpread * 1.45 : baseSpread;
     if (fireSpreadTimer >= spreadInterval) {
       fireSpreadTimer = 0;
       const sources = [...fires, ...smokes];
