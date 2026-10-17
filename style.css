@@ -134,27 +134,27 @@ body.landscape-console #headerInner {
 body.landscape-console #headerTopRow {
   flex: 1 1 auto !important;
   min-width: 0 !important;
-  gap: 4px !important;
+  gap: 6px !important;
 }
 
 body.landscape-console #headerStageRow {
-  flex: 0 1 auto !important;
-  max-width: 48% !important;
+  width: 100% !important;
   overflow-x: auto !important;
 }
 
 body.landscape-console #moreToolsDrawer:not(.hidden) {
   display: flex !important;
+  flex-direction: column !important;
   position: absolute !important;
   top: 100% !important;
   right: 8px !important;
   left: 8px !important;
   z-index: 60 !important;
   background: rgba(15, 23, 42, 0.98) !important;
-  padding: 6px 10px !important;
+  padding: 8px 10px !important;
   border-radius: 0.75rem !important;
-  border: 1px solid #334155 !important;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid #475569 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* 3-Column Handheld Gamepad Grid: [Left: HUD + D-Pad] [Center: Map Canvas] [Right: Action Buttons] */

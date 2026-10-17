@@ -76,325 +76,304 @@
     }
   ];
 
-  // --- Stage Definitions (Stages 1~5 + Prevention Mode) ---
+  // --- Clean, At-a-Glance Stage Definitions (Stages 1~6 + Prevention Mode) ---
   const STAGES = [
-    // Index 0 -> Stage 1 (Default start stage)
+    // Index 0 -> Stage 1 (Clean Beginner Tutorial Stage: Towel -> Sink -> Corridor -> Exit)
     {
       id: 1,
       name: '1단계: 2층 침실과 복도',
-      mission: '수건을 적시고 비상벨(🔔)을 울려 가족과 함께 비상계단(EXIT) 또는 경량칸막이(🧱)로 대피하세요!',
-      curriculumFocus: '통합교과(119 신고·유도등) · 공동주택 경량칸막이 & 방화문 닫기',
+      mission: '① 수건(🧣)을 주워 세면대(🚰)에서 적신 뒤 ② 낮은 자세(🧎)로 비상구(EXIT)까지 탈출하세요!',
+      curriculumFocus: '통합교과(젖은 수건·낮은 자세·유도등) · 방화문 닫기 기초',
+      roomLabels: [
+        { c: 2.5, r: 1.4, text: '🛏️ 내 침실' },
+        { c: 9.0, r: 3.4, text: '🚿 욕실(세면대)' },
+        { c: 5.5, r: 5.4, text: '🏃 대피 복도 (낮은 자세 이동)' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,2,2,0,0,0,1,5,0,0,1,6,6,14,1],
-        [1,2,0,0,0,0,3,0,0,0,1,0,0,0,1],
-        [1,0,0,0,2,0,1,1,3,1,1,0,0,0,1],
-        [1,0,0,0,0,0,1,0,0,0,4,0,0,11,1],
-        [1,1,1,4,17,1,1,0,0,0,1,1,3,1,1],
-        [1,0,0,0,0,0,0,0,2,0,0,0,0,0,1],
-        [1,0,2,2,0,10,1,0,0,0,0,2,0,0,1],
-        [1,0,0,0,0,0,1,0,0,0,1,0,0,7,1],
+        [1,0,0,0,0,0,1,0,0,5,0,1,6,14,1],
+        [1,0,0,0,0,0,3,0,0,0,0,1,0,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1],
+        [1,1,1,1,1,1,1,1,3,1,1,1,3,1,1],
+        [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,1,10,1,0,0,0,1,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
       playerStart: { x: 2.5, y: 2.5 },
       guideSigns: [
-        { c: 3, r: 4, dir: '↓' },
-        { c: 3, r: 6, dir: '→' },
-        { c: 7, r: 6, dir: '→' },
-        { c: 10, r: 6, dir: '→' },
-        { c: 12, r: 6, dir: '↓' },
-        { c: 12, r: 8, dir: '→' }
+        { c: 8, r: 5, dir: '↓' },
+        { c: 5, r: 6, dir: '→' },
+        { c: 9, r: 6, dir: '→' },
+        { c: 12, r: 7, dir: '↓' }
       ],
       fires: [
-        { c: 1, r: 7, intensity: 1.0, fireType: 'normal' },
-        { c: 5, r: 8, intensity: 1.0, fireType: 'normal' },
-        { c: 6, r: 6, intensity: 0.85, fireType: 'normal' },
-        { c: 11, r: 3, intensity: 0.9, fireType: 'normal' }
+        { c: 2, r: 8, intensity: 1.0, fireType: 'normal' },
+        { c: 5, r: 7, intensity: 0.9, fireType: 'normal' }
       ],
       smokes: [
-        { c: 4, r: 6 }, { c: 5, r: 6 }, { c: 7, r: 6 }, { c: 9, r: 6 },
-        { c: 7, r: 4 }, { c: 8, r: 4 }, { c: 9, r: 4 },
-        { c: 11, r: 6 }, { c: 12, r: 6 }, { c: 12, r: 7 }
+        { c: 5, r: 6 }, { c: 6, r: 6 }, { c: 7, r: 6 }, { c: 8, r: 6 }, { c: 9, r: 6 }
       ],
       items: [
-        { c: 4, r: 2, type: 'towel', name: '마른 수건', icon: '🧣' },
-        { c: 8, r: 1, type: 'bucket', name: '물양동이(냉각소화)', icon: '🪣', charges: 3 },
-        { c: 9, r: 2, type: 'key', name: '복도 열쇠', icon: '🔑' },
-        { c: 1, r: 4, type: 'toy', name: '휴대용 게임기(유혹물건)', icon: '🎮' },
-        { c: 2, r: 8, type: 'extinguisher', name: '분말 소화기(PASS)', icon: '🧯', charges: 5 },
-        { c: 9, r: 7, type: 'npc', name: '동생 민수(대피알림)', icon: '🧒' },
-        { c: 8, r: 8, type: 'key', name: '비상문 열쇠', icon: '🔑' }
+        { c: 4, r: 2, type: 'towel', name: '수건', icon: '🧣' },
+        { c: 3, r: 6, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 5 },
+        { c: 10, r: 7, type: 'npc', name: '동생 민수', icon: '🧒' }
       ]
     },
-    // Index 1 -> Stage 2
+    // Index 1 -> Stage 2 (Kitchen & Living Room: Gas Valve + Extinguisher + Dog)
     {
       id: 2,
       name: '2단계: 1층 거실과 주방',
-      mission: '가스밸브(🔴)·차단기(⚡)를 내리고 방연마스크(😷)와 소화기로 초코와 함께 탈출하세요!',
-      curriculumFocus: '5~6학년 과학(연소와 소화 - 식용유·전기 화재 진압 및 방화문 연기 차단)',
+      mission: '① 마스크(😷)·소화기(🧯)를 챙기고 ② 가스밸브(🔴)를 잠근 뒤 ③ 식용유 불을 끄고 탈출하세요!',
+      curriculumFocus: '5~6학년 과학(연소와 소화 - 식용유·전기 화재 진압 및 가스 차단)',
+      roomLabels: [
+        { c: 2.2, r: 3.5, text: '🛋️ 거실' },
+        { c: 7.2, r: 3.5, text: '🍳 주방(가스밸브)' },
+        { c: 12.0, r: 3.5, text: '🐶 다용도실' },
+        { c: 7.5, r: 5.4, text: '🏃 현관 복도' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,1,5,0,9,1,12,0,2,0,0,1],
-        [1,0,2,0,3,0,0,0,3,0,0,0,0,0,1],
-        [1,0,0,0,1,0,2,0,1,1,4,1,1,1,1],
-        [1,1,3,1,1,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,2,0,0,0,2,0,0,1],
-        [1,0,2,0,0,0,17,1,1,3,1,1,1,1,1],
-        [1,0,0,0,1,0,1,0,0,0,0,1,0,11,1],
-        [1,6,0,0,1,0,10,0,2,0,0,4,0,7,1],
+        [1,0,0,0,1,5,0,9,0,1,12,0,0,0,1],
+        [1,0,0,0,3,0,0,0,0,3,0,0,0,0,1],
+        [1,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+        [1,1,3,1,1,1,3,1,1,1,1,3,1,1,1],
+        [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,11,1],
+        [1,6,0,0,1,1,1,0,0,0,1,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.5, y: 2.5 },
       guideSigns: [
-        { c: 2, r: 5, dir: '→' },
-        { c: 5, r: 5, dir: '↑' },
-        { c: 9, r: 4, dir: '↓' },
-        { c: 9, r: 7, dir: '→' },
+        { c: 3, r: 6, dir: '→' },
+        { c: 7, r: 6, dir: '→' },
+        { c: 11, r: 6, dir: '→' },
         { c: 12, r: 8, dir: '→' }
       ],
       fires: [
-        { c: 6, r: 2, intensity: 1.0, fireType: 'oil' },
         { c: 7, r: 2, intensity: 1.0, fireType: 'oil' },
-        { c: 5, r: 4, intensity: 0.9, fireType: 'normal' },
-        { c: 8, r: 5, intensity: 0.95, fireType: 'electric' },
-        { c: 7, r: 8, intensity: 1.0, fireType: 'normal' },
-        { c: 12, r: 5, intensity: 0.9, fireType: 'electric' }
+        { c: 8, r: 6, intensity: 0.95, fireType: 'electric' }
       ],
       smokes: [
-        { c: 5, r: 2 }, { c: 5, r: 3 }, { c: 7, r: 3 },
-        { c: 3, r: 5 }, { c: 4, r: 5 }, { c: 5, r: 5 },
-        { c: 9, r: 4 }, { c: 10, r: 4 }, { c: 11, r: 4 },
-        { c: 8, r: 7 }, { c: 9, r: 7 }, { c: 10, r: 7 }
+        { c: 6, r: 2 }, { c: 5, r: 6 }, { c: 6, r: 6 }, { c: 7, r: 6 }, { c: 9, r: 6 }
       ],
       items: [
-        { c: 3, r: 1, type: 'towel', name: '마른 수건', icon: '🧣' },
-        { c: 2, r: 3, type: 'mask', name: '습식 방연마스크', icon: '😷' },
-        { c: 3, r: 3, type: 'bucket', name: '물양동이(식용유·전기 주의!)', icon: '🪣', charges: 3 },
-        { c: 1, r: 5, type: 'extinguisher', name: '다목적·K급 소화기', icon: '🧯', charges: 6 },
-        { c: 3, r: 7, type: 'key', name: '안방 열쇠', icon: '🔑' },
-        { c: 13, r: 1, type: 'dog', name: '반려견 초코', icon: '🐶' },
-        { c: 13, r: 4, type: 'toy', name: '대형 인형(유혹물건)', icon: '🧸' },
-        { c: 10, r: 7, type: 'key', name: '현관 열쇠', icon: '🔑' },
-        { c: 10, r: 5, type: 'extinguisher', name: '예비 소화기', icon: '🧯', charges: 5 }
+        { c: 2, r: 1, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 3, r: 3, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 },
+        { c: 12, r: 2, type: 'dog', name: '초코', icon: '🐶' },
+        { c: 4, r: 7, type: 'bucket', name: '물양동이', icon: '🪣', charges: 3 }
       ]
     },
-    // Index 2 -> Stage 3
+    // Index 2 -> Stage 3 (Apartment Veranda Lifeline & Partition Wall)
     {
       id: 3,
       name: '3단계: 베란다 완강기·경량칸막이 탈출',
-      mission: '베란다 열쇠(🔑)를 찾아 완강기(🪢)·경량칸막이(🧱)로 탈출하거나, 소방도끼(🪓)로 비상구를 여세요!',
-      curriculumFocus: '5~6학년 실과(완강기 4단계·경량칸막이 피난 및 구르기 대처)',
+      mission: '현관이 불길로 막혔습니다! 열쇠(🔑)로 베란다 문을 열고 완강기(🪢) 또는 경량칸막이(🧱)로 탈출하세요!',
+      curriculumFocus: '5~6학년 실과(완강기 사용 절차·경량칸막이 피난 및 구르기 대처)',
+      roomLabels: [
+        { c: 2.5, r: 1.4, text: '🏠 안방' },
+        { c: 7.5, r: 2.5, text: '🔑 거실' },
+        { c: 11.8, r: 1.4, text: '🪢 베란다 피난구역' },
+        { c: 7.5, r: 5.4, text: '🔥 화염 구역 (우회 필요)' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,5,1,0,0,0,1,0,0,0,0,13,1],
-        [1,0,2,0,3,0,2,0,4,0,2,2,0,0,1],
-        [1,0,0,0,1,0,0,0,1,0,0,0,0,14,1],
-        [1,1,1,3,1,1,3,1,1,1,8,1,1,1,1],
+        [1,0,0,5,1,0,0,0,0,1,0,0,0,13,1],
+        [1,0,0,0,3,0,0,0,0,4,0,0,0,0,1],
+        [1,0,0,0,1,0,0,0,0,1,0,0,0,14,1],
+        [1,1,3,1,1,1,3,1,1,1,1,8,1,1,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,2,2,1,0,2,0,1,0,2,0,1,0,1],
-        [1,0,0,0,10,0,0,0,3,0,0,0,8,0,1],
-        [1,0,0,11,1,17,0,0,1,0,0,0,1,7,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,11,0,1,17,0,0,0,1,0,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.5, y: 2.5 },
       guideSigns: [
-        { c: 3, r: 5, dir: '→' },
-        { c: 6, r: 5, dir: '↑' },
-        { c: 7, r: 2, dir: '→' },
-        { c: 12, r: 2, dir: '↑' },
-        { c: 11, r: 7, dir: '→' }
+        { c: 6, r: 2, dir: '→' },
+        { c: 8, r: 2, dir: '→' },
+        { c: 12, r: 2, dir: '↑' }
       ],
       fires: [
-        { c: 5, r: 3, intensity: 1.0, fireType: 'normal' },
-        { c: 5, r: 7, intensity: 1.0, fireType: 'normal' },
-        { c: 6, r: 5, intensity: 1.0, fireType: 'oil' },
-        { c: 7, r: 5, intensity: 0.95, fireType: 'electric' },
-        { c: 10, r: 5, intensity: 1.0, fireType: 'normal' },
-        { c: 11, r: 7, intensity: 1.0, fireType: 'electric' },
-        { c: 13, r: 6, intensity: 0.95, fireType: 'normal' }
+        { c: 6, r: 6, intensity: 1.0, fireType: 'normal' },
+        { c: 7, r: 6, intensity: 1.0, fireType: 'oil' },
+        { c: 8, r: 6, intensity: 0.95, fireType: 'electric' }
       ],
       smokes: [
-        { c: 3, r: 5 }, { c: 4, r: 5 }, { c: 5, r: 5 },
-        { c: 8, r: 5 }, { c: 9, r: 5 }, { c: 11, r: 5 },
-        { c: 6, r: 7 }, { c: 7, r: 7 },
-        { c: 9, r: 7 }, { c: 10, r: 7 }, { c: 13, r: 5 }
+        { c: 4, r: 6 }, { c: 5, r: 6 }, { c: 9, r: 6 }, { c: 10, r: 6 }
       ],
       items: [
-        { c: 1, r: 3, type: 'towel', name: '마른 수건', icon: '🧣' },
-        { c: 3, r: 2, type: 'flashlight', name: '비상 손전등', icon: '🔦' },
-        { c: 2, r: 1, type: 'bucket', name: '물양동이', icon: '🪣', charges: 4 },
-        { c: 7, r: 1, type: 'extinguisher', name: '대형 소화기(PASS)', icon: '🧯', charges: 7 },
-        { c: 1, r: 8, type: 'key', name: '베란다 열쇠', icon: '🔑' },
-        { c: 1, r: 6, type: 'toy', name: '저금통과 장난감(유혹물건)', icon: '🎮' },
-        { c: 11, r: 3, type: 'axe', name: '소방 도끼', icon: '🪓' },
-        { c: 7, r: 8, type: 'extinguisher', name: '비상 소화기', icon: '🧯', charges: 6 }
+        { c: 1, r: 3, type: 'towel', name: '수건', icon: '🧣' },
+        { c: 7, r: 1, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 },
+        { c: 7, r: 3, type: 'key', name: '베란다 열쇠', icon: '🔑' },
+        { c: 11, r: 2, type: 'axe', name: '소방 도끼', icon: '🪓' }
       ]
     },
     // Index 3 -> Stage 4 (Elementary School Science Lab)
     {
       id: 4,
       name: '4단계: 초등학교 과학실 화재 대피',
-      mission: '과학실 알코올램프 화재를 진압하고 비상벨(🔔)을 눌러 친구(🧒)와 함께 교실 밖 비상계단으로 대피하세요!',
+      mission: '① 마스크(😷)·소화기(🧯)를 챙겨 알코올램프 불을 끄고 ② 비상벨(🔔)을 눌러 친구(🧒)와 함께 탈출하세요!',
       curriculumFocus: '3~6학년 과학실 실험 안전 수칙 · 다중 학급 비상벨 발신 및 방화문 차단',
+      roomLabels: [
+        { c: 3.5, r: 3.5, text: '🔬 과학실' },
+        { c: 10.5, r: 3.5, text: '🏫 옆 교실' },
+        { c: 7.5, r: 5.4, text: '🏃 학교 복도' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,5,0,0,1,0,0,2,0,0,11,0,1],
-        [1,0,2,2,0,0,3,0,0,2,0,0,0,0,1],
-        [1,0,0,0,0,0,1,0,0,0,0,2,0,0,1],
+        [1,0,0,5,0,0,1,0,0,0,0,0,11,0,1],
+        [1,0,0,0,0,0,3,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
         [1,1,1,3,1,1,1,1,3,1,1,1,3,1,1],
         [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,1,3,1,1,1,10,1,1,1,3,1,1,4,1],
-        [1,0,0,0,0,1,0,0,0,1,0,0,1,7,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,1,10,1,0,0,1,0,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.0, y: 2.0 },
       guideSigns: [
-        { c: 3, r: 5, dir: '→' },
-        { c: 6, r: 5, dir: '→' },
-        { c: 9, r: 5, dir: '→' },
-        { c: 13, r: 5, dir: '↓' },
-        { c: 13, r: 7, dir: '↓' }
+        { c: 3, r: 6, dir: '→' },
+        { c: 7, r: 6, dir: '→' },
+        { c: 11, r: 6, dir: '→' },
+        { c: 12, r: 8, dir: '→' }
       ],
       fires: [
         { c: 4, r: 2, intensity: 1.0, fireType: 'oil' },
-        { c: 5, r: 2, intensity: 0.95, fireType: 'normal' },
-        { c: 6, r: 8, intensity: 1.0, fireType: 'normal' },
-        { c: 8, r: 6, intensity: 0.9, fireType: 'electric' },
-        { c: 12, r: 6, intensity: 0.95, fireType: 'normal' }
+        { c: 8, r: 6, intensity: 0.9, fireType: 'electric' }
       ],
       smokes: [
-        { c: 4, r: 5 }, { c: 5, r: 5 }, { c: 6, r: 5 }, { c: 7, r: 5 },
-        { c: 9, r: 6 }, { c: 10, r: 6 }, { c: 11, r: 6 }
+        { c: 5, r: 6 }, { c: 6, r: 6 }, { c: 7, r: 6 }, { c: 9, r: 6 }
       ],
       items: [
-        { c: 1, r: 3, type: 'mask', name: '과학실 방연마스크', icon: '😷' },
-        { c: 2, r: 1, type: 'extinguisher', name: '과학실 모래·소화기', icon: '🧯', charges: 6 },
-        { c: 8, r: 1, type: 'npc', name: '짝꿍 지민이(함께대피)', icon: '🧒' },
-        { c: 11, r: 1, type: 'key', name: '비상계단 열쇠', icon: '🔑' },
-        { c: 2, r: 8, type: 'flashlight', name: '비상 손전등', icon: '🔦' },
-        { c: 4, r: 8, type: 'extinguisher', name: '복도 소화기', icon: '🧯', charges: 5 }
+        { c: 1, r: 3, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 2, r: 1, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 },
+        { c: 9, r: 2, type: 'npc', name: '짝꿍 지민', icon: '🧒' }
       ]
     },
     // Index 4 -> Stage 5 (Subway / Shopping Mall Blackout Evacuation)
     {
       id: 5,
-      name: '5단계: 다중이용시설(지하철·쇼핑몰) 정전 탈출',
-      mission: '정전된 어두운 지하상가에서 비상손전등(🔦)과 방연마스크(😷)를 챙겨 초록색 피난유도등(🟩→)을 따라 지상으로 탈출하세요!',
+      name: '5단계: 지하철·쇼핑몰 정전 탈출',
+      mission: '정전된 어두운 역사에서 손전등(🔦)과 방연마스크(😷)를 챙겨 초록색 유도등(🏃→)을 따라 탈출하세요!',
       curriculumFocus: '범교과 다중이용시설 재난 안전 · 정전 시 손전등 시야 확보 및 피난유도등 추적',
       isDarkStage: true,
+      roomLabels: [
+        { c: 3.5, r: 3.5, text: '🚇 대합실' },
+        { c: 10.5, r: 3.5, text: '🏪 지하상가' },
+        { c: 7.5, r: 5.4, text: '🟩 비상 유도 통로' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,3,0,0,12,1,6,6,0,0,11,1],
-        [1,0,2,0,1,0,2,0,1,0,0,0,2,0,1],
-        [1,0,0,0,1,0,0,0,3,0,2,0,0,0,1],
-        [1,1,3,1,1,1,3,1,1,0,1,1,3,1,1],
+        [1,0,0,0,0,0,1,12,0,6,6,0,0,11,1],
+        [1,0,0,0,0,0,3,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+        [1,1,1,3,1,1,1,1,3,1,1,1,3,1,1],
+        [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,2,2,0,1,1,10,1,1,4,2,2,0,1],
-        [1,0,0,0,0,3,0,0,0,3,0,0,0,0,1],
-        [1,17,0,5,0,1,0,0,0,1,0,0,0,7,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,5,0,1,10,1,0,0,1,0,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.0, y: 2.0 },
       guideSigns: [
-        { c: 1, r: 5, dir: '→' },
-        { c: 4, r: 5, dir: '→' },
-        { c: 7, r: 5, dir: '→' },
-        { c: 10, r: 5, dir: '↓' },
-        { c: 10, r: 7, dir: '→' },
+        { c: 3, r: 5, dir: '↓' },
+        { c: 3, r: 6, dir: '→' },
+        { c: 6, r: 6, dir: '→' },
+        { c: 9, r: 6, dir: '→' },
+        { c: 12, r: 6, dir: '↓' },
         { c: 12, r: 8, dir: '→' }
       ],
       fires: [
-        { c: 6, r: 3, intensity: 1.0, fireType: 'electric' },
-        { c: 5, r: 5, intensity: 0.95, fireType: 'normal' },
-        { c: 7, r: 7, intensity: 1.0, fireType: 'normal' },
-        { c: 8, r: 7, intensity: 0.95, fireType: 'oil' },
-        { c: 11, r: 5, intensity: 0.9, fireType: 'electric' },
-        { c: 12, r: 7, intensity: 1.0, fireType: 'normal' }
+        { c: 7, r: 6, intensity: 0.95, fireType: 'electric' },
+        { c: 10, r: 7, intensity: 0.9, fireType: 'normal' }
       ],
       smokes: [
-        { c: 2, r: 5 }, { c: 3, r: 5 }, { c: 4, r: 5 },
-        { c: 6, r: 5 }, { c: 7, r: 5 }, { c: 8, r: 5 },
-        { c: 9, r: 5 }, { c: 10, r: 7 }, { c: 11, r: 8 }
+        { c: 4, r: 6 }, { c: 5, r: 6 }, { c: 6, r: 6 }, { c: 8, r: 6 }, { c: 9, r: 6 }
       ],
       items: [
-        { c: 3, r: 1, type: 'flashlight', name: '고광량 비상 손전등', icon: '🔦' },
-        { c: 1, r: 3, type: 'mask', name: '지하철 비치 방연마스크', icon: '😷' },
-        { c: 5, r: 1, type: 'extinguisher', name: '역사 내 소화기', icon: '🧯', charges: 7 },
-        { c: 12, r: 1, type: 'key', name: '비상개찰구 마스터키', icon: '🔑' },
-        { c: 13, r: 3, type: 'npc', name: '길 잃은 시민(구조)', icon: '🧒' },
-        { c: 2, r: 7, type: 'extinguisher', name: '상가 예비 소화기', icon: '🧯', charges: 6 }
+        { c: 3, r: 2, type: 'flashlight', name: '손전등', icon: '🔦' },
+        { c: 1, r: 3, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 5, r: 2, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 7 },
+        { c: 11, r: 2, type: 'npc', name: '시민', icon: '🧒' }
       ]
     },
     // Index 5 -> Prevention Inspection Mode
     {
       id: 0,
       name: '예방모드: 우리 집 화재 위험요소 5곳 점검',
-      mission: '불이 나기 전 집 안의 화재 위험요소(⚠️) 5곳을 모두 찾아 안전하게 점검·수리하세요!',
+      mission: '불이 나기 전 집 안의 화재 위험요소(⚠️) 5곳을 모두 찾아 터치하여 안전하게 수리하세요!',
       curriculumFocus: '5~6학년 실과 및 범교과 생활안전 · 전기·가스·적치물 화재 예방 점검',
       isPreventionMode: true,
+      roomLabels: [
+        { c: 3.5, r: 3.5, text: '🛏️ 침실 점검' },
+        { c: 10.5, r: 3.5, text: '🍳 주방·베란다 점검' },
+        { c: 7.5, r: 5.5, text: '🛋️ 거실·비상구 점검' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,16,1,5,0,16,1,0,0,2,0,16,1],
-        [1,0,2,0,3,0,0,0,3,0,0,0,0,0,1],
-        [1,0,0,0,1,0,2,0,1,1,3,1,1,1,1],
-        [1,1,3,1,1,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,2,0,0,0,2,0,0,1],
-        [1,0,2,0,0,0,1,1,1,3,1,1,0,0,1],
-        [1,0,16,0,1,0,1,0,0,0,0,1,0,0,1],
-        [1,0,0,0,1,0,3,0,16,0,0,3,0,7,1],
+        [1,0,0,16,0,0,1,5,0,16,0,0,0,16,1],
+        [1,0,0,0,0,0,3,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+        [1,1,1,3,1,1,1,1,3,1,1,1,3,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,16,0,0,0,0,0,16,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.0, y: 2.0 },
       guideSigns: [],
       fires: [],
       smokes: [],
       items: [
-        { c: 1, r: 5, type: 'flashlight', name: '점검용 손전등', icon: '🔦' }
+        { c: 1, r: 5, type: 'flashlight', name: '점검 손전등', icon: '🔦' }
       ]
     },
     // Index 6 -> Stage 6 (Camping & Kickboard Battery Fire Evacuation)
     {
       id: 6,
       name: '6단계: 캠핑장·배터리 열폭주 탈출',
-      mission: '전동킥보드 리튬배터리 화재(⚡)와 캠핑 화로 불길을 피해 차단기(⚡)를 내리고 경량칸막이(🧱) 또는 비상구로 탈출하세요!',
+      mission: '전동킥보드 배터리 화재(⚡)를 피해 차단기(⚡)를 내리고 소화기(🧯)로 진압하며 비상구(EXIT)로 탈출하세요!',
       curriculumFocus: '최신 생활안전 트렌드 · 리튬배터리 열폭주 대처 및 캠핑장 일산화탄소·화로 안전',
+      roomLabels: [
+        { c: 3.5, r: 3.5, text: '⛺ 글램핑 텐트' },
+        { c: 10.5, r: 3.5, text: '⚡ 충전소(차단기)' },
+        { c: 7.5, r: 5.4, text: '🌲 캠핑장 대피로' }
+      ],
       map: [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,5,0,1,0,0,12,0,1,0,0,11,1],
-        [1,0,2,0,0,3,0,2,0,0,3,0,2,0,1],
-        [1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
-        [1,1,3,1,1,1,1,3,1,1,1,1,3,1,1],
+        [1,0,0,5,0,0,1,0,0,12,0,0,0,11,1],
+        [1,0,0,0,0,0,3,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+        [1,1,1,3,1,1,1,1,3,1,1,1,3,1,1],
         [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,2,2,0,0,0,2,2,0,0,0,0,1],
-        [1,1,10,1,1,1,3,1,1,1,15,1,1,4,1],
-        [1,0,0,0,0,1,0,0,0,1,0,0,0,7,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,1,10,1,0,0,1,15,0,0,7,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
       ],
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.0, y: 2.0 },
       guideSigns: [
-        { c: 2, r: 5, dir: '→' },
-        { c: 6, r: 5, dir: '→' },
-        { c: 10, r: 5, dir: '↓' },
+        { c: 3, r: 6, dir: '→' },
+        { c: 7, r: 6, dir: '→' },
+        { c: 11, r: 6, dir: '→' },
         { c: 12, r: 8, dir: '→' }
       ],
       fires: [
-        { c: 2, r: 8, intensity: 1.0, fireType: 'electric' },
-        { c: 7, r: 5, intensity: 1.0, fireType: 'electric' },
-        { c: 8, r: 3, intensity: 0.95, fireType: 'oil' },
-        { c: 11, r: 6, intensity: 0.95, fireType: 'normal' }
+        { c: 7, r: 6, intensity: 1.0, fireType: 'electric' },
+        { c: 10, r: 3, intensity: 0.95, fireType: 'oil' }
       ],
       smokes: [
-        { c: 3, r: 5 }, { c: 4, r: 5 }, { c: 5, r: 5 },
-        { c: 6, r: 5 }, { c: 9, r: 5 }, { c: 10, r: 5 }
+        { c: 4, r: 6 }, { c: 5, r: 6 }, { c: 6, r: 6 }, { c: 8, r: 6 }, { c: 9, r: 6 }
       ],
       items: [
-        { c: 1, r: 3, type: 'towel', name: '캠핑용 수건', icon: '🧣' },
-        { c: 4, r: 1, type: 'extinguisher', name: '캠핑장 전용 소화기', icon: '🧯', charges: 7 },
-        { c: 6, r: 1, type: 'mask', name: '일산화탄소 방연마스크', icon: '😷' },
-        { c: 11, r: 1, type: 'key', name: '비상출입구 열쇠', icon: '🔑' },
-        { c: 13, r: 3, type: 'npc', name: '캠핑장 동생(구조)', icon: '🧒' },
-        { c: 7, r: 8, type: 'extinguisher', name: '비상대피소 소화기', icon: '🧯', charges: 6 }
+        { c: 1, r: 3, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 4, r: 2, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 7 },
+        { c: 12, r: 2, type: 'npc', name: '동생', icon: '🧒' }
       ]
     }
   ];
@@ -476,39 +455,25 @@
 
     var map = [
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      [1,0,0,5,0,1,0,0,12,0,1,0,0,11,1],
-      [1,0,0,0,0,3,0,0,0,0,3,0,0,0,1],
-      [1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
-      [1,1,3,1,1,1,1,3,1,1,1,1,3,1,1],
+      [1,0,0,5,0,0,1,0,0,12,0,0,0,11,1],
+      [1,0,0,0,0,0,3,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+      [1,1,1,3,1,1,1,1,3,1,1,1,3,1,1],
       [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-      [1,1,10,1,1,1,3,1,1,1,15,1,1,4,1],
-      [1,0,0,0,0,1,0,0,0,1,0,0,0,7,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,1,10,1,0,0,1,15,0,0,7,1],
       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
-    // Place deterministic daily furniture obstacles on safe cells
-    var candidateFurn = [
-      { c: 2, r: 2 }, { c: 3, r: 2 }, { c: 7, r: 2 }, { c: 8, r: 2 }, { c: 12, r: 2 },
-      { c: 3, r: 6 }, { c: 4, r: 6 }, { c: 8, r: 6 }, { c: 9, r: 6 }
-    ];
-    for (var fIdx = 0; fIdx < candidateFurn.length; fIdx++) {
-      if (nextRand() < 0.55) {
-        map[candidateFurn[fIdx].r][candidateFurn[fIdx].c] = 2;
-      }
-    }
-
     var fireTypes = ['normal', 'electric', 'oil'];
     var fires = [
-      { c: randInt(3, 4), r: 5, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] },
-      { c: randInt(6, 8), r: 5, intensity: 1.0, fireType: 'electric' },
-      { c: randInt(10, 12), r: 5, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] },
-      { c: randInt(6, 8), r: 8, intensity: 0.9, fireType: 'normal' }
+      { c: randInt(5, 7), r: 6, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] },
+      { c: randInt(9, 11), r: 6, intensity: 0.95, fireType: fireTypes[randInt(0, 2)] }
     ];
 
     var smokes = [
-      { c: 2, r: 5 }, { c: 5, r: 5 }, { c: 7, r: 5 },
-      { c: 9, r: 5 }, { c: 11, r: 5 }, { c: 11, r: 8 }
+      { c: 4, r: 6 }, { c: 6, r: 6 }, { c: 8, r: 6 }, { c: 10, r: 6 }
     ];
 
     var themes = ['복합 상가 돌발 화재', '도서관 야간 누전 화재', '체육관 안전 대피 훈련', '청소년 수련관 비상 탈출'];
@@ -519,25 +484,27 @@
       isDailyChallenge: true,
       dailyDate: seedStr,
       name: '오늘의 챌린지 (' + seedStr + '): ' + themeName,
-      mission: '[' + seedStr + ' 오늘의 돌발 미션] 매일 구조가 바뀌는 재난 현장에서 젖은 수건·소화기·비상벨을 활용해 탈출하세요!',
+      mission: '[' + seedStr + ' 오늘의 미션] 수건·마스크와 소화기를 활용해 안전하게 비상구(EXIT)로 탈출하세요!',
       curriculumFocus: '일일 실전 응용 대피 훈련 · 돌발 재난 상황 판단력 및 안전 수칙 종합 적용',
+      roomLabels: [
+        { c: 3.5, r: 2.5, text: '🏢 시작 구역' },
+        { c: 10.5, r: 2.5, text: '⚡ 시설 구역' },
+        { c: 7.5, r: 6.5, text: '🏃 비상 대피 통로' }
+      ],
       map: map,
-      playerStart: { x: 1.5, y: 1.5 },
+      playerStart: { x: 2.0, y: 2.0 },
       guideSigns: [
-        { c: 2, r: 5, dir: '→' },
-        { c: 6, r: 5, dir: '→' },
-        { c: 10, r: 5, dir: '↓' },
+        { c: 3, r: 6, dir: '→' },
+        { c: 7, r: 6, dir: '→' },
+        { c: 11, r: 6, dir: '→' },
         { c: 12, r: 8, dir: '→' }
       ],
       fires: fires,
       smokes: smokes,
       items: [
-        { c: 1, r: 3, type: 'towel', name: '비상 수건', icon: '🧣' },
-        { c: 4, r: 1, type: 'extinguisher', name: '초기 진압 소화기', icon: '🧯', charges: 7 },
-        { c: 6, r: 1, type: 'mask', name: '구조용 방연마스크', icon: '😷' },
-        { c: 11, r: 1, type: 'key', name: '비상구 마스터키', icon: '🔑' },
-        { c: 13, r: 3, type: 'npc', name: '고립된 친구(구조)', icon: '🧒' },
-        { c: 2, r: 8, type: 'extinguisher', name: '복도 예비 소화기', icon: '🧯', charges: 6 }
+        { c: 1, r: 3, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 4, r: 2, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 7 },
+        { c: 12, r: 2, type: 'npc', name: '친구', icon: '🧒' }
       ]
     };
   }

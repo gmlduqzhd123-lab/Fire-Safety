@@ -352,14 +352,14 @@
   });
 
   // --- Toast Notification ---
-  function showToast(msg, borderClass = 'border-amber-500/50') {
+  function showToast(msg, borderClass = 'border-amber-500/60') {
     toastBanner.textContent = msg;
-    toastBanner.className = `pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-xl bg-slate-950/95 border ${borderClass} text-amber-200 text-[11px] sm:text-sm font-semibold shadow-lg transition-all duration-300 opacity-100 translate-y-0 w-[92%] sm:w-auto max-w-[94%] text-center`;
+    toastBanner.className = `pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 z-20 px-3 py-0.5 rounded-full bg-slate-950/90 border ${borderClass} text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-md transition-all duration-300 opacity-100 translate-y-0 max-w-[94%] truncate text-center`;
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
       toastBanner.classList.remove('opacity-100', 'translate-y-0');
       toastBanner.classList.add('opacity-0', '-translate-y-2');
-    }, 3400);
+    }, 2800);
   }
 
   function addFloatText(gridX, gridY, text, color = '#fde047') {
@@ -603,7 +603,166 @@
     renderCanvas();
   }
 
+  // --- Smart Next-Step Objective Helper (For At-a-Glance Guidance) ---
+  function findNearestTileOfTypes(typeArray) {
+    let best = null;
+    let bestDist = Infinity;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r] && typeArray.includes(grid[r][c])) {
+          const d = Math.hypot((c + 0.5) - player.x, (r + 0.5) - player.y);
+          if (d < bestDist) {
+            bestDist = d;
+            best = { c, r, tile: grid[r][c], dist: d };
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  function getNextStepObjective() {
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+
+    if (player.onFire) {
+      return {
+        c: Math.floor(player.x),
+        r: Math.floor(player.y),
+        label: '🔄 구르기 연타!',
+        bannerText: `🚨 옷에 불이 붙었어요! 우측 [🔄 구르기] 버튼을 연타하세요! (${player.rollNeeded}회)`
+      };
+    }
+
+    if (st.isPreventionMode) {
+      const haz = findNearestTileOfTypes([TILE.HAZARD]);
+      if (haz) {
+        const rem = Math.max(1, player.totalHazards - player.hazardsFixed);
+        return {
+          c: haz.c,
+          r: haz.r,
+          label: '🎯 위험요소 점검',
+          bannerText: `🎯 지금 할 일: 노란 화살표의 ⚠️ 위험요소(${rem}곳 남음)로 가서 [✋ 점검하기]를 누르세요!`
+        };
+      }
+      const ex = findNearestTileOfTypes([TILE.EXIT]);
+      if (ex) {
+        return {
+          c: ex.c,
+          r: ex.r,
+          label: '🎯 점검 완료! EXIT',
+          bannerText: '🎯 모든 점검 완료! 초록색 [EXIT 비상구]로 이동하세요!'
+        };
+      }
+    }
+
+    // Step 1: Respiratory protection (Mask or Wet Towel)
+    if (!player.wetTowel && !player.hasMask) {
+      if (player.hasTowel) {
+        const sink = findNearestTileOfTypes([TILE.SINK]);
+        if (sink) {
+          return {
+            c: sink.c,
+            r: sink.r,
+            label: '🎯 2. 수건 적시기',
+            bannerText: '🎯 지금 할 일: 🚰 세면대로 가서 [✋ 수건 적시기]를 누르세요!'
+          };
+        }
+      } else {
+        const maskOrTowel = items.find(it => it.type === 'mask' || it.type === 'towel');
+        if (maskOrTowel) {
+          return {
+            c: maskOrTowel.c,
+            r: maskOrTowel.r,
+            label: `🎯 1. ${maskOrTowel.name} 줍기`,
+            bannerText: `🎯 지금 할 일: 노란 화살표의 ${maskOrTowel.icon} ${maskOrTowel.name}을(를) 챙기세요!`
+          };
+        }
+      }
+    }
+
+    // Step 2: Flashlight in dark stage
+    if (st.isDarkStage && !player.hasFlashlight) {
+      const fl = items.find(it => it.type === 'flashlight');
+      if (fl) {
+        return {
+          c: fl.c,
+          r: fl.r,
+          label: '🎯 손전등 줍기',
+          bannerText: '🎯 지금 할 일: 어두운 시야를 밝히기 위해 🔦 손전등을 먼저 챙기세요!'
+        };
+      }
+    }
+
+    // Step 3: Nearby Extinguisher if player has 0 charges
+    if (player.extinguisherCharges === 0) {
+      const ext = items.find(it => it.type === 'extinguisher' && Math.hypot((it.c + 0.5) - player.x, (it.r + 0.5) - player.y) <= 4.5);
+      if (ext) {
+        return {
+          c: ext.c,
+          r: ext.r,
+          label: '🎯 소화기 챙기기',
+          bannerText: '🎯 지금 할 일: 불길을 끌 수 있도록 🧯 소화기를 챙기세요!'
+        };
+      }
+    }
+
+    // Step 4: Locked door key if a locked door exists and player has 0 keys
+    const lockedDoor = findNearestTileOfTypes([TILE.LOCKED_DOOR]);
+    if (lockedDoor && player.keys === 0) {
+      const keyItem = items.find(it => it.type === 'key');
+      if (keyItem) {
+        return {
+          c: keyItem.c,
+          r: keyItem.r,
+          label: '🎯 열쇠 줍기',
+          bannerText: '🎯 지금 할 일: 잠긴 문(🔒)을 열기 위해 🔑 열쇠를 먼저 챙기세요!'
+        };
+      }
+    }
+
+    // Step 5: Stage 3 Veranda Lifeline / Partition
+    if (currentStageIdx === 2 && !activeCustomStage) {
+      if (lockedDoor && player.keys > 0) {
+        return {
+          c: lockedDoor.c,
+          r: lockedDoor.r,
+          label: '🎯 베란다 문 열기',
+          bannerText: '🎯 지금 할 일: 열쇠(🔑)로 🔒 잠긴 베란다 문을 여세요!'
+        };
+      }
+      const verandaEscape = findNearestTileOfTypes([TILE.LIFELINE, TILE.PARTITION]);
+      if (verandaEscape && player.y < 5.0) {
+        return {
+          c: verandaEscape.c,
+          r: verandaEscape.r,
+          label: verandaEscape.tile === TILE.LIFELINE ? '🎯 완강기 탈출!' : '🎯 경량칸막이 탈출!',
+          bannerText: '🎯 지금 할 일: 베란다의 🪢 완강기 또는 🧱 경량칸막이로 탈출하세요!'
+        };
+      }
+    }
+
+    // Step 6: Final Escape Goal (EXIT)
+    const exitTile = findNearestTileOfTypes([TILE.EXIT, TILE.LIFELINE, TILE.PARTITION]);
+    if (exitTile) {
+      return {
+        c: exitTile.c,
+        r: exitTile.r,
+        label: '🎯 비상구(EXIT) 탈출!',
+        bannerText: player.crouching
+          ? '🎯 지금 할 일: 노란 화살표를 따라 초록색 [EXIT 비상구]로 탈출하세요!'
+          : '🎯 지금 할 일: 연기가 있는 곳에선 [🧎 낮은 자세]를 켜고 초록색 [EXIT 비상구]로 탈출하세요!'
+      };
+    }
+    return null;
+  }
+
   // --- HUD Update ---
+  const stepGuideBanner = document.getElementById('stepGuideBanner');
+  const actionBtnIcon = document.getElementById('actionBtnIcon');
+  const actionBtnText = document.getElementById('actionBtnText');
+  const crouchBtnIcon = document.getElementById('crouchBtnIcon');
+  const crouchBtnText = document.getElementById('crouchBtnText');
+
   function updateHUD() {
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     const hpPct = Math.max(0, Math.min(100, Math.round(player.hp)));
@@ -620,41 +779,131 @@
       canvasContainer.classList.remove('pulse-danger');
     }
 
+    // Update Live Step-by-Step Banner in Top Header
+    const nextObj = getNextStepObjective();
+    if (stepGuideBanner && nextObj && nextObj.bannerText) {
+      stepGuideBanner.innerHTML = `<span id="stepGuideText">${nextObj.bannerText}</span>`;
+    }
+
+    // Show/Hide conditional item buttons so only held items appear on the right panel
     if (player.onFire) {
       rollStatusBadge.textContent = `(${player.rollNeeded}회연타!)`;
       btnRoll.classList.remove('hidden');
       btnRoll.classList.add('flex');
-      btnWaterBucket.classList.add('hidden');
-      btnWaterBucket.classList.remove('flex');
     } else {
       rollStatusBadge.textContent = `(안전)`;
       btnRoll.classList.add('hidden');
       btnRoll.classList.remove('flex');
-      btnWaterBucket.classList.remove('hidden');
-      btnWaterBucket.classList.add('flex');
     }
 
+    if (player.extinguisherCharges > 0) {
+      btnExtinguish.classList.remove('hidden');
+      btnExtinguish.classList.add('flex');
+    } else {
+      btnExtinguish.classList.add('hidden');
+      btnExtinguish.classList.remove('flex');
+    }
+
+    if (player.waterCharges > 0 && !player.onFire) {
+      btnWaterBucket.classList.remove('hidden');
+      btnWaterBucket.classList.add('flex');
+    } else {
+      btnWaterBucket.classList.add('hidden');
+      btnWaterBucket.classList.remove('flex');
+    }
+
+    // Update Context-Sensitive Primary Action Button (#btnAction)
+    const target = getInteractTarget();
+    let actIcon = '✋';
+    let actLabel = '행동하기';
+    let actHighlight = false;
+
+    if (player.onFire) {
+      actIcon = '🔄';
+      actLabel = `구르기(${player.rollNeeded})`;
+      actHighlight = true;
+    } else if (target) {
+      actHighlight = true;
+      if (target.kind === 'item') {
+        actIcon = target.item.icon;
+        actLabel = `${target.item.name} 줍기`;
+      } else if (target.tile === TILE.SINK) {
+        actIcon = '🚰';
+        actLabel = player.hasTowel && !player.wetTowel ? '수건 적시기' : '물 받기';
+      } else if (target.tile === TILE.DOOR) {
+        actIcon = '🚪';
+        actLabel = '방문 열기';
+      } else if (target.tile === TILE.OPEN_DOOR) {
+        actIcon = '🚪';
+        actLabel = '방화문 닫기';
+      } else if (target.tile === TILE.HOT_DOOR) {
+        actIcon = '🌡️';
+        actLabel = '문 온도 확인';
+      } else if (target.tile === TILE.LOCKED_DOOR) {
+        actIcon = '🔑';
+        actLabel = '잠긴문 열기';
+      } else if (target.tile === TILE.GAS_VALVE) {
+        actIcon = '🔴';
+        actLabel = '가스 잠그기';
+      } else if (target.tile === TILE.BREAKER) {
+        actIcon = '⚡';
+        actLabel = '차단기 내리기';
+      } else if (target.tile === TILE.PHONE_119) {
+        actIcon = '📞';
+        actLabel = '119 신고';
+      } else if (target.tile === TILE.LIFELINE) {
+        actIcon = '🪢';
+        actLabel = '완강기 탈출';
+      } else if (target.tile === TILE.PARTITION) {
+        actIcon = '🧱';
+        actLabel = '칸막이 돌파';
+      } else if (target.tile === TILE.HAZARD) {
+        actIcon = '🔍';
+        actLabel = '위험요소 점검';
+      } else if (target.tile === TILE.ALARM_BELL) {
+        actIcon = '🔔';
+        actLabel = '비상벨 누르기';
+      } else if (target.tile === TILE.DEBRIS) {
+        actIcon = '🪓';
+        actLabel = '장애물 파괴';
+      } else if (target.tile === TILE.ELEVATOR) {
+        actIcon = '⚠️';
+        actLabel = '탑승 금지!';
+      }
+    } else if (player.extinguisherCharges > 0 && fires.some(f => Math.hypot((f.c + 0.5) - player.x, (f.r + 0.5) - player.y) <= 2.4)) {
+      actIcon = '🧯';
+      actLabel = '불 끄기!';
+      actHighlight = true;
+    }
+
+    if (actionBtnIcon) actionBtnIcon.textContent = actIcon;
+    if (actionBtnText) actionBtnText.textContent = actLabel;
+    btnAction.className = actHighlight
+      ? 'btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 border-2 border-yellow-200 text-xs sm:text-sm font-black text-slate-950 flex flex-col items-center justify-center gap-1 shadow-xl'
+      : 'btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg';
+
     if (st.isPreventionMode) {
-      postureStatus.textContent = player.crouching ? '🧎 하층 점검' : '🔍 사전점검';
-      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
+      postureStatus.textContent = player.crouching ? '🧎 하층점검' : '🔍 사전점검';
+      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
       convectionMarker.style.top = player.crouching ? '20px' : '12px';
       convectionHint.textContent = '화재 전 쾌적한 실내 공기';
-      btnCrouch.className = player.crouching
-        ? 'btn-control px-2 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 shadow'
-        : 'btn-control px-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-amber-300 flex items-center justify-center gap-1.5 shadow';
     } else if (player.crouching) {
       postureStatus.textContent = '🧎 낮은자세(안전)';
-      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
+      postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
       convectionMarker.style.top = '20px';
       convectionHint.textContent = '바닥 신선한 공기 호흡';
-      btnCrouch.className = 'btn-control px-2 py-2 rounded-xl bg-emerald-700/80 border border-emerald-400 text-xs sm:text-sm font-bold text-white flex items-center justify-center gap-1.5 shadow';
     } else {
-      postureStatus.textContent = '🚶 서있음(연기주의)';
-      postureStatus.className = 'text-[11px] font-extrabold text-amber-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800';
+      postureStatus.textContent = '🚶 서있음';
+      postureStatus.className = 'text-[11px] font-extrabold text-amber-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
       convectionMarker.style.top = '3px';
       convectionHint.textContent = '상층 유독가스 주의!';
-      btnCrouch.className = 'btn-control px-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs sm:text-sm font-bold text-amber-300 flex items-center justify-center gap-1.5 shadow';
     }
+
+    if (crouchBtnIcon) crouchBtnIcon.textContent = player.crouching ? '🧎' : '🚶';
+    if (crouchBtnText) crouchBtnText.textContent = player.crouching ? '낮은자세 켜짐' : '자세 낮추기';
+    btnCrouch.className = player.crouching
+      ? 'btn-control px-3 py-2 rounded-2xl bg-emerald-600 border-2 border-emerald-300 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg'
+      : 'btn-control px-3 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-1 shadow';
 
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
     const secs = String(Math.floor(elapsedSeconds % 60)).padStart(2, '0');
@@ -668,29 +917,26 @@
     const activeSkin = getSelectedSkin();
     const badges = [];
     if (isCoopMode) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-500/20 border border-pink-400/40 text-pink-200 text-[11px] font-bold shrink-0">👥 2인협동ON</span>`);
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-500/20 border border-pink-400/40 text-pink-200 text-[11px] font-bold shrink-0">👥 2인협동</span>`);
     }
     if (activeSkin && activeSkin.id !== 'student') {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/20 border border-purple-400/40 text-purple-200 text-[11px] font-bold shrink-0">${activeSkin.icon} ${activeSkin.name}</span>`);
     }
-    if (player.onFire) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-600 text-white text-[11px] font-extrabold shrink-0">🔥 착화! 구르기(${player.rollNeeded})</span>`);
-    }
     if (player.hasMask) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/20 border border-teal-400/40 text-teal-200 text-[11px] font-bold shrink-0">😷 방연마스크</span>`);
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/25 border border-teal-400/50 text-teal-200 text-[11px] font-bold shrink-0">😷 마스크 착용</span>`);
     } else if (player.wetTowel) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/20 border border-sky-400/40 text-sky-200 text-[11px] font-bold shrink-0">💧 젖은 수건</span>`);
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/25 border border-sky-400/50 text-sky-200 text-[11px] font-bold shrink-0">💧 젖은수건 착용</span>`);
     } else if (player.hasTowel) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-amber-200 text-[11px] font-bold shrink-0">🧣 마른 수건</span>`);
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[11px] font-bold shrink-0">🧣 마른수건(적시기 필요)</span>`);
     }
     if (player.hasFlashlight) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-[11px] font-bold shrink-0">🔦 손전등ON</span>`);
-    }
-    if (player.waterCharges > 0) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/40 text-blue-200 text-[11px] font-bold shrink-0">🪣 물(${player.waterCharges})</span>`);
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-[11px] font-bold shrink-0">🔦 손전등</span>`);
     }
     if (player.extinguisherCharges > 0) {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-500/20 border border-red-400/40 text-red-200 text-[11px] font-bold shrink-0">🧯 소화기(${player.extinguisherCharges})</span>`);
+    }
+    if (player.waterCharges > 0) {
+      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/40 text-blue-200 text-[11px] font-bold shrink-0">🪣 물(${player.waterCharges})</span>`);
     }
     if (player.keys > 0) {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-[11px] font-bold shrink-0">🔑 열쇠x${player.keys}</span>`);
@@ -704,15 +950,12 @@
     if (player.rescuedNpcs > 0) {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold shrink-0">🧒 동행x${player.rescuedNpcs}</span>`);
     }
-    if (player.fireDoorsClosed > 0) {
-      badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 text-[11px] font-bold shrink-0">🚪 방화문차단x${player.fireDoorsClosed}</span>`);
-    }
     if (player.totalHazards > 0) {
       badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold shrink-0">🔍 점검(${player.hazardsFixed}/${player.totalHazards})</span>`);
     }
 
     if (badges.length === 0) {
-      inventoryList.innerHTML = `<span class="text-[11px] text-slate-500 whitespace-nowrap shrink-0">보유 장비 없음</span>`;
+      inventoryList.innerHTML = `<span class="text-[11px] text-slate-400 font-semibold whitespace-nowrap shrink-0">🎒 가방: 비어 있음</span>`;
     } else {
       inventoryList.innerHTML = badges.join('');
     }
@@ -2209,13 +2452,25 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
           ctx.lineWidth = 1;
-        } else if (t === TILE.DOOR) {
-          ctx.fillStyle = '#92400e';
-          ctx.fillRect(x + tileSize * 0.12, y + tileSize * 0.12, tileSize * 0.76, tileSize * 0.76);
-          ctx.font = `${Math.floor(tileSize * 0.48)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🚪', x + tileSize * 0.5, y + tileSize * 0.52);
+          ctx.fillText('🪑', x + tileSize * 0.5, y + tileSize * 0.44);
+          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px sans-serif`;
+          ctx.fillStyle = '#fed7aa';
+          ctx.fillText('가구', x + tileSize * 0.5, y + tileSize * 0.80);
+        } else if (t === TILE.DOOR) {
+          ctx.fillStyle = '#92400e';
+          ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
+          ctx.strokeStyle = '#f59e0b';
+          ctx.strokeRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
+          ctx.font = `${Math.floor(tileSize * 0.4)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🚪', x + tileSize * 0.5, y + tileSize * 0.42);
+          ctx.font = `bold ${Math.floor(tileSize * 0.2)}px sans-serif`;
+          ctx.fillStyle = '#fef3c7';
+          ctx.fillText('방문', x + tileSize * 0.5, y + tileSize * 0.80);
         } else if (t === TILE.OPEN_DOOR) {
           ctx.strokeStyle = '#f59e0b';
           ctx.lineWidth = 1.5;
@@ -2233,12 +2488,13 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
           ctx.lineWidth = 1;
-          ctx.font = `${Math.floor(tileSize * 0.42)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.36)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🚪', x + tileSize * 0.45, y + tileSize * 0.48);
-          ctx.font = `${Math.floor(tileSize * 0.32)}px sans-serif`;
-          ctx.fillText('🌡️', x + tileSize * 0.72, y + tileSize * 0.32);
+          ctx.fillText('🚪🌡️', x + tileSize * 0.5, y + tileSize * 0.42);
+          ctx.font = `bold ${Math.floor(tileSize * 0.18)}px sans-serif`;
+          ctx.fillStyle = '#fecaca';
+          ctx.fillText('뜨거운문', x + tileSize * 0.5, y + tileSize * 0.80);
         } else if (t === TILE.LOCKED_DOOR) {
           ctx.fillStyle = '#7c2d12';
           ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
@@ -2246,17 +2502,27 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
           ctx.lineWidth = 1;
-          ctx.font = `${Math.floor(tileSize * 0.46)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.4)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🔒', x + tileSize * 0.5, y + tileSize * 0.52);
+          ctx.fillText('🔒', x + tileSize * 0.5, y + tileSize * 0.42);
+          ctx.font = `bold ${Math.floor(tileSize * 0.19)}px sans-serif`;
+          ctx.fillStyle = '#fef08a';
+          ctx.fillText('잠긴문', x + tileSize * 0.5, y + tileSize * 0.80);
         } else if (t === TILE.SINK) {
           ctx.fillStyle = '#0284c7';
-          ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
-          ctx.font = `${Math.floor(tileSize * 0.5)}px sans-serif`;
+          ctx.fillRect(x + tileSize * 0.08, y + tileSize * 0.08, tileSize * 0.84, tileSize * 0.84);
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + tileSize * 0.08, y + tileSize * 0.08, tileSize * 0.84, tileSize * 0.84);
+          ctx.lineWidth = 1;
+          ctx.font = `${Math.floor(tileSize * 0.4)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🚰', x + tileSize * 0.5, y + tileSize * 0.52);
+          ctx.fillText('🚰', x + tileSize * 0.5, y + tileSize * 0.42);
+          ctx.font = `bold ${Math.floor(tileSize * 0.2)}px sans-serif`;
+          ctx.fillStyle = '#e0f2fe';
+          ctx.fillText('세면대', x + tileSize * 0.5, y + tileSize * 0.80);
         } else if (t === TILE.ELEVATOR) {
           ctx.fillStyle = '#3f3f46';
           ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
@@ -2286,10 +2552,13 @@
         } else if (t === TILE.DEBRIS) {
           ctx.fillStyle = '#713f12';
           ctx.fillRect(x + tileSize * 0.08, y + tileSize * 0.08, tileSize * 0.84, tileSize * 0.84);
-          ctx.font = `${Math.floor(tileSize * 0.5)}px sans-serif`;
+          ctx.font = `${Math.floor(tileSize * 0.4)}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🪵', x + tileSize * 0.5, y + tileSize * 0.52);
+          ctx.fillText('🪵', x + tileSize * 0.5, y + tileSize * 0.42);
+          ctx.font = `bold ${Math.floor(tileSize * 0.19)}px sans-serif`;
+          ctx.fillStyle = '#fde68a';
+          ctx.fillText('장애물', x + tileSize * 0.5, y + tileSize * 0.80);
         } else if (t === TILE.GAS_VALVE) {
           ctx.fillStyle = player.gasClosed ? '#065f46' : '#991b1b';
           ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
@@ -2377,6 +2646,25 @@
           ctx.fillText('비상벨', x + tileSize * 0.5, y + tileSize * 0.82);
         }
       }
+    }
+
+    // 1.2 Draw Clean Room Zone Labels on the Floor (For Instant Architectural Recognition)
+    if (Array.isArray(st.roomLabels)) {
+      ctx.save();
+      ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.27))}px "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const rl of st.roomLabels) {
+        const rx = rl.c * tileSize;
+        const ry = rl.r * tileSize;
+        const textW = ctx.measureText(rl.text).width + 12;
+        const pillH = Math.max(16, Math.floor(tileSize * 0.42));
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.fillRect(rx - textW / 2, ry - pillH / 2, textW, pillH);
+        ctx.fillStyle = 'rgba(203, 213, 225, 0.65)';
+        ctx.fillText(rl.text, rx, ry);
+      }
+      ctx.restore();
     }
 
     // 1.5 Draw Green Evacuation Guide Signs & Glowing Exits
@@ -2479,23 +2767,35 @@
       }
     }
 
-    // 4. Draw Pickup Items
+    // 4. Draw Pickup Items with Clear Korean Name Tags
     for (const it of items) {
       const ix = (it.c + 0.5) * tileSize;
-      const iy = (it.r + 0.5) * tileSize + Math.sin(now * 2.2 + it.c) * 3;
+      const iy = (it.r + 0.5) * tileSize + Math.sin(now * 2.2 + it.c) * 2.5;
 
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
       ctx.beginPath();
-      ctx.arc(ix, iy, tileSize * 0.34, 0, Math.PI * 2);
+      ctx.arc(ix, iy - tileSize * 0.06, tileSize * 0.32, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = it.type === 'toy' ? '#fb7185' : (it.type === 'npc' ? '#4ade80' : '#38bdf8');
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = it.type === 'toy' ? '#fb7185' : (it.type === 'npc' || it.type === 'dog' ? '#4ade80' : '#38bdf8');
+      ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.font = `${Math.floor(tileSize * 0.44)}px sans-serif`;
+      ctx.font = `${Math.floor(tileSize * 0.4)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(it.icon, ix, iy + 1);
+      ctx.fillText(it.icon, ix, iy - tileSize * 0.05);
+
+      // Item Korean Name Tag underneath
+      const shortName = (it.name || '').split('(')[0].trim();
+      if (shortName) {
+        ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.2))}px "Noto Sans KR", sans-serif`;
+        const tw = ctx.measureText(shortName).width + 6;
+        const th = Math.max(11, Math.floor(tileSize * 0.24));
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+        ctx.fillRect(ix - tw / 2, iy + tileSize * 0.20, tw, th);
+        ctx.fillStyle = '#e0f2fe';
+        ctx.fillText(shortName, ix, iy + tileSize * 0.20 + th / 2);
+      }
     }
 
     // 5. Draw Extinguisher / Water Particles
@@ -2545,14 +2845,61 @@
       ctx.fill();
     }
 
-    // 7. Draw Player 1 (with Equipped Character Skin)
+    // 6.5 Draw Live Golden Next-Step Objective Guide Line & Target Highlight ([나] ---> [🎯 목표])
+    const nextObj = getNextStepObjective();
+    if (nextObj && !player.onFire) {
+      const tx = (nextObj.c + 0.5) * tileSize;
+      const ty = (nextObj.r + 0.5) * tileSize;
+      const distPx = Math.hypot(tx - px, ty - py);
+
+      ctx.save();
+      if (distPx > tileSize * 0.75) {
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.75)';
+        ctx.lineWidth = Math.max(2.5, tileSize * 0.08);
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -now * 16;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Pulsing golden ring around the target tile
+      const ringPulse = 0.42 + 0.08 * Math.sin(now * 4);
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(tx, ty, tileSize * ringPulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Floating "🎯 목표" badge above the target tile
+      const bounceY = Math.sin(now * 4) * 3;
+      ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.24))}px "Noto Sans KR", sans-serif`;
+      const badgeLabel = nextObj.label || '🎯 목표';
+      const bw = ctx.measureText(badgeLabel).width + 10;
+      const bh = Math.max(15, Math.floor(tileSize * 0.34));
+      const by = Math.max(bh / 2 + 2, ty - tileSize * 0.58 + bounceY);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(tx - bw / 2, by - bh / 2, bw, bh);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(tx - bw / 2, by - bh / 2, bw, bh);
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badgeLabel, tx, by);
+      ctx.restore();
+    }
+
+    // 7. Draw Player 1 (with Unmistakable '나' Badge & Glowing Ring)
     const activeSkin = getSelectedSkin();
     ctx.fillStyle = player.onFire ? '#ef4444' : (player.crouching ? '#10b981' : '#3b82f6');
     ctx.beginPath();
     ctx.arc(px, py, pRad, 0, Math.PI * 2);
     ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = player.hasMask ? '#2dd4bf' : (player.wetTowel ? '#38bdf8' : '#ffffff');
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#fde047';
     ctx.stroke();
 
     ctx.fillStyle = '#fde047';
@@ -2566,7 +2913,7 @@
     );
     ctx.fill();
 
-    ctx.font = `${Math.floor(tileSize * (player.crouching ? 0.42 : 0.48))}px sans-serif`;
+    ctx.font = `${Math.floor(tileSize * (player.crouching ? 0.44 : 0.5))}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const p1Icon = player.onFire
@@ -2574,15 +2921,25 @@
       : (activeSkin && activeSkin.id !== 'student' ? activeSkin.icon : (player.crouching ? '🧎' : '🏃'));
     ctx.fillText(p1Icon, px, py);
 
-    if (isCoopMode) {
-      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.2))}px sans-serif`;
-      ctx.fillStyle = '#93c5fd';
-      ctx.fillText('1P', px, py - pRad - 5);
-    }
+    // Bold '나 (ME)' pill above player so the player character is recognizable in 0.1s
+    ctx.save();
+    const meTag = isCoopMode ? '1P 나' : '나';
+    ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.23))}px "Noto Sans KR", sans-serif`;
+    const mw = ctx.measureText(meTag).width + 8;
+    const mh = Math.max(14, Math.floor(tileSize * 0.3));
+    const my = Math.max(mh / 2 + 2, py - pRad - mh / 2 - 3);
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(px - mw / 2, my - mh / 2, mw, mh);
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px - mw / 2, my - mh / 2, mw, mh);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(meTag, px, my);
+    ctx.restore();
 
     if (player.wetTowel || player.hasMask) {
-      ctx.strokeStyle = player.hasMask ? 'rgba(45, 212, 191, 0.85)' : 'rgba(56, 189, 248, 0.65)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = player.hasMask ? 'rgba(45, 212, 191, 0.9)' : 'rgba(56, 189, 248, 0.8)';
+      ctx.lineWidth = 2.5;
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.arc(px, py, pRad + 4, 0, Math.PI * 2);
@@ -3190,7 +3547,7 @@
 
   function hideAllModalsAndResume() {
     gameOverlay.classList.add('hidden');
-    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal].forEach((m) => {
+    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, moreToolsDrawer].forEach((m) => {
       if (m) {
         m.classList.add('hidden');
         m.classList.remove('flex');
