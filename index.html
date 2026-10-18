@@ -233,29 +233,29 @@
   <main id="gameMain" class="flex-1 max-w-5xl w-full mx-auto px-2 sm:px-4 py-1.5 flex flex-col gap-1.5">
 
     <!-- At-a-Glance Clean HUD -->
-    <section id="hudSection" class="bg-slate-900/95 border border-slate-800 rounded-xl px-2.5 py-2 shadow-lg flex flex-col gap-1.5">
-      <div id="hudVitalsRow" class="flex items-center justify-between gap-2 flex-wrap">
-        <div id="hudBarsBox" class="flex items-center gap-2 flex-1 min-w-[130px]">
-          <div class="flex items-center gap-1.5 flex-1">
-            <span class="text-xs font-extrabold text-red-400 shrink-0">❤️체력</span>
-            <div class="flex-1 h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
+    <section id="hudSection" class="bg-slate-900/95 border border-slate-800 rounded-xl px-2.5 py-2 shadow-lg flex flex-col gap-1.5 overflow-hidden">
+      <div id="hudVitalsRow" class="flex items-center justify-between gap-1.5 flex-wrap min-w-0">
+        <div id="hudBarsBox" class="flex items-center gap-1.5 flex-1 min-w-0 w-full">
+          <div class="flex items-center gap-1 flex-1 min-w-0 w-full">
+            <span class="text-[11px] font-extrabold text-red-400 shrink-0 whitespace-nowrap">❤️체력</span>
+            <div class="flex-1 min-w-[26px] h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
               <div id="hpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-150" style="width: 100%;"></div>
             </div>
-            <span id="hpValue" class="text-[11px] font-mono font-extrabold text-white w-8 text-right">100%</span>
+            <span id="hpValue" class="text-[10.5px] font-mono font-extrabold text-white shrink-0 text-right whitespace-nowrap">100%</span>
           </div>
 
-          <div class="flex items-center gap-1.5 flex-1">
-            <span class="text-xs font-extrabold text-sky-400 shrink-0">💨산소</span>
-            <div class="flex-1 h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
+          <div class="flex items-center gap-1 flex-1 min-w-0 w-full">
+            <span class="text-[11px] font-extrabold text-sky-400 shrink-0 whitespace-nowrap">💨산소</span>
+            <div class="flex-1 min-w-[26px] h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
               <div id="o2Bar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
             </div>
-            <span id="o2Value" class="text-[11px] font-mono font-extrabold text-white w-8 text-right">100%</span>
+            <span id="o2Value" class="text-[10.5px] font-mono font-extrabold text-white shrink-0 text-right whitespace-nowrap">100%</span>
           </div>
         </div>
 
-        <div class="flex items-center gap-1.5 shrink-0">
-          <span id="postureStatus" class="text-[11px] font-extrabold text-amber-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">🚶 서있음</span>
-          <span class="text-[11px] font-mono font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">⭐<span id="scoreDisplay">0</span></span>
+        <div id="hudStatusScoreRow" class="flex items-center justify-between gap-1 shrink-0 w-full min-w-0">
+          <span id="postureStatus" class="text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate">🚶 서있음</span>
+          <span class="text-[10px] font-mono font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 shrink-0 whitespace-nowrap">⭐<span id="scoreDisplay">0</span></span>
         </div>
 
         <!-- Hidden legacy telemetry nodes kept for internal compatibility -->

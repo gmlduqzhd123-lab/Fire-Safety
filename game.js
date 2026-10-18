@@ -1307,17 +1307,17 @@
       hudCache.postureKey = postureKey;
       if (st.isPreventionMode) {
         postureStatus.textContent = player.crouching ? '🧎 하층점검' : '🔍 사전점검';
-        postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
+        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
         convectionMarker.style.top = player.crouching ? '20px' : '12px';
         convectionHint.textContent = '화재 전 쾌적한 실내 공기';
       } else if (player.crouching) {
-        postureStatus.textContent = '🧎 낮은자세(안전)';
-        postureStatus.className = 'text-[11px] font-extrabold text-emerald-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
+        postureStatus.textContent = '🧎 낮은자세';
+        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
         convectionMarker.style.top = '20px';
         convectionHint.textContent = '바닥 신선한 공기 호흡';
       } else {
         postureStatus.textContent = '🚶 서있음';
-        postureStatus.className = 'text-[11px] font-extrabold text-amber-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 whitespace-nowrap';
+        postureStatus.className = 'text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
         convectionMarker.style.top = '3px';
         convectionHint.textContent = '상층 유독가스 주의!';
       }
@@ -3640,9 +3640,17 @@
     return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
   }
 
-  // --- Helper: Draw 3D Extruded Box (Isometric/Perspective Cutaway Block) ---
+  // --- Helper: Draw 3D Extruded Box with Ambient Contact Shadow, Vertical Shading & Specular Rim ---
   function draw3DBox(ctx, x, y, w, d, h, topColor, frontColor, sideColor, strokeColor) {
     const bevelX = Math.max(2, w * 0.12);
+    const frontY = y + d * 0.55 - h;
+    const frontH = h + d * 0.45;
+    const topH = d * 0.62;
+
+    // 0. Soft 3D Floor Contact Ambient Occlusion Shadow
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.42)';
+    ctx.fillRect(x - 1, y + d - 2, w + bevelX + 3, 5);
+
     // 1. Right 3D depth face
     if (sideColor) {
       ctx.fillStyle = sideColor;
@@ -3654,24 +3662,109 @@
       ctx.closePath();
       ctx.fill();
     }
-    // 2. Front vertical face (extruded down from roof to floor base)
+    // 2. Front vertical face (extruded down from roof to floor base) + 3D Vertical Depth Shading
     ctx.fillStyle = frontColor;
-    ctx.fillRect(x, y + d * 0.55 - h, w, h + d * 0.45);
+    ctx.fillRect(x, frontY, w, frontH);
+    const vShade = ctx.createLinearGradient(x, frontY, x, frontY + frontH);
+    vShade.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+    vShade.addColorStop(0.55, 'rgba(0, 0, 0, 0)');
+    vShade.addColorStop(1, 'rgba(2, 6, 23, 0.34)');
+    ctx.fillStyle = vShade;
+    ctx.fillRect(x, frontY, w, frontH);
+
     if (strokeColor) {
       ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 1;
-      ctx.strokeRect(x, y + d * 0.55 - h, w, h + d * 0.45);
+      ctx.strokeRect(x, frontY, w, frontH);
     }
-    // 3. Top roof face
+    // 3. Top roof face + Specular Front-Edge Bevel Highlight
     ctx.fillStyle = topColor;
-    ctx.fillRect(x, y - h, w, d * 0.62);
+    ctx.fillRect(x, y - h, w, topH);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.fillRect(x + 1, y - h + 1, Math.max(1, w - 2), Math.max(1.5, topH * 0.18));
     if (strokeColor) {
       ctx.strokeStyle = strokeColor;
-      ctx.strokeRect(x, y - h, w, d * 0.62);
+      ctx.strokeRect(x, y - h, w, topH);
     }
   }
 
-  // --- Helper: Draw Realistic Articulated 3D-Shaded Human Character ---
+  // --- Helper: Multi-Layered 3D Volumetric Flame Plume + Rising Embers + Floor Heat Scorch ---
+  function drawRealisticVolumetricFire(ctx, cx, cy, baseRadius, now, phase = 0, fireType = 'normal') {
+    const r = Math.max(8, baseRadius);
+    const flicker = 0.88 + 0.16 * Math.sin(now * 6.2 + phase);
+    const sway = Math.sin(now * 4.5 + phase * 1.7) * (r * 0.14);
+
+    ctx.save();
+    // 1. Floor Heat Scorch & Ambient Firelight Halo
+    const haloGrad = ctx.createRadialGradient(cx, cy + r * 0.12, r * 0.08, cx, cy + r * 0.12, r * 1.35 * flicker);
+    if (fireType === 'electric') {
+      haloGrad.addColorStop(0, 'rgba(224, 242, 254, 0.92)');
+      haloGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.65)');
+      haloGrad.addColorStop(0.7, 'rgba(37, 99, 235, 0.28)');
+      haloGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    } else if (fireType === 'oil' || fireType === 'metal') {
+      haloGrad.addColorStop(0, 'rgba(254, 249, 195, 0.95)');
+      haloGrad.addColorStop(0.35, 'rgba(245, 158, 11, 0.72)');
+      haloGrad.addColorStop(0.7, 'rgba(180, 83, 9, 0.30)');
+      haloGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    } else {
+      haloGrad.addColorStop(0, 'rgba(254, 249, 195, 0.95)');
+      haloGrad.addColorStop(0.35, 'rgba(249, 115, 22, 0.72)');
+      haloGrad.addColorStop(0.72, 'rgba(220, 38, 38, 0.28)');
+      haloGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    }
+    ctx.fillStyle = haloGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + r * 0.10, r * 1.25 * flicker, r * 0.75 * flicker, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Dark Thermal Smoke Plume Rising Above Flame Tip
+    const smokeY = cy - r * 1.05;
+    const smokeGrad = ctx.createRadialGradient(cx + sway * 0.8, smokeY, r * 0.05, cx + sway * 0.8, smokeY, r * 0.72);
+    smokeGrad.addColorStop(0, 'rgba(30, 41, 59, 0.52)');
+    smokeGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = smokeGrad;
+    ctx.beginPath();
+    ctx.arc(cx + sway * 0.8, smokeY, r * 0.72, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Outer, Mid, and Inner Volumetric 3D Flame Tongues (Procedural Bezier Teardrops)
+    const tongues = [
+      { ox: -r * 0.28, w: r * 0.42, h: r * 0.88, col: fireType === 'electric' ? '#1d4ed8' : '#dc2626', ph: 0.8 },
+      { ox: r * 0.26, w: r * 0.40, h: r * 0.84, col: fireType === 'electric' ? '#2563eb' : '#ea580c', ph: 2.1 },
+      { ox: 0, w: r * 0.56, h: r * 1.18 * flicker, col: fireType === 'electric' ? '#0284c7' : '#ef4444', ph: 0.0 },
+      { ox: sway * 0.25, w: r * 0.38, h: r * 0.86 * flicker, col: fireType === 'electric' ? '#38bdf8' : '#f97316', ph: 1.4 },
+      { ox: sway * 0.15, w: r * 0.22, h: r * 0.54 * flicker, col: fireType === 'electric' ? '#e0f2fe' : '#fef08a', ph: 2.8 }
+    ];
+    for (const tg of tongues) {
+      const tipSway = Math.sin(now * 5.8 + phase + tg.ph) * (r * 0.14);
+      const bx = cx + tg.ox;
+      const by = cy + r * 0.22;
+      ctx.fillStyle = tg.col;
+      ctx.beginPath();
+      ctx.moveTo(bx - tg.w, by);
+      ctx.quadraticCurveTo(bx - tg.w * 0.85, by - tg.h * 0.55, bx + tipSway, by - tg.h);
+      ctx.quadraticCurveTo(bx + tg.w * 0.85, by - tg.h * 0.55, bx + tg.w, by);
+      ctx.quadraticCurveTo(bx, by + tg.w * 0.38, bx - tg.w, by);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 4. Rising Glowing Ember Sparks
+    for (let sIdx = 0; sIdx < 4; sIdx++) {
+      const sparkProg = ((now * 1.35 + phase * 0.5 + sIdx * 0.27) % 1);
+      const sx = cx + Math.sin(now * 4 + sIdx * 2.1 + phase) * (r * 0.45);
+      const sy = cy + r * 0.05 - sparkProg * (r * 1.45);
+      const sr = Math.max(1.2, (1 - sparkProg) * (r * 0.09));
+      ctx.fillStyle = fireType === 'electric' ? '#bae6fd' : '#fde047';
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- Helper: Draw Realistic Articulated 3D-Shaded Human Character Limb ---
   function drawLimbSegment(ctx, x1, y1, x2, y2, radius, fillStyle, strokeStyle) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -3686,6 +3779,14 @@
     ctx.closePath();
     ctx.fillStyle = fillStyle;
     ctx.fill();
+    // 3D Cylindrical Volume Highlight along center of limb
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.lineWidth = Math.max(1, radius * 0.42);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.18);
+    ctx.lineTo(len, -radius * 0.15);
+    ctx.stroke();
     if (strokeStyle) {
       ctx.strokeStyle = strokeStyle;
       ctx.lineWidth = Math.max(1, radius * 0.22);
@@ -4858,28 +4959,46 @@
       return clipped.map(projectCamPoint);
     }
 
-    function shadeHexColor(hex, factor) {
-      const f = Math.max(0.18, Math.min(1.65, factor * brightMul));
+    function shadeHexColor(hex, factor, fireWarmth = 0) {
+      const f = Math.max(0.18, Math.min(1.68, factor * brightMul));
       const n = parseInt(hex.slice(1), 16);
-      const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * f)));
-      const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * f)));
-      const b = Math.min(255, Math.max(0, Math.round((n & 255) * f)));
+      const fw = Math.max(0, Math.min(0.85, fireWarmth));
+      const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * f + fw * 125)));
+      const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * f + fw * 52)));
+      const b = Math.min(255, Math.max(0, Math.round((n & 255) * f - fw * 18)));
       return `rgb(${r},${g},${b})`;
+    }
+
+    function getFireLightAt(wx, wy) {
+      if (!fires || fires.length === 0) return 0;
+      let warmth = 0;
+      for (let k = 0; k < fires.length; k++) {
+        const f = fires[k];
+        const dx = (f.c + 0.5) - wx;
+        const dy = (f.r + 0.5) - wy;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < 11.5) {
+          const pulse = 0.84 + 0.16 * Math.sin(now * 6.2 + (f.phase || k));
+          warmth += (1 - dSq / 11.5) * 0.52 * pulse;
+        }
+      }
+      return Math.min(0.78, warmth);
     }
 
     // 1. 3D Ceiling & Perspective Floor Base Backdrop with Power/Lighting Atmosphere
     const powerRestored = !!(player.breakerClosed || wireSolved);
     const ceilGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-    ceilGrad.addColorStop(0, powerRestored ? '#0f172a' : '#090d16');
-    ceilGrad.addColorStop(0.65, powerRestored ? '#1e293b' : '#111827');
-    ceilGrad.addColorStop(1, '#334155');
+    ceilGrad.addColorStop(0, powerRestored ? '#0b1324' : '#060a12');
+    ceilGrad.addColorStop(0.58, powerRestored ? '#19253b' : '#0f172a');
+    ceilGrad.addColorStop(1, '#1e293b');
     ctx.fillStyle = ceilGrad;
     ctx.fillRect(0, 0, width, horizon);
 
     const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
-    floorGrad.addColorStop(0, '#1e293b');
-    floorGrad.addColorStop(0.4, '#334155');
-    floorGrad.addColorStop(1, '#1e293b');
+    floorGrad.addColorStop(0, '#0f172a');
+    floorGrad.addColorStop(0.35, '#1e293b');
+    floorGrad.addColorStop(0.75, '#293548');
+    floorGrad.addColorStop(1, '#172030');
     ctx.fillStyle = floorGrad;
     ctx.fillRect(0, horizon, width, height - horizon);
 
@@ -4911,10 +5030,12 @@
 
       const even = (r + c) % 2 === 0;
       const t = grid[r][c];
-      const depthShade = Math.max(0.38, Math.min(1.18, 1.12 / (1 + dist * 0.14)));
+      const tileFireWarmth = getFireLightAt(c + 0.5, r + 0.5);
+      const ceilLightBoost = ((r % 2 === 1) && (c % 2 === 1)) ? (powerRestored ? 0.14 : 0.07) : 0;
+      const depthShade = Math.max(0.36, Math.min(1.24, (1.10 + ceilLightBoost + tileFireWarmth * 0.25) / (1 + dist * 0.14)));
 
       let baseHex = even ? '#3b4c63' : '#2e3d52';
-      let strokeCol = 'rgba(148, 163, 184, 0.34)';
+      let strokeCol = 'rgba(148, 163, 184, 0.30)';
 
       if (t === TILE.EXIT) {
         baseHex = '#10b981';
@@ -4922,26 +5043,44 @@
       } else if (c <= 3 && r <= 3) {
         // Warm Oak Parquet Bedroom Floor
         baseHex = even ? '#854d0e' : '#713f12';
-        strokeCol = 'rgba(253, 224, 71, 0.28)';
+        strokeCol = 'rgba(253, 224, 71, 0.25)';
       } else if (c >= 4 && c <= 7 && r <= 3) {
         // Clean Aqua Ceramic Bathroom Tile
         baseHex = even ? '#0e7490' : '#155e75';
-        strokeCol = 'rgba(103, 232, 249, 0.35)';
+        strokeCol = 'rgba(103, 232, 249, 0.32)';
       } else if (c <= 5 && r >= 5) {
         // Warm Terracotta Kitchen/Lab Tile
         baseHex = even ? '#7f1d1d' : '#651a1a';
-        strokeCol = 'rgba(253, 164, 175, 0.28)';
+        strokeCol = 'rgba(253, 164, 175, 0.26)';
       }
 
-      ctx.fillStyle = shadeHexColor(baseHex, depthShade);
+      ctx.fillStyle = shadeHexColor(baseHex, depthShade, tileFireWarmth);
       ctx.beginPath();
       ctx.moveTo(poly[0].x, poly[0].y);
       for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = Math.max(0.8, Math.min(2.0, 2.6 / Math.max(0.4, dist)));
+      ctx.lineWidth = Math.max(0.75, Math.min(1.8, 2.4 / Math.max(0.4, dist)));
       ctx.stroke();
+
+      // Subtle Floor Specular Reflection Under Ceiling Lights or Firelight
+      if (dist < 6.8 && (((r % 2 === 1) && (c % 2 === 1)) || tileFireWarmth > 0.18)) {
+        const sheenPoly = projectClipped3DPolygon(
+          [[c + 0.22, r + 0.22, 0.003], [c + 0.78, r + 0.22, 0.003], [c + 0.78, r + 0.78, 0.003], [c + 0.22, r + 0.78, 0.003]],
+          0.12
+        );
+        if (sheenPoly) {
+          ctx.fillStyle = tileFireWarmth > 0.18
+            ? `rgba(251, 146, 60, ${Math.min(0.26, tileFireWarmth * 0.34)})`
+            : (powerRestored ? 'rgba(254, 249, 195, 0.085)' : 'rgba(148, 163, 184, 0.045)');
+          ctx.beginPath();
+          ctx.moveTo(sheenPoly[0].x, sheenPoly[0].y);
+          for (let k = 1; k < sheenPoly.length; k++) ctx.lineTo(sheenPoly[k].x, sheenPoly[k].y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
 
       // Wood Parquet Plank Sub-Line or Corridor Photoluminescent Guide Strip
       if (r === 4 || c === 8) {
@@ -4950,7 +5089,7 @@
           0.10
         );
         if (stripPoly) {
-          ctx.fillStyle = 'rgba(52, 211, 153, 0.65)';
+          ctx.fillStyle = 'rgba(52, 211, 153, 0.68)';
           ctx.beginPath();
           ctx.moveTo(stripPoly[0].x, stripPoly[0].y);
           for (let k = 1; k < stripPoly.length; k++) ctx.lineTo(stripPoly[k].x, stripPoly[k].y);
@@ -5176,18 +5315,22 @@
       const edgeDist = Math.min(wallX, 1 - wallX);
       const cornerAO = edgeDist < 0.075 ? (0.86 + (edgeDist / 0.075) * 0.14) : 1.0;
 
-      // Dynamic Distance Shading + 3D Flashlight Cone (F) + Power Recovery Boost + Corner AO
-      let lightFactor = ((isSideLit ? 1.02 : 0.84) * cornerAO) / (1 + perpDist * 0.14);
-      if (powerRestored) lightFactor *= 1.10;
+      // Dynamic Distance Shading + 3D Flashlight Cone (F) + Power Recovery Boost + Corner AO + Fire Point-Light
+      const hitWorldX = camWorldX + rawDist * rayDirX;
+      const hitWorldY = camWorldY + rawDist * rayDirY;
+      const wallFireWarmth = getFireLightAt(hitWorldX, hitWorldY);
+
+      let lightFactor = ((isSideLit ? 1.04 : 0.84) * cornerAO) / (1 + perpDist * 0.14);
+      if (powerRestored) lightFactor *= 1.12;
       if (st.isDarkStage && !powerRestored) lightFactor *= 0.62;
       if (flashlightSpotEnabled || player.hasFlashlight) {
         const coneDist = Math.abs(camX);
         if (coneDist < 0.45) {
-          const spotStrength = (1 - (coneDist / 0.45) ** 2) * (player.hasFlashlight ? 0.36 : 0.20);
+          const spotStrength = (1 - (coneDist / 0.45) ** 2) * (player.hasFlashlight ? 0.38 : 0.22);
           lightFactor += spotStrength / (1 + perpDist * 0.12);
         }
       }
-      lightFactor = Math.min(1.06, lightFactor);
+      lightFactor = Math.min(1.12, lightFactor + wallFireWarmth * 0.22);
 
       if (hitTile === TILE.DOOR || hitTile === TILE.LOCKED_DOOR || hitTile === TILE.HOT_DOOR) {
         // High-Realism 3D Architectural Door Embedded in Building Wall
@@ -5197,11 +5340,11 @@
 
         if (isWallShoulder) {
           // Surrounding Building Wall Shoulder (Crown Molding + Upper Slate + Green Guide Line + Baseboard)
-          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH * 0.62);
-          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
+          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH * 0.045);
-          ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+          ctx.fillStyle = shadeHexColor('#334155', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop + projH * 0.62, sw, projH * 0.38);
           ctx.fillStyle = shadeHexColor('#10b981', Math.max(0.75, lightFactor));
           ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.035);
@@ -5209,29 +5352,29 @@
           ctx.fillRect(x0, wallBottom - projH * 0.065, sw, projH * 0.065);
         } else {
           // Top Wall Header above Door Frame Lintel
-          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
+          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH * 0.045);
-          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop + projH * 0.045, sw, projH * 0.03);
 
           if (isFrameJamb) {
             // 3D Recessed Walnut/Steel Door Frame Casing & Inner Shadow Reveal
             const frameCol = isInnerReveal ? '#1c0d02' : '#3b1d08';
-            ctx.fillStyle = shadeHexColor(frameCol, lightFactor);
+            ctx.fillStyle = shadeHexColor(frameCol, lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.075, sw, projH * 0.925);
 
             // 3-Stage Brushed Steel Hinges (경첩) on Left Jamb
             if (wallX >= 0.128 && wallX <= 0.145) {
-              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 1.05);
+              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 1.05, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.21, sw, projH * 0.045);
               ctx.fillRect(x0, wallTop + projH * 0.51, sw, projH * 0.045);
               ctx.fillRect(x0, wallTop + projH * 0.79, sw, projH * 0.045);
             }
           } else {
             // Overhead Door Frame Lintel & Shadow Reveal (0.075 .. 0.125)
-            ctx.fillStyle = shadeHexColor('#3b1d08', lightFactor);
+            ctx.fillStyle = shadeHexColor('#3b1d08', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.075, sw, projH * 0.038);
-            ctx.fillStyle = shadeHexColor('#1c0d02', lightFactor);
+            ctx.fillStyle = shadeHexColor('#1c0d02', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.113, sw, projH * 0.012);
 
             // Realistic Wood-Grain / Fire-Door Texture Modulation
@@ -5240,16 +5383,16 @@
             if (hitTile === TILE.LOCKED_DOOR) leafHex = '#9a6b13';
             else if (hitTile === TILE.HOT_DOOR) leafHex = '#991b1b';
 
-            ctx.fillStyle = shadeHexColor(leafHex, lightFactor * grainMod);
+            ctx.fillStyle = shadeHexColor(leafHex, lightFactor * grainMod, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.125, sw, projH * 0.85);
 
             // Overhead Hydraulic Door Closer (도어클로저) & Articulated Arm
             if (wallX >= 0.28 && wallX <= 0.52) {
-              ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+              ctx.fillStyle = shadeHexColor('#64748b', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.095, sw, projH * 0.022);
             }
             if (wallX >= 0.22 && wallX <= 0.42) {
-              ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 1.05);
+              ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 1.05, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.13, sw, projH * 0.042);
             }
 
@@ -5257,27 +5400,27 @@
             if (wallX >= 0.26 && wallX <= 0.74) {
               const isWinSideBorder = wallX < 0.295 || wallX > 0.705;
               // Top & Bottom Window Molding Trim
-              ctx.fillStyle = shadeHexColor('#3b1906', lightFactor);
+              ctx.fillStyle = shadeHexColor('#3b1906', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.20, sw, projH * 0.26);
 
               if (!isWinSideBorder) {
                 if (hitTile === TILE.HOT_DOOR) {
                   // Fiery Orange-Red Backdraft Glow Behind Vision Glass
                   const hotPulse = 0.88 + 0.12 * Math.sin(now * 4.5 + wallX * 6);
-                  ctx.fillStyle = shadeHexColor('#f97316', lightFactor * 1.22 * hotPulse);
+                  ctx.fillStyle = shadeHexColor('#f97316', lightFactor * 1.22 * hotPulse, 0.35);
                   ctx.fillRect(x0, wallTop + projH * 0.225, sw, projH * 0.21);
-                  ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 1.25);
+                  ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 1.25, 0.25);
                   ctx.fillRect(x0, wallTop + projH * 0.29, sw, projH * 0.09);
                 } else {
                   // Dark Architectural Tinted Glass + Diagonal Sky Reflection + Wired Mesh
                   const isReflBand = (wallX > 0.34 && wallX < 0.43) || (wallX > 0.55 && wallX < 0.60);
                   const isWireMesh = Math.abs(((wallX * 18) % 1) - 0.5) < 0.085;
                   const glassHex = isReflBand ? '#38bdf8' : (isWireMesh ? '#475569' : '#0f2942');
-                  ctx.fillStyle = shadeHexColor(glassHex, lightFactor * (isReflBand ? 1.05 : 0.94));
+                  ctx.fillStyle = shadeHexColor(glassHex, lightFactor * (isReflBand ? 1.05 : 0.94), wallFireWarmth);
                   ctx.fillRect(x0, wallTop + projH * 0.225, sw, projH * 0.21);
                   // Horizontal wire mesh cross-lines inside vision glass
                   if (isWireMesh) {
-                    ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 0.90);
+                    ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 0.90, wallFireWarmth);
                     ctx.fillRect(x0, wallTop + projH * 0.275, sw, Math.max(1, projH * 0.008));
                     ctx.fillRect(x0, wallTop + projH * 0.335, sw, Math.max(1, projH * 0.008));
                     ctx.fillRect(x0, wallTop + projH * 0.395, sw, Math.max(1, projH * 0.008));
@@ -5294,25 +5437,25 @@
                 const isRightBevel = wallX > 0.735 || (wallX > 0.455 && wallX < 0.478);
                 const panelHex = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#784f0d' : '#6b3410');
                 const bevelHex = isLeftBevel ? '#291103' : (isRightBevel ? '#b4692e' : panelHex);
-                ctx.fillStyle = shadeHexColor(bevelHex, lightFactor * grainMod);
+                ctx.fillStyle = shadeHexColor(bevelHex, lightFactor * grainMod, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.28);
                 // Top & bottom panel bevel lines
-                ctx.fillStyle = shadeHexColor('#291103', lightFactor);
+                ctx.fillStyle = shadeHexColor('#291103', lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.015);
-                ctx.fillStyle = shadeHexColor('#b4692e', lightFactor);
+                ctx.fillStyle = shadeHexColor('#b4692e', lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.825, sw, projH * 0.015);
               }
             }
 
             // Bottom Stainless Steel Kickplate (하단 스텐 킥플레이트) & Aluminum Threshold
-            ctx.fillStyle = shadeHexColor('#64748b', lightFactor * 0.98);
+            ctx.fillStyle = shadeHexColor('#64748b', lightFactor * 0.98, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.89, sw, projH * 0.085);
-            ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+            ctx.fillStyle = shadeHexColor('#334155', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.975, sw, projH * 0.025);
 
             // Digital Security Lock Keypad for LOCKED_DOOR
             if (hitTile === TILE.LOCKED_DOOR && wallX >= 0.755 && wallX <= 0.835) {
-              ctx.fillStyle = shadeHexColor('#0f172a', lightFactor);
+              ctx.fillStyle = shadeHexColor('#0f172a', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.37, sw, projH * 0.085);
               ctx.fillStyle = '#ef4444';
               ctx.fillRect(x0, wallTop + projH * 0.385, sw, projH * 0.018);
@@ -5320,13 +5463,13 @@
 
             // 3D Metallic Lever Handle & Escutcheon Rosette (입체 레버 손잡이)
             if (wallX >= 0.765 && wallX <= 0.828) {
-              ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+              ctx.fillStyle = shadeHexColor('#334155', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.465, sw, projH * 0.105);
             }
             if (wallX >= 0.675 && wallX <= 0.818) {
-              ctx.fillStyle = shadeHexColor('#f8fafc', Math.max(0.88, lightFactor * 1.12));
+              ctx.fillStyle = shadeHexColor('#f8fafc', Math.max(0.88, lightFactor * 1.12), wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.502, sw, projH * 0.028);
-              ctx.fillStyle = shadeHexColor('#1e293b', lightFactor);
+              ctx.fillStyle = shadeHexColor('#1e293b', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.530, sw, projH * 0.014);
             }
           }
@@ -5336,14 +5479,14 @@
         const isWallShoulder = wallX < 0.07 || wallX > 0.93;
         const isFrame = !isWallShoulder && (wallX < 0.135 || wallX > 0.865);
         if (isWallShoulder) {
-          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH);
         } else if (isFrame) {
-          ctx.fillStyle = shadeHexColor('#064e3b', lightFactor * 1.05);
+          ctx.fillStyle = shadeHexColor('#064e3b', lightFactor * 1.05, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH);
         } else {
           // Fire-Rated Emerald Steel Door Leaf
-          ctx.fillStyle = shadeHexColor('#047857', lightFactor * 1.10);
+          ctx.fillStyle = shadeHexColor('#047857', lightFactor * 1.10, wallFireWarmth);
           ctx.fillRect(x0, wallTop, sw, projH);
 
           // Overhead Illuminated Green Emergency Exit Sign Box (0.04 .. 0.15)
@@ -5357,13 +5500,13 @@
           // Upper Wired-Glass Vision Window on Exit Door (0.21 .. 0.43)
           if (wallX >= 0.30 && wallX <= 0.70) {
             const isWinBorder = wallX < 0.33 || wallX > 0.67;
-            ctx.fillStyle = isWinBorder ? '#064e3b' : shadeHexColor('#6ee7b7', lightFactor * 1.15);
+            ctx.fillStyle = isWinBorder ? '#064e3b' : shadeHexColor('#6ee7b7', lightFactor * 1.15, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.21, sw, projH * 0.22);
           }
 
           // Horizontal Stainless Steel Panic Push-Bar (비상문 수평 패닉바: 0.49 .. 0.545)
           if (wallX >= 0.18 && wallX <= 0.82) {
-            ctx.fillStyle = shadeHexColor('#e2e8f0', Math.max(0.88, lightFactor * 1.1));
+            ctx.fillStyle = shadeHexColor('#e2e8f0', Math.max(0.88, lightFactor * 1.1), wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.49, sw, projH * 0.048);
             if (wallX >= 0.28 && wallX <= 0.72) {
               ctx.fillStyle = '#ef4444';
@@ -5372,72 +5515,71 @@
           }
 
           // Stainless Steel Kickplate
-          ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor);
+          ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop + projH * 0.89, sw, projH * 0.085);
         }
       } else if (hitTile === TILE.ELEVATOR) {
-        ctx.fillStyle = shadeHexColor(isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : '#64748b', lightFactor);
+        ctx.fillStyle = shadeHexColor(isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : '#64748b', lightFactor, wallFireWarmth);
         ctx.fillRect(x0, wallTop, sw, projH);
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.07);
       } else if (hitTile === TILE.PARTITION || hitTile === TILE.LIFELINE) {
         const baseHex = hitTile === TILE.LIFELINE ? '#0284c7' : '#ea580c';
-        ctx.fillStyle = shadeHexColor(baseHex, lightFactor);
+        ctx.fillStyle = shadeHexColor(baseHex, lightFactor, wallFireWarmth);
         ctx.fillRect(x0, wallTop, sw, projH);
         if (wallX > 0.15 && wallX < 0.85) {
-          ctx.fillStyle = shadeHexColor(hitTile === TILE.LIFELINE ? '#bae6fd' : '#fdba74', lightFactor);
+          ctx.fillStyle = shadeHexColor(hitTile === TILE.LIFELINE ? '#bae6fd' : '#fdba74', lightFactor, wallFireWarmth);
           ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.52);
         }
       } else {
-        // Clean, Modern 3D Building Interior Wall Architecture (Acoustic Slate Panels + Framed Wainscoting + Emergency Guide Ribbon)
-        const wallFeature = (mapX * 7 + mapY * 13) % 4;
+        // High-Realism 3D Building Interior Wall Architecture (Multi-Band Vertical Lighting + Recessed Fixtures + 3D Handrail + Floor/Ceiling AO)
+        const wallFeature = (mapX * 7 + mapY * 13) % 7;
         const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.012;
+        const microTex = 0.985 + 0.015 * Math.cos(wallX * 37.7);
         const upperHex = isPanelJoint ? '#334155' : '#64748b';
         const lowerHex = isEdgeSeam ? '#0f172a' : '#334155';
 
-        // Upper Acoustic Slate Wall + Horizontal Perspective Courses
-        ctx.fillStyle = shadeHexColor(upperHex, lightFactor);
-        ctx.fillRect(x0, wallTop, sw, projH * 0.62);
-        ctx.fillStyle = shadeHexColor('#475569', lightFactor * 0.88);
-        ctx.fillRect(x0, wallTop + projH * 0.22, sw, Math.max(1.5, projH * 0.012));
-        ctx.fillRect(x0, wallTop + projH * 0.42, sw, Math.max(1.5, projH * 0.012));
+        // Upper Acoustic Slate Wall (2-Zone Vertical Lighting Gradient + Horizontal Courses)
+        ctx.fillStyle = shadeHexColor(upperHex, lightFactor * 0.94 * microTex, wallFireWarmth);
+        ctx.fillRect(x0, wallTop, sw, projH * 0.28);
+        ctx.fillStyle = shadeHexColor(upperHex, lightFactor * 1.03 * microTex, wallFireWarmth);
+        ctx.fillRect(x0, wallTop + projH * 0.28, sw, projH * 0.34);
 
-        // Ceiling Crown Molding & Ambient Occlusion Strip
-        ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
-        ctx.fillRect(x0, wallTop, sw, projH * 0.045);
-        ctx.fillStyle = shadeHexColor('#1e293b', lightFactor * 0.85);
-        ctx.fillRect(x0, wallTop + projH * 0.045, sw, projH * 0.015);
+        ctx.fillStyle = shadeHexColor('#475569', lightFactor * 0.86, wallFireWarmth);
+        ctx.fillRect(x0, wallTop + projH * 0.22, sw, Math.max(1.5, projH * 0.011));
+        ctx.fillRect(x0, wallTop + projH * 0.42, sw, Math.max(1.5, projH * 0.011));
 
-        // 3D Recessed Architectural Wall Fixtures on Every Wall Segment
+        // Ceiling Crown Molding & Cove Shadow Strip
+        ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 1.04, wallFireWarmth);
+        ctx.fillRect(x0, wallTop, sw, projH * 0.042);
+        ctx.fillStyle = shadeHexColor('#0f172a', lightFactor * 0.78, wallFireWarmth);
+        ctx.fillRect(x0, wallTop + projH * 0.042, sw, projH * 0.018);
+
+        // 3D Recessed Architectural Wall Fixtures (Naturally Spaced Across Building Walls)
         if (wallX > 0.22 && wallX < 0.78) {
           const isFixtureBorder = wallX < 0.25 || wallX > 0.75;
           if (wallFeature === 0) {
             // Framed Safety Evacuation Blueprint Board (피난안내도: Aluminum Frame + Floor Plan Grid + Green Route + Red '현위치' Dot)
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#1e293b' : '#0c4a6e', lightFactor);
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#1e293b' : '#0c4a6e', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.145, sw, projH * 0.31);
             if (!isFixtureBorder) {
-              // Top Green Header Bar ("피난안내도 EVACUATION MAP")
-              ctx.fillStyle = shadeHexColor('#059669', lightFactor * 1.05);
+              ctx.fillStyle = shadeHexColor('#059669', lightFactor * 1.05, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.038);
-              // Bright Schematic Floor-Plan Card
-              ctx.fillStyle = shadeHexColor('#e0f2fe', lightFactor * 0.98);
+              ctx.fillStyle = shadeHexColor('#e0f2fe', lightFactor * 0.98, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.205, sw, projH * 0.225);
-              // Internal Room Partition Lines on Blueprint
               const isBlueprintGrid = Math.abs(wallX - 0.38) < 0.012 || Math.abs(wallX - 0.52) < 0.012 || Math.abs(wallX - 0.64) < 0.012;
               if (isBlueprintGrid) {
-                ctx.fillStyle = shadeHexColor('#0284c7', lightFactor);
+                ctx.fillStyle = shadeHexColor('#0284c7', lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.19);
               } else {
-                ctx.fillStyle = shadeHexColor('#38bdf8', lightFactor * 0.85);
+                ctx.fillStyle = shadeHexColor('#38bdf8', lightFactor * 0.85, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.25, sw, projH * 0.012);
                 ctx.fillRect(x0, wallTop + projH * 0.37, sw, projH * 0.012);
               }
-              // Glowing Green Evacuation Route Line
               if (wallX >= 0.30 && wallX <= 0.70) {
                 ctx.fillStyle = '#10b981';
                 ctx.fillRect(x0, wallTop + projH * 0.31, sw, projH * 0.022);
               }
-              // Red '현위치 (You Are Here)' Indicator Dot
               if (wallX >= 0.32 && wallX <= 0.36) {
                 ctx.fillStyle = '#ef4444';
                 ctx.fillRect(x0, wallTop + projH * 0.298, sw, projH * 0.044);
@@ -5452,24 +5594,22 @@
           } else if (wallFeature === 1) {
             // Exterior / Corridor Night Window with Aluminum Mullion, Venetian Blind Slats & Glass Reflection
             const isMullion = isFixtureBorder || Math.abs(wallX - 0.50) < 0.02;
-            ctx.fillStyle = shadeHexColor(isMullion ? '#1e293b' : '#0f172a', lightFactor);
+            ctx.fillStyle = shadeHexColor(isMullion ? '#1e293b' : '#0f172a', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.32);
             if (!isMullion) {
               const isRefl = (wallX > 0.31 && wallX < 0.39) || (wallX > 0.56 && wallX < 0.63);
-              ctx.fillStyle = shadeHexColor(isRefl ? '#38bdf8' : '#1e3a8a', lightFactor * (isRefl ? 0.95 : 0.85));
+              ctx.fillStyle = shadeHexColor(isRefl ? '#38bdf8' : '#1e3a8a', lightFactor * (isRefl ? 0.95 : 0.85), wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.155, sw, projH * 0.29);
-              // Upper Venetian Blind Slats
-              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 0.92);
+              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 0.92, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.155, sw, projH * 0.014);
               ctx.fillRect(x0, wallTop + projH * 0.178, sw, projH * 0.014);
               ctx.fillRect(x0, wallTop + projH * 0.201, sw, projH * 0.014);
-              // Horizontal Window Transom Bar
-              ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+              ctx.fillStyle = shadeHexColor('#334155', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.295, sw, projH * 0.018);
             }
           } else if (wallFeature === 2) {
             // Recessed 2-Tier Wall Archive Bookshelf (매뉴얼서가: Walnut Frame, 2 Wooden Planks, Varied Book Heights & Spine Labels)
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#451a03' : '#1c0d06', lightFactor);
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#451a03' : '#1c0d06', lightFactor, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
             if (!isFixtureBorder) {
               const slotIdx = Math.floor((wallX - 0.25) * 24);
@@ -5482,20 +5622,17 @@
                 const topHMod = (slotIdx % 3) * 0.012;
                 const botHMod = ((slotIdx + 1) % 3) * 0.012;
 
-                // Upper Shelf Books + White Spine Classification Tag
-                ctx.fillStyle = shadeHexColor(topHex, lightFactor);
+                ctx.fillStyle = shadeHexColor(topHex, lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * (0.175 + topHMod), sw, projH * (0.11 - topHMod));
-                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.95);
+                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.95, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.245, sw, projH * 0.018);
 
-                // Lower Shelf Books + Gold Spine Classification Tag
-                ctx.fillStyle = shadeHexColor(botHex, lightFactor);
+                ctx.fillStyle = shadeHexColor(botHex, lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * (0.325 + botHMod), sw, projH * (0.115 - botHMod));
-                ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 0.95);
+                ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 0.95, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.402, sw, projH * 0.018);
               }
-              // 2 Horizontal Walnut Shelf Planks
-              ctx.fillStyle = shadeHexColor('#78350f', lightFactor * 1.05);
+              ctx.fillStyle = shadeHexColor('#78350f', lightFactor * 1.05, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.285, sw, projH * 0.022);
               ctx.fillRect(x0, wallTop + projH * 0.440, sw, projH * 0.024);
             }
@@ -5505,12 +5642,11 @@
                 visibleWallFixtures.set(fKey, { x: x0, y: wallTop + projH * 0.31, depth: perpDist, label: '📚 매뉴얼서가(425.12)' });
               }
             }
-          } else {
+          } else if (wallFeature === 3) {
             // Recessed Indoor Fire Hydrant Cabinet (옥내소화전함: Steel Cabinet Door + Red Transmitter Lamp + Hose Reel Window)
             const isDoorSeam = Math.abs(wallX - 0.28) < 0.01 || Math.abs(wallX - 0.72) < 0.01;
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#334155' : (isDoorSeam ? '#64748b' : '#cbd5e1'), lightFactor * 0.96);
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#334155' : (isDoorSeam ? '#64748b' : '#cbd5e1'), lightFactor * 0.96, wallFireWarmth);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
-            // Red Alarm Transmitter Indicator Lamp on Top Center
             if (wallX > 0.45 && wallX < 0.55) {
               ctx.fillStyle = '#ef4444';
               ctx.fillRect(x0, wallTop + projH * 0.158, sw, projH * 0.045);
@@ -5519,20 +5655,18 @@
                 ctx.fillRect(x0, wallTop + projH * 0.168, sw, projH * 0.024);
               }
             }
-            // Middle Inspection Window & Red Fire Hose Reel Silhouette
             if (wallX > 0.33 && wallX < 0.67) {
-              ctx.fillStyle = shadeHexColor('#b91c1c', lightFactor);
+              ctx.fillStyle = shadeHexColor('#b91c1c', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.23, sw, projH * 0.18);
               if (wallX > 0.38 && wallX < 0.62) {
-                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.9);
+                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.9, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.26, sw, projH * 0.03);
-                ctx.fillStyle = shadeHexColor('#7f1d1d', lightFactor);
+                ctx.fillStyle = shadeHexColor('#7f1d1d', lightFactor, wallFireWarmth);
                 ctx.fillRect(x0, wallTop + projH * 0.31, sw, projH * 0.07);
               }
             }
-            // Chrome Cabinet Lever Handle
             if (wallX > 0.68 && wallX < 0.705) {
-              ctx.fillStyle = shadeHexColor('#475569', lightFactor);
+              ctx.fillStyle = shadeHexColor('#475569', lightFactor, wallFireWarmth);
               ctx.fillRect(x0, wallTop + projH * 0.30, sw, projH * 0.06);
             }
             if (wallX > 0.46 && wallX < 0.54 && perpDist < 4.8) {
@@ -5541,45 +5675,82 @@
                 visibleWallFixtures.set(fKey, { x: x0, y: wallTop + projH * 0.32, depth: perpDist, label: '🚒 옥내소화전함' });
               }
             }
+          } else if (wallFeature === 4 && wallX > 0.38 && wallX < 0.62) {
+            // Architectural Emergency Wall Sconce Light & Up/Down Light Cone
+            const sconceGlow = 1 - Math.abs(wallX - 0.5) / 0.12;
+            ctx.fillStyle = `rgba(254, 240, 138, ${0.18 * sconceGlow})`;
+            ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.34);
+            ctx.fillStyle = shadeHexColor('#1e293b', lightFactor, wallFireWarmth);
+            ctx.fillRect(x0, wallTop + projH * 0.21, sw, projH * 0.09);
+            if (wallX > 0.41 && wallX < 0.59) {
+              ctx.fillStyle = powerRestored ? '#fef08a' : '#38bdf8';
+              ctx.fillRect(x0, wallTop + projH * 0.225, sw, projH * 0.055);
+            }
           }
         }
 
+        // 3D Brushed Steel Corridor Handrail on Plain Architectural Wall Segments
+        if (wallFeature >= 4 && wallX > 0.08 && wallX < 0.92) {
+          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 1.08, wallFireWarmth);
+          ctx.fillRect(x0, wallTop + projH * 0.535, sw, projH * 0.022);
+          ctx.fillStyle = shadeHexColor('#0f172a', lightFactor * 0.72, wallFireWarmth);
+          ctx.fillRect(x0, wallTop + projH * 0.557, sw, projH * 0.012);
+        }
+
         // Lower Wainscoting Wall
-        ctx.fillStyle = shadeHexColor(lowerHex, lightFactor);
+        ctx.fillStyle = shadeHexColor(lowerHex, lightFactor * microTex, wallFireWarmth);
         ctx.fillRect(x0, wallTop + projH * 0.62, sw, projH * 0.38);
 
         if (wallX > 0.16 && wallX < 0.84) {
-          ctx.fillStyle = shadeHexColor('#1e293b', lightFactor * 0.94);
+          ctx.fillStyle = shadeHexColor('#1e293b', lightFactor * 0.92, wallFireWarmth);
           ctx.fillRect(x0, wallTop + projH * 0.68, sw, projH * 0.20);
+          ctx.fillStyle = shadeHexColor('#0f172a', lightFactor * 0.80, wallFireWarmth);
+          ctx.fillRect(x0, wallTop + projH * 0.68, sw, projH * 0.014);
         }
 
         // Photoluminescent Green Emergency Wall Guide Ribbon & Golden Trim
-        ctx.fillStyle = shadeHexColor('#10b981', Math.max(0.75, lightFactor));
+        ctx.fillStyle = shadeHexColor('#10b981', Math.max(0.78, lightFactor));
         ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.035);
-        ctx.fillStyle = shadeHexColor('#fde047', Math.max(0.75, lightFactor));
+        ctx.fillStyle = shadeHexColor('#fde047', Math.max(0.78, lightFactor));
         ctx.fillRect(x0, wallTop + projH * 0.58, sw, projH * 0.012);
 
         // Dark Architectural Floor Baseboard
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = shadeHexColor('#0f172a', lightFactor * 0.85, wallFireWarmth * 0.5);
         ctx.fillRect(x0, wallBottom - projH * 0.065, sw, projH * 0.065);
+      }
+
+      // Universal Ceiling Cove Ambient Occlusion & Floor Baseboard Contact Shadow + Floor Gloss Reflection
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.34)';
+      ctx.fillRect(x0, wallTop, sw, Math.max(2, projH * 0.024));
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.44)';
+      ctx.fillRect(x0, wallBottom - Math.max(1.5, projH * 0.018), sw, Math.max(2.5, projH * 0.036));
+      if (perpDist < 6.5 && wallBottom < height) {
+        ctx.fillStyle = wallFireWarmth > 0.12
+          ? `rgba(251, 146, 60, ${Math.min(0.18, wallFireWarmth * 0.25)})`
+          : 'rgba(148, 163, 184, 0.05)';
+        ctx.fillRect(x0, wallBottom, sw, Math.min(height - wallBottom, projH * 0.07));
       }
     }
 
     // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints, Archive Bookshelves & Fire Hydrants)
     for (const wf of visibleWallFixtures.values()) {
-      if (wf.x < 60 || wf.x > width - 60) continue;
       ctx.save();
-      ctx.font = `bold ${Math.max(10, Math.min(14, Math.floor(19 / wf.depth)))}px "Noto Sans KR", sans-serif`;
-      const tw = ctx.measureText(wf.label).width + 10;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      ctx.font = `bold ${Math.max(10, Math.min(13, Math.floor(18 / wf.depth)))}px "Noto Sans KR", sans-serif`;
+      const tw = ctx.measureText(wf.label).width + 12;
+      const clampedWfX = Math.max(tw * 0.5 + 8, Math.min(width - tw * 0.5 - 8, wf.x));
+      if (Math.abs(clampedWfX - wf.x) > 45) {
+        ctx.restore();
+        continue;
+      }
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1;
-      ctx.fillRect(wf.x - tw * 0.5, wf.y - 9, tw, 18);
-      ctx.strokeRect(wf.x - tw * 0.5, wf.y - 9, tw, 18);
+      ctx.lineWidth = 1.1;
+      ctx.fillRect(clampedWfX - tw * 0.5, wf.y - 9, tw, 18);
+      ctx.strokeRect(clampedWfX - tw * 0.5, wf.y - 9, tw, 18);
       ctx.fillStyle = '#e0f2fe';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(wf.label, wf.x, wf.y);
+      ctx.fillText(wf.label, clampedWfX, wf.y);
       ctx.restore();
     }
 
@@ -5652,9 +5823,31 @@
       }
       ctx.clip();
 
-      const distFactor = Math.max(0.45, Math.min(1.15, 1.08 / (1 + centerCam.depth * 0.12)));
+      // Ground Contact Ambient Occlusion Shadow Beneath 3D Furniture & Escape-Room Stations
+      if (wz0 <= 0.04 && centerCam.depth < 7.5) {
+        const aoPoly = projectClipped3DPolygon(
+          [
+            [wx0 - 0.05, wy0 - 0.05, 0.004],
+            [wx1 + 0.05, wy0 - 0.05, 0.004],
+            [wx1 + 0.05, wy1 + 0.05, 0.004],
+            [wx0 - 0.05, wy1 + 0.05, 0.004]
+          ],
+          0.26
+        );
+        if (aoPoly) {
+          ctx.fillStyle = 'rgba(2, 6, 23, 0.36)';
+          ctx.beginPath();
+          ctx.moveTo(aoPoly[0].x, aoPoly[0].y);
+          for (let k = 1; k < aoPoly.length; k++) ctx.lineTo(aoPoly[k].x, aoPoly[k].y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      const boxFireWarmth = getFireLightAt(cx, cy);
+      const distFactor = Math.max(0.45, Math.min(1.18, (1.08 + boxFireWarmth * 0.22) / (1 + centerCam.depth * 0.12)));
       for (const pf of projectedFaces) {
-        ctx.fillStyle = pf.col.startsWith('#') ? shadeHexColor(pf.col, distFactor) : pf.col;
+        ctx.fillStyle = pf.col.startsWith('#') ? shadeHexColor(pf.col, distFactor, boxFireWarmth) : pf.col;
         ctx.beginPath();
         ctx.moveTo(pf.poly[0].x, pf.poly[0].y);
         for (let k = 1; k < pf.poly.length; k++) ctx.lineTo(pf.poly[k].x, pf.poly[k].y);
@@ -5900,36 +6093,61 @@
         }
       } else if (obj.kind === 'fire') {
         const { f } = obj;
-        const fp = project3DPoint(f.c + 0.5, f.r + 0.5, 0.25);
-        if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.12)) {
-          const frad = Math.max(14, Math.min(48, 56 / fp.depth));
-          const fGrad = ctx.createRadialGradient(fp.x, fp.y, frad * 0.15, fp.x, fp.y, frad);
-          fGrad.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
-          fGrad.addColorStop(0.5, 'rgba(249, 115, 22, 0.80)');
-          fGrad.addColorStop(1, 'rgba(220, 38, 38, 0)');
-          ctx.fillStyle = fGrad;
+        // 3D Glowing Floor Ember Pool Beneath Flame
+        const emberPoly = projectClipped3DPolygon(
+          [
+            [f.c + 0.16, f.r + 0.16, 0.008],
+            [f.c + 0.84, f.r + 0.16, 0.008],
+            [f.c + 0.84, f.r + 0.84, 0.008],
+            [f.c + 0.16, f.r + 0.84, 0.008]
+          ],
+          0.18
+        );
+        if (emberPoly) {
+          ctx.fillStyle = f.fireType === 'electric' ? 'rgba(59, 130, 246, 0.36)' : 'rgba(249, 115, 22, 0.38)';
           ctx.beginPath();
-          ctx.arc(fp.x, fp.y, frad, 0, Math.PI * 2);
+          ctx.moveTo(emberPoly[0].x, emberPoly[0].y);
+          for (let k = 1; k < emberPoly.length; k++) ctx.lineTo(emberPoly[k].x, emberPoly[k].y);
+          ctx.closePath();
           ctx.fill();
-          ctx.font = `${Math.floor(frad * 1.1)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('🔥', fp.x, fp.y);
+        }
+        const fp = project3DPoint(f.c + 0.5, f.r + 0.5, 0.12);
+        if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.14)) {
+          const frad = Math.max(16, Math.min(54, 62 / fp.depth));
+          drawRealisticVolumetricFire(ctx, fp.x, fp.y, frad * 0.82, now, f.phase || 0, f.fireType || 'normal');
         }
       } else if (obj.kind === 'smoke') {
         const { s } = obj;
         const sp = project3DPoint(s.c + 0.5, s.r + 0.5, 0.78);
         if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.1)) {
-          const srad = Math.max(18, Math.min(58, 68 / sp.depth));
-          const sGrad = ctx.createRadialGradient(sp.x, sp.y, srad * 0.1, sp.x, sp.y, srad);
-          sGrad.addColorStop(0, 'rgba(100, 116, 139, 0.62)');
-          sGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
-          ctx.fillStyle = sGrad;
-          ctx.beginPath();
-          ctx.arc(sp.x, sp.y, srad, 0, Math.PI * 2);
-          ctx.fill();
+          const srad = Math.max(20, Math.min(64, 74 / sp.depth));
+          for (let p = 0; p < 3; p++) {
+            const pAng = now * 1.4 + (s.phase || 0) + p * 2.1;
+            const ox = Math.cos(pAng) * srad * 0.24;
+            const oy = Math.sin(pAng * 0.8) * srad * 0.14;
+            const rPuff = srad * (0.76 + (p % 2) * 0.20);
+            const sGrad = ctx.createRadialGradient(sp.x + ox, sp.y + oy - rPuff * 0.15, rPuff * 0.08, sp.x + ox, sp.y + oy, rPuff);
+            sGrad.addColorStop(0, 'rgba(30, 41, 59, 0.54)');
+            sGrad.addColorStop(0.55, 'rgba(71, 85, 105, 0.34)');
+            sGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+            ctx.fillStyle = sGrad;
+            ctx.beginPath();
+            ctx.arc(sp.x + ox, sp.y + oy, rPuff, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
+    }
+
+    // 4B. Realistic Upper-Ceiling Toxic Smoke Accumulation Layer (Visually reinforces why crouching 🧎 keeps vision & air clear!)
+    if (smokes && smokes.length > 0) {
+      const smokeHazeH = horizon * (player.crouching ? 0.42 : 0.78);
+      const hazeGrad = ctx.createLinearGradient(0, 0, 0, smokeHazeH);
+      hazeGrad.addColorStop(0, player.crouching ? 'rgba(15, 23, 42, 0.38)' : 'rgba(15, 23, 42, 0.62)');
+      hazeGrad.addColorStop(0.6, player.crouching ? 'rgba(51, 65, 85, 0.14)' : 'rgba(51, 65, 85, 0.28)');
+      hazeGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = hazeGrad;
+      ctx.fillRect(0, 0, width, smokeHazeH);
     }
 
     // 5. PRD F05 Center Raycast Reticle (⌖) & Real-Time Target Distance / Required Action Inspector HUD
@@ -5997,34 +6215,36 @@
       ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
       const tw = ctx.measureText(hudText).width + 18;
       const hudY = Math.min(height - 135, reticleY + 26);
+      const clampedHudX = Math.max(tw * 0.5 + 8, Math.min(width - tw * 0.5 - 8, halfW));
       ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
       ctx.strokeStyle = '#22d3ee';
       ctx.lineWidth = 1.5;
-      ctx.fillRect(halfW - tw * 0.5, hudY - 12, tw, 24);
-      ctx.strokeRect(halfW - tw * 0.5, hudY - 12, tw, 24);
+      ctx.fillRect(clampedHudX - tw * 0.5, hudY - 12, tw, 24);
+      ctx.strokeRect(clampedHudX - tw * 0.5, hudY - 12, tw, 24);
       ctx.fillStyle = '#ecfeff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(hudText, halfW, hudY);
+      ctx.fillText(hudText, clampedHudX, hudY);
     }
     ctx.restore();
 
-    // 5B. Floating 3D Objective Beacon in 1st-Person 3D View
+    // 5B. Floating 3D Objective Beacon in 1st-Person 3D View (Clamped by exact half-badge width so it NEVER clips!)
     if (nextObj && !player.onFire) {
       const op = project3DPoint(nextObj.c + 0.5, nextObj.r + 0.5, 0.68);
       if (op && op.depth < 12) {
-        const clampedX = Math.max(70, Math.min(width - 70, op.x));
-        const clampedY = Math.max(46, Math.min(height - 110, op.y));
         ctx.save();
-        ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+        ctx.font = 'bold 11.5px "Noto Sans KR", sans-serif';
         const rawLabel = nextObj.label || '🎯 목표 지점';
         const label = `${rawLabel.startsWith('🎯') ? rawLabel : '🎯 ' + rawLabel} (${op.depth.toFixed(1)}m)`;
         const bw = ctx.measureText(label).width + 16;
+        const halfBW = bw * 0.5 + 8;
+        const clampedX = Math.max(halfBW, Math.min(width - halfBW, op.x));
+        const clampedY = Math.max(46, Math.min(height - 110, op.y));
         ctx.fillStyle = '#facc15';
-        ctx.fillRect(clampedX - bw * 0.5, clampedY - 13, bw, 26);
+        ctx.fillRect(clampedX - bw * 0.5, clampedY - 12, bw, 24);
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(clampedX - bw * 0.5, clampedY - 13, bw, 26);
+        ctx.strokeRect(clampedX - bw * 0.5, clampedY - 12, bw, 24);
         ctx.fillStyle = '#0f172a';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -6621,35 +6841,14 @@
       for (const f of fires) {
         if (f.r !== r) continue;
         const fx = (f.c + 0.5) * tileSize;
-        const fy = (f.r + 0.55) * tileSize;
-        const flicker = 0.85 + 0.2 * Math.sin(now * 3.8 + f.phase);
-        const grad = ctx.createRadialGradient(fx, fy - tileSize * 0.18, tileSize * 0.08, fx, fy, tileSize * 0.65 * flicker);
-        if (f.fireType === 'electric') {
-          grad.addColorStop(0, 'rgba(191, 219, 254, 0.95)');
-          grad.addColorStop(0.5, 'rgba(59, 130, 246, 0.70)');
-          grad.addColorStop(1, 'rgba(37, 99, 235, 0)');
-        } else if (f.fireType === 'oil') {
-          grad.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
-          grad.addColorStop(0.5, 'rgba(217, 119, 6, 0.75)');
-          grad.addColorStop(1, 'rgba(180, 83, 9, 0)');
-        } else {
-          grad.addColorStop(0, 'rgba(254, 240, 138, 0.95)');
-          grad.addColorStop(0.5, 'rgba(249, 115, 22, 0.72)');
-          grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-        }
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(fx, fy - tileSize * 0.12, tileSize * 0.65 * flicker, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.font = `${Math.floor(tileSize * 0.54 * flicker)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔥', fx, fy - tileSize * 0.16);
+        const fy = (f.r + 0.62) * tileSize;
+        drawRealisticVolumetricFire(ctx, fx, fy, tileSize * 0.52, now, f.phase || 0, f.fireType || 'normal');
 
         if (f.fireType === 'oil' || f.fireType === 'electric') {
           ctx.font = `${Math.floor(tileSize * 0.28)}px sans-serif`;
-          ctx.fillText(f.fireType === 'oil' ? '🍳' : '⚡', fx + tileSize * 0.24, fy - tileSize * 0.36);
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(f.fireType === 'oil' ? '🍳' : '⚡', fx + tileSize * 0.28, fy - tileSize * 0.44);
         }
       }
 

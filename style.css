@@ -172,7 +172,7 @@ body.landscape-console #moreToolsDrawer:not(.hidden) {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8) !important;
 }
 
-/* 3-Column Handheld Gamepad Grid: Slimmed side docks so Center Map Canvas is maximally large */
+/* 3-Column Handheld Gamepad Grid: Slimmed side docks so Center Map Canvas is maximally large while HUD text never clips */
 body.landscape-console #gameMain {
   max-width: none !important;
   width: 100% !important;
@@ -180,7 +180,7 @@ body.landscape-console #gameMain {
   min-height: 0 !important;
   padding: 2px 4px 3px 4px !important;
   display: grid !important;
-  grid-template-columns: 118px minmax(0, 1fr) 98px !important;
+  grid-template-columns: 128px minmax(0, 1fr) 96px !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   gap: 4px !important;
   align-items: stretch !important;
@@ -194,22 +194,45 @@ body.landscape-console #controlsSection {
 body.landscape-console #hudSection {
   grid-column: 1 !important;
   grid-row: 1 !important;
-  padding: 4px 5px !important;
-  gap: 2px !important;
+  padding: 4px 6px !important;
+  gap: 3px !important;
   justify-content: center !important;
+  overflow: hidden !important;
 }
 
 body.landscape-console #hudVitalsRow {
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 2px !important;
+  gap: 3px !important;
+  width: 100% !important;
 }
 
 body.landscape-console #hudBarsBox {
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 2px !important;
+  gap: 2.5px !important;
   min-width: 0 !important;
+  width: 100% !important;
+}
+
+body.landscape-console #hudBarsBox > div {
+  min-width: 0 !important;
+  width: 100% !important;
+  gap: 3px !important;
+}
+
+body.landscape-console #hpValue,
+body.landscape-console #o2Value {
+  width: auto !important;
+  min-width: 28px !important;
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+}
+
+body.landscape-console #hudStatusScoreRow {
+  width: 100% !important;
+  justify-content: space-between !important;
+  gap: 3px !important;
 }
 
 body.landscape-console #hudMissionRow {
