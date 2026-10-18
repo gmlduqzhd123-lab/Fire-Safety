@@ -559,13 +559,8 @@
         </div>
       </div>
 
-      <!-- Smart Context-Sensitive Action Buttons (Only 2 main buttons by default; item buttons appear only when held) -->
+      <!-- Smart Context-Sensitive Action Buttons (✋ 행동하기 placed at the very bottom for natural right-thumb ergonomics) -->
       <div id="actionButtonsWrapper" class="grid grid-cols-2 gap-2 flex-1 max-w-md ml-auto h-[136px] sm:h-[144px]">
-        <button id="btnAction" type="button" class="btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg shadow-orange-600/30">
-          <span id="actionBtnIcon" class="text-2xl sm:text-3xl leading-none">✋</span>
-          <span id="actionBtnText" class="leading-tight text-center">행동하기</span>
-        </button>
-
         <button id="btnCrouch" type="button" class="btn-control px-3 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-1 shadow">
           <span id="crouchBtnIcon" class="text-2xl sm:text-3xl leading-none">🧎</span>
           <span id="crouchBtnText" class="leading-tight text-center">낮은 자세</span>
@@ -584,6 +579,11 @@
         <button id="btnRoll" type="button" class="hidden btn-control px-2 py-1.5 rounded-xl bg-red-600 animate-bounce border-2 border-yellow-300 text-xs sm:text-sm font-black text-white flex-col items-center justify-center gap-0.5 shadow-lg">
           <span class="text-xl leading-none">🔄</span>
           <span>구르기 <span id="rollStatusBadge" class="text-[10px] text-yellow-200">(연타!)</span></span>
+        </button>
+
+        <button id="btnAction" type="button" class="btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg shadow-orange-600/30">
+          <span id="actionBtnIcon" class="text-2xl sm:text-3xl leading-none">✋</span>
+          <span id="actionBtnText" class="leading-tight text-center">행동하기</span>
         </button>
       </div>
     </section>

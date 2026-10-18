@@ -285,6 +285,10 @@ body.landscape-console #actionButtonsWrapper > button:not(.hidden) {
   padding: 3px 4px !important;
 }
 
+body.landscape-console #btnAction {
+  order: 99 !important;
+}
+
 /* Smartphone Portrait Rotate Prompt Animation */
 .rotate-phone-anim {
   display: inline-block;
