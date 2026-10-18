@@ -20,6 +20,19 @@ html, body {
   display: none !important;
 }
 
+@media (min-width: 640px) {
+  .hidden.sm\:inline { display: inline !important; }
+  .hidden.sm\:flex { display: flex !important; }
+}
+@media (min-width: 768px) {
+  .hidden.md\:inline { display: inline !important; }
+  .hidden.md\:flex { display: flex !important; }
+}
+@media (min-width: 1024px) {
+  .hidden.lg\:inline { display: inline !important; }
+  .hidden.lg\:flex { display: flex !important; }
+}
+
 canvas {
   display: block;
   touch-action: none;

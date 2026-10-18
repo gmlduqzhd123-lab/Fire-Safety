@@ -573,23 +573,58 @@
     speakGuideIfEnabled(`${titleText}. ${String(descText || '').replace(/<[^>]*>/g, ' ')}`);
   }
 
-  function closeEduModal() {
-    clearAllInputStates();
-    eduModal.classList.add('hidden');
-    eduModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
+  function closeOtherModalsExcept(keepEl = null, closeEdu = false) {
+    if (mapEditorInstance && keepEl !== mapEditorModal) {
+      mapEditorInstance.close();
+    }
+    const list = [
+      closeEdu ? eduModal : null,
+      guideModal,
+      mapEditorModal,
+      certModal,
+      classModal,
+      teacherModal,
+      document.getElementById('notebookModal'),
+      document.getElementById('puzzleModal'),
+      document.getElementById('settingsModal'),
+      document.getElementById('exitGameModal'),
+      document.getElementById('moreToolsDrawer')
+    ];
+    list.forEach((m) => {
+      if (m && m !== keepEl) {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      }
+    });
+  }
+
+  function resumeIfNoBlockingModalOpen() {
+    const blockingModals = [
+      gameOverlay,
+      eduModal,
+      guideModal,
+      mapEditorModal,
+      certModal,
+      classModal,
+      teacherModal,
+      document.getElementById('notebookModal'),
+      document.getElementById('puzzleModal'),
+      document.getElementById('settingsModal'),
+      document.getElementById('exitGameModal')
+    ];
+    const allHidden = blockingModals.every((m) => !m || m.classList.contains('hidden'));
+    if (gameState === 'PAUSED' && allHidden) {
       gameState = 'PLAYING';
       pauseIcon.textContent = '⏸️';
       pauseText.textContent = '일시정지';
     }
+  }
+
+  function closeEduModal() {
+    clearAllInputStates();
+    eduModal.classList.add('hidden');
+    eduModal.classList.remove('flex');
+    resumeIfNoBlockingModalOpen();
     updateHUD();
   }
 
@@ -2357,6 +2392,7 @@
   // --- Stage Clear / Game Over Handlers (Bug #4 Fix: Record final position in pathHistory) ---
   function handleStageClear() {
     clearAllInputStates();
+    closeOtherModalsExcept(null, true);
     SoundFX.win();
     SoundFX.speak('안전하게 탈출에 성공했습니다! 참 잘했어요!');
     markCurrentStageCleared();
@@ -2444,6 +2480,7 @@
 
   function handleGameOver(reason) {
     clearAllInputStates();
+    closeOtherModalsExcept(null, true);
     gameState = 'GAME_OVER';
     SoundFX.gameOver();
 
@@ -7136,6 +7173,7 @@
       saveCampaignState();
     }
     clearAllInputStates();
+    closeOtherModalsExcept(null, true);
     gameState = 'START';
     overlayIcon.textContent = '🔥';
     overlaySubtitle.textContent = '3D 방탈출 화재 대피 시뮬레이션';
@@ -7259,16 +7297,7 @@
 
   function hideAllModalsAndResume() {
     gameOverlay.classList.add('hidden');
-    const nbModal = document.getElementById('notebookModal');
-    const pzModal = document.getElementById('puzzleModal');
-    const stModal = document.getElementById('settingsModal');
-    const exModal = document.getElementById('exitGameModal');
-    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, nbModal, pzModal, stModal, exModal, moreToolsDrawer].forEach((m) => {
-      if (m) {
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-      }
-    });
+    closeOtherModalsExcept(null, true);
     gameState = 'PLAYING';
     pauseIcon.textContent = '⏸️';
     pauseText.textContent = '일시정지';
@@ -7336,19 +7365,8 @@
   function closeMapEditorModal() {
     clearAllInputStates();
     if (mapEditorInstance) mapEditorInstance.close();
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
+    updateHUD();
   }
 
   mapEditorInstance = initMapEditor({
@@ -7374,9 +7392,7 @@
 
   btnMapEditor.addEventListener('click', () => {
     clearAllInputStates();
-    [certModal, guideModal, classModal, teacherModal].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(mapEditorModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -7615,10 +7631,7 @@
 
   function openCertModalFn() {
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    [guideModal, classModal, teacherModal].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(certModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -7633,19 +7646,8 @@
     clearAllInputStates();
     certModal.classList.add('hidden');
     certModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
+    updateHUD();
   }
 
   btnCertModal.addEventListener('click', openCertModalFn);
@@ -7709,10 +7711,7 @@
 
   function openClassModalFn() {
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    [certModal, guideModal, teacherModal].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(classModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -7728,19 +7727,8 @@
     clearAllInputStates();
     classModal.classList.add('hidden');
     classModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
+    updateHUD();
   }
 
   if (btnClassMode) btnClassMode.addEventListener('click', openClassModalFn);
@@ -7799,10 +7787,7 @@
   // --- Feature 10: Teacher Smartboard Mode & Printable Worksheet Modal ---
   function openTeacherModalFn() {
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    [certModal, guideModal, classModal].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(teacherModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -7823,19 +7808,8 @@
     clearAllInputStates();
     teacherModal.classList.add('hidden');
     teacherModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
+    updateHUD();
   }
 
   if (btnTeacherMode) btnTeacherMode.addEventListener('click', openTeacherModalFn);
@@ -7901,10 +7875,13 @@
       pauseText.textContent = '계속하기';
       showToast('⏸️ 게임이 일시정지되었습니다.');
     } else if (gameState === 'PAUSED') {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-      showToast('▶️ 대피를 계속합니다!');
+      closeOtherModalsExcept(null, true);
+      if (gameOverlay.classList.contains('hidden')) {
+        gameState = 'PLAYING';
+        pauseIcon.textContent = '⏸️';
+        pauseText.textContent = '일시정지';
+        showToast('▶️ 대피를 계속합니다!');
+      }
     }
   });
 
@@ -7931,10 +7908,7 @@
   // Safety Guide Modal
   btnGuide.addEventListener('click', () => {
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    [certModal, classModal, teacherModal].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(guideModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -7948,19 +7922,8 @@
     clearAllInputStates();
     guideModal.classList.add('hidden');
     guideModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
+    updateHUD();
   }
 
   btnCloseGuide.addEventListener('click', closeGuideModal);
@@ -8698,12 +8661,7 @@
   function openNotebookModalFn(defaultTab = 'tasks') {
     if (!notebookModal) return;
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    const pzModal = document.getElementById('puzzleModal');
-    const stModal = document.getElementById('settingsModal');
-    [certModal, guideModal, classModal, teacherModal, pzModal, stModal, moreToolsDrawer].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(notebookModal);
     // PRD Section 6.2: Reading Notebook pauses hazard exposure & fire spread while active elapsed time continues
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
@@ -8721,20 +8679,7 @@
     clearAllInputStates();
     notebookModal.classList.add('hidden');
     notebookModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
     updateHUD();
   }
 
@@ -9163,11 +9108,7 @@
   function openPuzzleModalFn(defaultSubTab = 'safe') {
     if (!puzzleModal) return;
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    const stModal = document.getElementById('settingsModal');
-    [certModal, guideModal, classModal, teacherModal, notebookModal, stModal, moreToolsDrawer].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(puzzleModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -9183,20 +9124,7 @@
     clearAllInputStates();
     puzzleModal.classList.add('hidden');
     puzzleModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
     updateHUD();
   }
 
@@ -9422,10 +9350,7 @@
   function openSettingsModalFn() {
     if (!settingsModal) return;
     clearAllInputStates();
-    if (mapEditorInstance) mapEditorInstance.close();
-    [certModal, guideModal, classModal, teacherModal, notebookModal, puzzleModal, moreToolsDrawer].forEach((m) => {
-      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
-    });
+    closeOtherModalsExcept(settingsModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -9451,20 +9376,7 @@
     clearAllInputStates();
     settingsModal.classList.add('hidden');
     settingsModal.classList.remove('flex');
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
     updateHUD();
   }
 
@@ -9862,13 +9774,7 @@
     if (window.speechSynthesis) {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
-    if (mapEditorInstance) mapEditorInstance.close();
-    [settingsModal, certModal, guideModal, classModal, teacherModal, notebookModal, puzzleModal, moreToolsDrawer].forEach((m) => {
-      if (m) {
-        m.classList.add('hidden');
-        m.classList.remove('flex');
-      }
-    });
+    closeOtherModalsExcept(exitGameModal);
     if (gameState === 'PLAYING') {
       gameState = 'PAUSED';
       pauseIcon.textContent = '▶️';
@@ -9899,21 +9805,7 @@
       showMainTitleScreen();
       return;
     }
-    if (
-      gameState === 'PAUSED' &&
-      gameOverlay.classList.contains('hidden') &&
-      eduModal.classList.contains('hidden') &&
-      guideModal.classList.contains('hidden') &&
-      mapEditorModal.classList.contains('hidden') &&
-      certModal.classList.contains('hidden') &&
-      (!classModal || classModal.classList.contains('hidden')) &&
-      (!teacherModal || teacherModal.classList.contains('hidden')) &&
-      (!settingsModal || settingsModal.classList.contains('hidden'))
-    ) {
-      gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
-      pauseText.textContent = '일시정지';
-    }
+    resumeIfNoBlockingModalOpen();
     updateHUD();
   }
 
