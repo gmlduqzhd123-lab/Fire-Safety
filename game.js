@@ -4087,18 +4087,22 @@
     const sd = tileSize * 0.74;
     const sh = tileSize * 0.38;
     // 3D Porcelain Vanity Counter
-    draw3DBox(ctx, sx, sy, sw, sd, sh, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
+    draw3DBox(ctx, sx, sy, sw, sd, sh, '#f1f5f9', '#0284c7', '#0369a1', '#7dd3fc');
     // Recessed Blue Water Basin on Top Face
     ctx.fillStyle = '#38bdf8';
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.fillRect(sx + sw * 0.16, sy - sh + sd * 0.12, sw * 0.68, sd * 0.38);
     ctx.strokeRect(sx + sw * 0.16, sy - sh + sd * 0.12, sw * 0.68, sd * 0.38);
-    // Wall Mirror & Chrome Faucet
+    // Chrome Faucet Spout
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(sx + sw * 0.46, sy - sh + sd * 0.04, sw * 0.08, sd * 0.16);
+    // Wall Mirror with Aluminum Frame
     ctx.fillStyle = '#bae6fd';
-    ctx.strokeStyle = '#38bdf8';
-    ctx.fillRect(sx + sw * 0.22, sy - sh - wallH * 0.36, sw * 0.56, wallH * 0.32);
-    ctx.strokeRect(sx + sw * 0.22, sy - sh - wallH * 0.36, sw * 0.56, wallH * 0.32);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(sx + sw * 0.22, sy - sh - wallH * 0.38, sw * 0.56, wallH * 0.34);
+    ctx.strokeRect(sx + sw * 0.22, sy - sh - wallH * 0.38, sw * 0.56, wallH * 0.34);
     ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.19))}px "Noto Sans KR", sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
@@ -4106,63 +4110,119 @@
     ctx.fillText('🚰세면대', x + tileSize * 0.5, y + tileSize * 0.76);
   }
 
-  function draw3DDoorway(ctx, x, y, tileSize, wallH, t, now) {
-    const dh = wallH * 0.92;
+  function isVerticalWallDoor(c, r) {
+    if (!grid || r == null || c == null) return false;
+    const nWall = r > 0 && grid[r - 1] && grid[r - 1][c] === TILE.WALL;
+    const sWall = r < ROWS - 1 && grid[r + 1] && grid[r + 1][c] === TILE.WALL;
+    const wWall = c > 0 && grid[r] && grid[r][c - 1] === TILE.WALL;
+    const eWall = c < COLS - 1 && grid[r] && grid[r][c + 1] === TILE.WALL;
+    if (nWall && sWall) return true;
+    if (wWall && eWall) return false;
+    return nWall || sWall;
+  }
+
+  function draw3DDoorway(ctx, x, y, tileSize, wallH, t, now, r, c) {
+    const dh = wallH * 0.94;
+    const vertWall = isVerticalWallDoor(c, r);
+
     if (t === TILE.OPEN_DOOR) {
-      // Threshold plate on floor
-      ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
-      ctx.fillRect(x + tileSize * 0.08, y + tileSize * 0.10, tileSize * 0.84, tileSize * 0.80);
-      ctx.strokeStyle = 'rgba(52, 211, 153, 0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x + tileSize * 0.08, y + tileSize * 0.10, tileSize * 0.84, tileSize * 0.80);
-      // Left & Right 3D Door Jamb Pillars
-      draw3DBox(ctx, x + tileSize * 0.04, y + tileSize * 0.08, tileSize * 0.14, tileSize * 0.82, dh, '#fbbf24', '#78350f', '#451a03', '#fde68a');
-      draw3DBox(ctx, x + tileSize * 0.82, y + tileSize * 0.08, tileSize * 0.14, tileSize * 0.82, dh, '#fbbf24', '#78350f', '#451a03', '#fde68a');
-      // Swung-open 3D door leaf resting against left jamb
-      draw3DBox(ctx, x + tileSize * 0.14, y + tileSize * 0.06, tileSize * 0.18, tileSize * 0.76, dh * 0.88, '#f59e0b', '#92400e', '#451a03', '#fef08a');
+      if (vertWall) {
+        // Doorway in North-South wall (passage runs East-West)
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.fillRect(x + tileSize * 0.36, y + tileSize * 0.04, tileSize * 0.28, tileSize * 0.92);
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x + tileSize * 0.10, y + tileSize * 0.16, tileSize * 0.80, tileSize * 0.68);
+        // North & South Door Frame Jambs hugging wall edges
+        draw3DBox(ctx, x + tileSize * 0.34, y + tileSize * 0.02, tileSize * 0.32, tileSize * 0.14, dh, '#78350f', '#451a03', '#291507', '#d97706');
+        draw3DBox(ctx, x + tileSize * 0.34, y + tileSize * 0.84, tileSize * 0.32, tileSize * 0.14, dh, '#78350f', '#451a03', '#291507', '#d97706');
+        // 90-degree Swung Open Door Leaf resting flat against North wall edge
+        draw3DBox(ctx, x + tileSize * 0.50, y + tileSize * 0.04, tileSize * 0.44, tileSize * 0.12, dh * 0.90, '#b45309', '#8c4a19', '#451a03', '#fcd34d');
+      } else {
+        // Doorway in East-West wall (passage runs North-South)
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.fillRect(x + tileSize * 0.04, y + tileSize * 0.36, tileSize * 0.92, tileSize * 0.28);
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
+        ctx.lineWidth = 1.4;
+        ctx.strokeRect(x + tileSize * 0.16, y + tileSize * 0.10, tileSize * 0.68, tileSize * 0.80);
+        // West & East Door Frame Jambs hugging wall edges
+        draw3DBox(ctx, x + tileSize * 0.02, y + tileSize * 0.34, tileSize * 0.14, tileSize * 0.32, dh, '#78350f', '#451a03', '#291507', '#d97706');
+        draw3DBox(ctx, x + tileSize * 0.84, y + tileSize * 0.34, tileSize * 0.14, tileSize * 0.32, dh, '#78350f', '#451a03', '#291507', '#d97706');
+        // 90-degree Swung Open Door Leaf resting flat against West wall edge
+        draw3DBox(ctx, x + tileSize * 0.05, y + tileSize * 0.48, tileSize * 0.12, tileSize * 0.44, dh * 0.90, '#b45309', '#8c4a19', '#451a03', '#fcd34d');
+      }
       ctx.fillStyle = '#6ee7b7';
-      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.16))}px "Noto Sans KR", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('열린문(통과)', x + tileSize * 0.53, y + tileSize * 0.52);
+      ctx.fillText('열린문(통과)', x + tileSize * 0.50, y + tileSize * 0.52);
       return;
     }
 
     const pulse = t === TILE.HOT_DOOR ? (0.65 + 0.35 * Math.sin(now * 3.5)) : 1;
-    const topCol = t === TILE.LOCKED_DOOR ? '#eab308' : (t === TILE.HOT_DOOR ? '#ef4444' : '#d97706');
-    const frontCol = t === TILE.LOCKED_DOOR ? '#854d0e' : (t === TILE.HOT_DOOR ? `rgba(185, 28, 28, ${pulse})` : '#92400e');
+    const topCol = t === TILE.LOCKED_DOOR ? '#ca8a04' : (t === TILE.HOT_DOOR ? '#dc2626' : '#b45309');
+    const frontCol = t === TILE.LOCKED_DOOR ? '#854d0e' : (t === TILE.HOT_DOOR ? `rgba(153, 27, 27, ${pulse})` : '#7c3f10');
     const strokeCol = t === TILE.LOCKED_DOOR ? '#fef08a' : (t === TILE.HOT_DOOR ? '#fca5a5' : '#fcd34d');
 
-    const dx = x + tileSize * 0.06;
-    const dy = y + tileSize * 0.14;
-    const dw = tileSize * 0.88;
-    const dd = tileSize * 0.74;
+    // Outer Architectural Door Frame Casing Pillars
+    draw3DBox(ctx, x + tileSize * 0.02, y + tileSize * 0.12, tileSize * 0.10, tileSize * 0.76, dh * 1.02, '#451a03', '#291507', '#1c0f05', '#78350f');
+    draw3DBox(ctx, x + tileSize * 0.88, y + tileSize * 0.12, tileSize * 0.10, tileSize * 0.76, dh * 1.02, '#451a03', '#291507', '#1c0f05', '#78350f');
 
-    draw3DBox(ctx, dx, dy, dw, dd, dh, topCol, frontCol, '#451a03', strokeCol);
+    const dx = x + tileSize * 0.10;
+    const dy = y + tileSize * 0.16;
+    const dw = tileSize * 0.80;
+    const dd = tileSize * 0.68;
 
-    // Recessed architectural door panels & doorknob
-    const frontTopY = dy + dd * 0.55 - dh;
-    const frontH = dh + dd * 0.45;
-    ctx.strokeStyle = 'rgba(254, 243, 199, 0.42)';
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(dx + dw * 0.14, frontTopY + frontH * 0.12, dw * 0.72, frontH * 0.34);
-    ctx.strokeRect(dx + dw * 0.14, frontTopY + frontH * 0.54, dw * 0.72, frontH * 0.34);
+    // Recessed Door Leaf Body
+    draw3DBox(ctx, dx, dy, dw, dd, dh * 0.96, topCol, frontCol, '#3b1906', strokeCol);
 
-    // Glowing Brass Door Handle
-    ctx.fillStyle = '#fde047';
+    const frontTopY = dy + dd * 0.55 - dh * 0.96;
+    const frontH = dh * 0.96 + dd * 0.45;
+
+    // Overhead Hydraulic Door Closer (도어클로저)
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(dx + dw * 0.16, frontTopY + 2, dw * 0.24, Math.max(3, frontH * 0.07));
+
+    // Upper Wired-Glass Vision Panel (망입유리 시야창)
+    const winX = dx + dw * 0.20;
+    const winY = frontTopY + frontH * 0.14;
+    const winW = dw * 0.60;
+    const winH = frontH * 0.30;
+    ctx.fillStyle = t === TILE.HOT_DOOR ? `rgba(251, 146, 60, ${0.85 * pulse})` : '#0f2942';
+    ctx.fillRect(winX, winY, winW, winH);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.1;
+    ctx.strokeRect(winX, winY, winW, winH);
+    // Wired-glass diagonal mesh line
+    ctx.strokeStyle = 'rgba(203, 213, 225, 0.45)';
     ctx.beginPath();
-    ctx.arc(dx + dw * 0.78, frontTopY + frontH * 0.50, Math.max(2.5, tileSize * 0.055), 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(winX, winY + winH);
+    ctx.lineTo(winX + winW, winY);
+    ctx.stroke();
+
+    // Lower Recessed Architectural Panel & Stainless Kickplate
+    ctx.fillStyle = 'rgba(28, 15, 5, 0.38)';
+    ctx.fillRect(dx + dw * 0.18, frontTopY + frontH * 0.54, dw * 0.64, frontH * 0.26);
+    ctx.strokeStyle = 'rgba(254, 243, 199, 0.45)';
+    ctx.strokeRect(dx + dw * 0.18, frontTopY + frontH * 0.54, dw * 0.64, frontH * 0.26);
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(dx + 2, frontTopY + frontH * 0.86, dw - 4, frontH * 0.11);
+
+    // 3D Metallic Lever Handle (레버 손잡이)
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(dx + dw * 0.74, frontTopY + frontH * 0.45, Math.max(3, dw * 0.08), Math.max(6, frontH * 0.12));
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(dx + dw * 0.64, frontTopY + frontH * 0.49, Math.max(6, dw * 0.16), Math.max(2.5, frontH * 0.045));
 
     const doorIcon = t === TILE.LOCKED_DOOR ? '🔒' : (t === TILE.HOT_DOOR ? '🌡️🔥' : '🚪');
     const doorLabel = t === TILE.LOCKED_DOOR ? '잠긴문(열쇠)' : (t === TILE.HOT_DOOR ? '고온위험문' : '방문(열기)');
-    ctx.font = `${Math.floor(tileSize * 0.30)}px sans-serif`;
+    ctx.font = `${Math.floor(tileSize * 0.26)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(doorIcon, x + tileSize * 0.5, frontTopY + frontH * 0.32);
-    ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+    ctx.fillText(doorIcon, x + tileSize * 0.5, winY + winH * 0.52);
+    ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.16))}px "Noto Sans KR", sans-serif`;
     ctx.fillStyle = '#fef9c3';
-    ctx.fillText(doorLabel, x + tileSize * 0.5, y + tileSize * 0.78);
+    ctx.fillText(doorLabel, x + tileSize * 0.5, y + tileSize * 0.80);
   }
 
   function draw3DExitPortal(ctx, x, y, tileSize, wallH, now) {
@@ -4171,6 +4231,7 @@
     // Glowing green emergency exit stairwell floor pad
     ctx.fillStyle = `rgba(16, 185, 129, ${0.35 * glow})`;
     ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+    // Steel Fire-Exit Frame & Recessed Green Exit Door
     draw3DBox(
       ctx,
       x + tileSize * 0.04,
@@ -4178,16 +4239,24 @@
       tileSize * 0.92,
       tileSize * 0.84,
       eh,
-      '#34d399',
-      `rgba(5, 150, 105, ${glow})`,
+      '#10b981',
+      `rgba(4, 120, 87, ${glow})`,
       '#064e3b',
       '#a7f3d0'
     );
+    // Horizontal Stainless Panic Push-Bar (비상구 패닉바)
+    const frontTopY = y + tileSize * 0.08 + tileSize * 0.84 * 0.55 - eh;
+    const frontH = eh + tileSize * 0.84 * 0.45;
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(x + tileSize * 0.18, frontTopY + frontH * 0.52, tileSize * 0.64, Math.max(3, frontH * 0.06));
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(x + tileSize * 0.30, frontTopY + frontH * 0.53, tileSize * 0.40, Math.max(2, frontH * 0.04));
+
     // Illuminated Green Emergency Exit Sign Box above Doorway
-    const signW = tileSize * 0.78;
+    const signW = tileSize * 0.80;
     const signH = Math.max(14, tileSize * 0.28);
     const signX = x + (tileSize - signW) * 0.5;
-    const signY = y - eh + 3;
+    const signY = y - eh + 2;
     ctx.fillStyle = '#ecfdf5';
     ctx.fillRect(signX, signY, signW, signH);
     ctx.fillStyle = '#059669';
@@ -4651,56 +4720,190 @@
       lightFactor = Math.min(1.06, lightFactor);
 
       if (hitTile === TILE.DOOR || hitTile === TILE.LOCKED_DOOR || hitTile === TILE.HOT_DOOR) {
-        // 3D Architectural Door Frame + Glass Vision Window + Recessed Wood Panels + Brass Handle
-        const isFrameJamb = wallX < 0.11 || wallX > 0.89;
-        if (isFrameJamb) {
-          ctx.fillStyle = shadeHexColor('#5c2808', lightFactor);
-          ctx.fillRect(x0, wallTop, sw, projH);
+        // High-Realism 3D Architectural Door Embedded in Building Wall
+        const isWallShoulder = wallX < 0.08 || wallX > 0.92;
+        const isFrameJamb = !isWallShoulder && (wallX < 0.145 || wallX > 0.855);
+        const isInnerReveal = !isWallShoulder && ((wallX >= 0.132 && wallX < 0.145) || (wallX > 0.855 && wallX <= 0.868));
+
+        if (isWallShoulder) {
+          // Surrounding Building Wall Shoulder (Crown Molding + Upper Slate + Green Guide Line + Baseboard)
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillRect(x0, wallTop, sw, projH * 0.62);
+          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
+          ctx.fillRect(x0, wallTop, sw, projH * 0.045);
+          ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+          ctx.fillRect(x0, wallTop + projH * 0.62, sw, projH * 0.38);
+          ctx.fillStyle = shadeHexColor('#10b981', Math.max(0.75, lightFactor));
+          ctx.fillRect(x0, wallTop + projH * 0.59, sw, projH * 0.035);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(x0, wallBottom - projH * 0.065, sw, projH * 0.065);
         } else {
-          let leafHex = '#b45309';
-          if (hitTile === TILE.LOCKED_DOOR) leafHex = '#ca8a04';
-          else if (hitTile === TILE.HOT_DOOR) leafHex = '#dc2626';
+          // Top Wall Header above Door Frame Lintel
+          ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor);
+          ctx.fillRect(x0, wallTop, sw, projH * 0.045);
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillRect(x0, wallTop + projH * 0.045, sw, projH * 0.03);
 
-          ctx.fillStyle = shadeHexColor('#451a03', lightFactor);
-          ctx.fillRect(x0, wallTop, sw, projH * 0.08);
+          if (isFrameJamb) {
+            // 3D Recessed Walnut/Steel Door Frame Casing & Inner Shadow Reveal
+            const frameCol = isInnerReveal ? '#1c0d02' : '#3b1d08';
+            ctx.fillStyle = shadeHexColor(frameCol, lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.075, sw, projH * 0.925);
 
-          ctx.fillStyle = shadeHexColor(leafHex, lightFactor);
-          ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.92);
+            // 3-Stage Brushed Steel Hinges (경첩) on Left Jamb
+            if (wallX >= 0.128 && wallX <= 0.145) {
+              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 1.05);
+              ctx.fillRect(x0, wallTop + projH * 0.21, sw, projH * 0.045);
+              ctx.fillRect(x0, wallTop + projH * 0.51, sw, projH * 0.045);
+              ctx.fillRect(x0, wallTop + projH * 0.79, sw, projH * 0.045);
+            }
+          } else {
+            // Overhead Door Frame Lintel & Shadow Reveal (0.075 .. 0.125)
+            ctx.fillStyle = shadeHexColor('#3b1d08', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.075, sw, projH * 0.038);
+            ctx.fillStyle = shadeHexColor('#1c0d02', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.113, sw, projH * 0.012);
 
-          // Upper Glass Observation Window with Muntin Frame & Lower Recessed Panel
-          if (wallX > 0.24 && wallX < 0.76) {
-            const isWindowBorder = wallX < 0.27 || wallX > 0.73 || Math.abs(wallX - 0.5) < 0.018;
-            ctx.fillStyle = isWindowBorder
-              ? shadeHexColor('#451a03', lightFactor)
-              : (hitTile === TILE.HOT_DOOR
-                ? shadeHexColor('#fca5a5', lightFactor * 1.15)
-                : shadeHexColor('#38bdf8', lightFactor * 0.92));
-            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.24);
+            // Realistic Wood-Grain / Fire-Door Texture Modulation
+            const grainMod = 0.96 + 0.04 * Math.sin(wallX * 92);
+            let leafHex = '#8c4a19';
+            if (hitTile === TILE.LOCKED_DOOR) leafHex = '#9a6b13';
+            else if (hitTile === TILE.HOT_DOOR) leafHex = '#991b1b';
 
-            const panelHex = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#713f12' : '#78350f');
-            ctx.fillStyle = shadeHexColor(panelHex, lightFactor);
-            ctx.fillRect(x0, wallTop + projH * 0.52, sw, projH * 0.34);
-          }
+            ctx.fillStyle = shadeHexColor(leafHex, lightFactor * grainMod);
+            ctx.fillRect(x0, wallTop + projH * 0.125, sw, projH * 0.85);
 
-          // 3D Brass Lever Handle & Keyhole Plate
-          if (wallX >= 0.72 && wallX <= 0.83) {
-            ctx.fillStyle = '#fde047';
-            ctx.fillRect(x0, wallTop + projH * 0.45, sw, projH * 0.055);
+            // Overhead Hydraulic Door Closer (도어클로저) & Articulated Arm
+            if (wallX >= 0.28 && wallX <= 0.52) {
+              ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.095, sw, projH * 0.022);
+            }
+            if (wallX >= 0.22 && wallX <= 0.42) {
+              ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 1.05);
+              ctx.fillRect(x0, wallTop + projH * 0.13, sw, projH * 0.042);
+            }
+
+            // Upper Wired-Glass Vision Window (망입유리 시야창: 0.20 .. 0.46)
+            if (wallX >= 0.26 && wallX <= 0.74) {
+              const isWinSideBorder = wallX < 0.295 || wallX > 0.705;
+              // Top & Bottom Window Molding Trim
+              ctx.fillStyle = shadeHexColor('#3b1906', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.20, sw, projH * 0.26);
+
+              if (!isWinSideBorder) {
+                if (hitTile === TILE.HOT_DOOR) {
+                  // Fiery Orange-Red Backdraft Glow Behind Vision Glass
+                  const hotPulse = 0.88 + 0.12 * Math.sin(now * 4.5 + wallX * 6);
+                  ctx.fillStyle = shadeHexColor('#f97316', lightFactor * 1.22 * hotPulse);
+                  ctx.fillRect(x0, wallTop + projH * 0.225, sw, projH * 0.21);
+                  ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 1.25);
+                  ctx.fillRect(x0, wallTop + projH * 0.29, sw, projH * 0.09);
+                } else {
+                  // Dark Architectural Tinted Glass + Diagonal Sky Reflection + Wired Mesh
+                  const isReflBand = (wallX > 0.34 && wallX < 0.43) || (wallX > 0.55 && wallX < 0.60);
+                  const isWireMesh = Math.abs(((wallX * 18) % 1) - 0.5) < 0.085;
+                  const glassHex = isReflBand ? '#38bdf8' : (isWireMesh ? '#475569' : '#0f2942');
+                  ctx.fillStyle = shadeHexColor(glassHex, lightFactor * (isReflBand ? 1.05 : 0.94));
+                  ctx.fillRect(x0, wallTop + projH * 0.225, sw, projH * 0.21);
+                  // Horizontal wire mesh cross-lines inside vision glass
+                  if (isWireMesh) {
+                    ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor * 0.90);
+                    ctx.fillRect(x0, wallTop + projH * 0.275, sw, Math.max(1, projH * 0.008));
+                    ctx.fillRect(x0, wallTop + projH * 0.335, sw, Math.max(1, projH * 0.008));
+                    ctx.fillRect(x0, wallTop + projH * 0.395, sw, Math.max(1, projH * 0.008));
+                  }
+                }
+              }
+            }
+
+            // Lower Recessed Architectural Molding Panel (하단 음각 몰딩 패널: 0.56 .. 0.84)
+            if (wallX >= 0.24 && wallX <= 0.76) {
+              const isCenterStile = Math.abs(wallX - 0.50) < 0.022;
+              if (!isCenterStile) {
+                const isLeftBevel = wallX < 0.265 || (wallX > 0.522 && wallX < 0.545);
+                const isRightBevel = wallX > 0.735 || (wallX > 0.455 && wallX < 0.478);
+                const panelHex = hitTile === TILE.HOT_DOOR ? '#7f1d1d' : (hitTile === TILE.LOCKED_DOOR ? '#784f0d' : '#6b3410');
+                const bevelHex = isLeftBevel ? '#291103' : (isRightBevel ? '#b4692e' : panelHex);
+                ctx.fillStyle = shadeHexColor(bevelHex, lightFactor * grainMod);
+                ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.28);
+                // Top & bottom panel bevel lines
+                ctx.fillStyle = shadeHexColor('#291103', lightFactor);
+                ctx.fillRect(x0, wallTop + projH * 0.56, sw, projH * 0.015);
+                ctx.fillStyle = shadeHexColor('#b4692e', lightFactor);
+                ctx.fillRect(x0, wallTop + projH * 0.825, sw, projH * 0.015);
+              }
+            }
+
+            // Bottom Stainless Steel Kickplate (하단 스텐 킥플레이트) & Aluminum Threshold
+            ctx.fillStyle = shadeHexColor('#64748b', lightFactor * 0.98);
+            ctx.fillRect(x0, wallTop + projH * 0.89, sw, projH * 0.085);
+            ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.975, sw, projH * 0.025);
+
+            // Digital Security Lock Keypad for LOCKED_DOOR
+            if (hitTile === TILE.LOCKED_DOOR && wallX >= 0.755 && wallX <= 0.835) {
+              ctx.fillStyle = shadeHexColor('#0f172a', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.37, sw, projH * 0.085);
+              ctx.fillStyle = '#ef4444';
+              ctx.fillRect(x0, wallTop + projH * 0.385, sw, projH * 0.018);
+            }
+
+            // 3D Metallic Lever Handle & Escutcheon Rosette (입체 레버 손잡이)
+            if (wallX >= 0.765 && wallX <= 0.828) {
+              ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.465, sw, projH * 0.105);
+            }
+            if (wallX >= 0.675 && wallX <= 0.818) {
+              ctx.fillStyle = shadeHexColor('#f8fafc', Math.max(0.88, lightFactor * 1.12));
+              ctx.fillRect(x0, wallTop + projH * 0.502, sw, projH * 0.028);
+              ctx.fillStyle = shadeHexColor('#1e293b', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.530, sw, projH * 0.014);
+            }
           }
         }
       } else if (hitTile === TILE.EXIT) {
-        // 3D Illuminated Emergency Exit Portal
-        const isFrame = wallX < 0.10 || wallX > 0.90;
-        ctx.fillStyle = shadeHexColor(isFrame ? '#064e3b' : '#10b981', lightFactor * 1.15);
-        ctx.fillRect(x0, wallTop, sw, projH);
+        // High-Realism 3D Fire-Rated Emergency Exit Door with Illuminated EXIT Sign & Panic Push-Bar
+        const isWallShoulder = wallX < 0.07 || wallX > 0.93;
+        const isFrame = !isWallShoulder && (wallX < 0.135 || wallX > 0.865);
+        if (isWallShoulder) {
+          ctx.fillStyle = shadeHexColor('#64748b', lightFactor);
+          ctx.fillRect(x0, wallTop, sw, projH);
+        } else if (isFrame) {
+          ctx.fillStyle = shadeHexColor('#064e3b', lightFactor * 1.05);
+          ctx.fillRect(x0, wallTop, sw, projH);
+        } else {
+          // Fire-Rated Emerald Steel Door Leaf
+          ctx.fillStyle = shadeHexColor('#047857', lightFactor * 1.10);
+          ctx.fillRect(x0, wallTop, sw, projH);
 
-        if (wallX > 0.18 && wallX < 0.82) {
-          ctx.fillStyle = '#ecfdf5';
-          ctx.fillRect(x0, wallTop + projH * 0.06, sw, projH * 0.16);
-          ctx.fillStyle = '#047857';
-          ctx.fillRect(x0, wallTop + projH * 0.08, sw, projH * 0.12);
-          ctx.fillStyle = '#6ee7b7';
-          ctx.fillRect(x0, wallTop + projH * 0.28, sw, projH * 0.68);
+          // Overhead Illuminated Green Emergency Exit Sign Box (0.04 .. 0.15)
+          if (wallX >= 0.20 && wallX <= 0.80) {
+            ctx.fillStyle = '#ecfdf5';
+            ctx.fillRect(x0, wallTop + projH * 0.04, sw, projH * 0.11);
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(x0, wallTop + projH * 0.055, sw, projH * 0.08);
+          }
+
+          // Upper Wired-Glass Vision Window on Exit Door (0.21 .. 0.43)
+          if (wallX >= 0.30 && wallX <= 0.70) {
+            const isWinBorder = wallX < 0.33 || wallX > 0.67;
+            ctx.fillStyle = isWinBorder ? '#064e3b' : shadeHexColor('#6ee7b7', lightFactor * 1.15);
+            ctx.fillRect(x0, wallTop + projH * 0.21, sw, projH * 0.22);
+          }
+
+          // Horizontal Stainless Steel Panic Push-Bar (비상문 수평 패닉바: 0.49 .. 0.545)
+          if (wallX >= 0.18 && wallX <= 0.82) {
+            ctx.fillStyle = shadeHexColor('#e2e8f0', Math.max(0.88, lightFactor * 1.1));
+            ctx.fillRect(x0, wallTop + projH * 0.49, sw, projH * 0.048);
+            if (wallX >= 0.28 && wallX <= 0.72) {
+              ctx.fillStyle = '#ef4444';
+              ctx.fillRect(x0, wallTop + projH * 0.502, sw, projH * 0.022);
+            }
+          }
+
+          // Stainless Steel Kickplate
+          ctx.fillStyle = shadeHexColor('#94a3b8', lightFactor);
+          ctx.fillRect(x0, wallTop + projH * 0.89, sw, projH * 0.085);
         }
       } else if (hitTile === TILE.ELEVATOR) {
         ctx.fillStyle = shadeHexColor(isEdgeSeam || Math.abs(wallX - 0.5) < 0.025 ? '#0f172a' : '#64748b', lightFactor);
@@ -4716,7 +4919,7 @@
           ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.52);
         }
       } else {
-        // Clean, Modern 3D Escape-Room Wall Architecture (Acoustic Slate Panels + Framed Wainscoting + Emergency Guide Ribbon)
+        // Clean, Modern 3D Building Interior Wall Architecture (Acoustic Slate Panels + Framed Wainscoting + Emergency Guide Ribbon)
         const wallFeature = (mapX * 7 + mapY * 13) % 4;
         const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.014;
         const upperHex = isPanelJoint ? '#334155' : '#64748b';
@@ -4775,12 +4978,22 @@
               }
             }
           } else {
-            // Framed Acoustic Wall Relief + Emergency Wall Sconce
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#1e293b' : '#475569', lightFactor * 0.94);
-            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.30);
-            if (wallX > 0.43 && wallX < 0.57) {
-              ctx.fillStyle = shadeHexColor('#38bdf8', Math.max(0.85, lightFactor));
-              ctx.fillRect(x0, wallTop + projH * 0.24, sw, projH * 0.08);
+            // Recessed Indoor Fire Hydrant Cabinet (옥내소화전함 + 적색 발신기 표시등)
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#334155' : '#cbd5e1', lightFactor * 0.96);
+            ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
+            if (wallX > 0.44 && wallX < 0.56) {
+              ctx.fillStyle = '#ef4444';
+              ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.05);
+            }
+            if (wallX > 0.32 && wallX < 0.68) {
+              ctx.fillStyle = shadeHexColor('#b91c1c', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.25, sw, projH * 0.14);
+            }
+            if (wallX > 0.46 && wallX < 0.54 && perpDist < 4.8) {
+              const fKey = `${mapX},${mapY},${side}`;
+              if (!visibleWallFixtures.has(fKey)) {
+                visibleWallFixtures.set(fKey, { x: x0, y: wallTop + projH * 0.32, depth: perpDist, label: '🚒 옥내소화전함' });
+              }
             }
           }
         }
@@ -4806,7 +5019,7 @@
       }
     }
 
-    // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints & Archive Bookshelves)
+    // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints, Archive Bookshelves & Fire Hydrants)
     for (const wf of visibleWallFixtures.values()) {
       if (wf.x < 60 || wf.x > width - 60) continue;
       ctx.save();
@@ -4980,10 +5193,12 @@
             }
           }
         } else if (t === TILE.SINK) {
-          // 3D Porcelain Washbasin Vanity + Water Basin
-          draw3DPerspectiveBox(c + 0.14, r + 0.16, c + 0.86, r + 0.84, 0, 0.36, '#e0f2fe', '#0284c7', '#0369a1', '#7dd3fc');
-          draw3DPerspectiveBox(c + 0.24, r + 0.26, c + 0.76, r + 0.74, 0.36, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
-          const sp = project3DPoint(c + 0.5, r + 0.5, 0.54);
+          // 3D Porcelain Washbasin Vanity + Recessed Water Basin + Chrome Faucet + Mirror Backsplash
+          draw3DPerspectiveBox(c + 0.14, r + 0.18, c + 0.86, r + 0.84, 0, 0.36, '#f1f5f9', '#0284c7', '#0369a1', '#7dd3fc');
+          draw3DPerspectiveBox(c + 0.24, r + 0.28, c + 0.76, r + 0.74, 0.36, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
+          draw3DPerspectiveBox(c + 0.45, r + 0.20, c + 0.55, r + 0.32, 0.42, 0.52, '#f8fafc', '#cbd5e1', '#94a3b8', '#ffffff');
+          draw3DPerspectiveBox(c + 0.22, r + 0.14, c + 0.78, r + 0.20, 0.44, 0.80, '#bae6fd', '#38bdf8', '#0284c7', '#e0f2fe');
+          const sp = project3DPoint(c + 0.5, r + 0.5, 0.58);
           if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
             ctx.font = `bold ${Math.max(11, Math.min(20, Math.floor(26 / sp.depth)))}px "Noto Sans KR", sans-serif`;
             ctx.fillStyle = '#bae6fd';
@@ -4991,12 +5206,35 @@
             ctx.fillText('🚰세면대(수건적시기)', sp.x, sp.y);
           }
         } else if (t === TILE.OPEN_DOOR) {
-          // 3D Open Doorway Arch
-          draw3DPerspectiveBox(c + 0.02, r + 0.08, c + 0.16, r + 0.92, 0, 0.90, '#78350f', '#92400e', '#451a03', '#fbbf24');
-          draw3DPerspectiveBox(c + 0.84, r + 0.08, c + 0.98, r + 0.92, 0, 0.90, '#78350f', '#92400e', '#451a03', '#fbbf24');
-          const dp = project3DPoint(c + 0.5, r + 0.5, 0.72);
-          if (dp && dp.depth < 5.5 && isPointVisibleInZBuffer(dp.x, dp.depth - 0.1)) {
-            ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / dp.depth)))}px "Noto Sans KR", sans-serif`;
+          // Wall-Orientation-Aware 3D Open Doorway (Jambs hug actual wall edges; 90°-swung door leaf rests flat against side wall; center 100% open!)
+          const distToCam = Math.hypot(c + 0.5 - camWorldX, r + 0.5 - camWorldY);
+          const vertWall = isVerticalWallDoor(c, r);
+          if (distToCam > 0.48) {
+            if (vertWall) {
+              // Door in North-South wall (player walks East-West along X)
+              draw3DPerspectiveBox(c + 0.36, r + 0.08, c + 0.64, r + 0.92, 0.0, 0.018, '#94a3b8', '#64748b', '#475569', '#cbd5e1');
+              draw3DPerspectiveBox(c + 0.35, r + 0.00, c + 0.65, r + 0.08, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
+              draw3DPerspectiveBox(c + 0.35, r + 0.92, c + 0.65, r + 1.00, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
+              draw3DPerspectiveBox(c + 0.35, r + 0.00, c + 0.65, r + 1.00, 0.88, 1.00, '#3f2305', '#5c2808', '#291507', '#92400e');
+              // 90-degree Swung Open Door Leaf + Vision Glass + Chrome Handle resting against North wall
+              draw3DPerspectiveBox(c + 0.56, r + 0.06, c + 0.95, r + 0.11, 0.02, 0.86, '#92400e', '#8c4a19', '#5c2808', '#d97706');
+              draw3DPerspectiveBox(c + 0.64, r + 0.055, c + 0.86, r + 0.115, 0.50, 0.76, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+              draw3DPerspectiveBox(c + 0.85, r + 0.045, c + 0.92, r + 0.125, 0.42, 0.46, '#f8fafc', '#fde047', '#cbd5e1', '#94a3b8');
+            } else {
+              // Door in East-West wall (player walks North-South along Y)
+              draw3DPerspectiveBox(c + 0.08, r + 0.36, c + 0.92, r + 0.64, 0.0, 0.018, '#94a3b8', '#64748b', '#475569', '#cbd5e1');
+              draw3DPerspectiveBox(c + 0.00, r + 0.35, c + 0.08, r + 0.65, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
+              draw3DPerspectiveBox(c + 0.92, r + 0.35, c + 1.00, r + 0.65, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
+              draw3DPerspectiveBox(c + 0.00, r + 0.35, c + 1.00, r + 0.65, 0.88, 1.00, '#3f2305', '#5c2808', '#291507', '#92400e');
+              // 90-degree Swung Open Door Leaf + Vision Glass + Chrome Handle resting against West wall
+              draw3DPerspectiveBox(c + 0.06, r + 0.56, c + 0.11, r + 0.95, 0.02, 0.86, '#92400e', '#8c4a19', '#5c2808', '#d97706');
+              draw3DPerspectiveBox(c + 0.055, r + 0.64, c + 0.115, r + 0.86, 0.50, 0.76, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+              draw3DPerspectiveBox(c + 0.045, r + 0.85, c + 0.125, r + 0.92, 0.42, 0.46, '#f8fafc', '#fde047', '#cbd5e1', '#94a3b8');
+            }
+          }
+          const dp = project3DPoint(c + 0.5, r + 0.5, 0.84);
+          if (dp && dp.depth > 0.7 && dp.depth < 5.2 && isPointVisibleInZBuffer(dp.x, dp.depth - 0.1)) {
+            ctx.font = `bold ${Math.max(10, Math.min(15, Math.floor(20 / dp.depth)))}px "Noto Sans KR", sans-serif`;
             ctx.fillStyle = '#6ee7b7';
             ctx.textAlign = 'center';
             ctx.fillText('🚪열린문(통과)', dp.x, dp.y);
@@ -5019,11 +5257,28 @@
           t === TILE.PHONE_119 ||
           t === TILE.HAZARD
         ) {
-          const boxTop = t === TILE.GAS_VALVE
-            ? (player.gasClosed ? '#10b981' : '#ef4444')
-            : (t === TILE.BREAKER ? (player.breakerClosed ? '#10b981' : '#3b82f6') : '#475569');
-          draw3DPerspectiveBox(c + 0.22, r + 0.22, c + 0.78, r + 0.78, 0, 0.42, boxTop, '#1e293b', '#0f172a', '#38bdf8');
-          const fp = project3DPoint(c + 0.5, r + 0.5, 0.56);
+          if (t === TILE.GAS_VALVE) {
+            // 3D Yellow Gas Pipeline Stand + Red/Green Shutoff Valve Lever
+            draw3DPerspectiveBox(c + 0.26, r + 0.26, c + 0.74, r + 0.74, 0, 0.38, '#eab308', '#ca8a04', '#854d0e', '#fef08a');
+            const vCol = player.gasClosed ? '#10b981' : '#ef4444';
+            draw3DPerspectiveBox(c + 0.34, r + 0.34, c + 0.66, r + 0.66, 0.38, 0.50, vCol, vCol, '#0f172a', '#ffffff');
+          } else if (t === TILE.BREAKER) {
+            // 3D Steel Electrical Distribution Cabinet + Breaker Switch Array
+            draw3DPerspectiveBox(c + 0.22, r + 0.24, c + 0.78, r + 0.76, 0, 0.52, '#475569', '#334155', '#1e293b', '#94a3b8');
+            const bCol = player.breakerClosed ? '#10b981' : '#3b82f6';
+            draw3DPerspectiveBox(c + 0.32, r + 0.32, c + 0.68, r + 0.68, 0.52, 0.58, bCol, '#1e293b', '#0f172a', '#7dd3fc');
+          } else if (t === TILE.ALARM_BELL) {
+            // 3D Red Fire Alarm Transmitter Stand + Dome Bell
+            draw3DPerspectiveBox(c + 0.28, r + 0.28, c + 0.72, r + 0.72, 0, 0.44, '#dc2626', '#b91c1c', '#7f1d1d', '#fca5a5');
+            draw3DPerspectiveBox(c + 0.36, r + 0.36, c + 0.64, r + 0.64, 0.44, 0.56, '#fde047', '#eab308', '#a16207', '#ffffff');
+          } else if (t === TILE.PHONE_119) {
+            // 3D Red Emergency 119 Hotline Console
+            draw3DPerspectiveBox(c + 0.26, r + 0.26, c + 0.74, r + 0.74, 0, 0.46, '#ef4444', '#dc2626', '#991b1b', '#fecaca');
+            draw3DPerspectiveBox(c + 0.34, r + 0.34, c + 0.66, r + 0.66, 0.46, 0.54, '#f8fafc', '#cbd5e1', '#64748b', '#38bdf8');
+          } else {
+            draw3DPerspectiveBox(c + 0.22, r + 0.22, c + 0.78, r + 0.78, 0, 0.42, '#f97316', '#c2410c', '#7c2d12', '#fdba74');
+          }
+          const fp = project3DPoint(c + 0.5, r + 0.5, 0.62);
           if (fp && isPointVisibleInZBuffer(fp.x, fp.depth - 0.15)) {
             const label = t === TILE.GAS_VALVE ? (player.gasClosed ? '✅가스밸브(차단됨)' : '🔴가스밸브(잠그기)')
               : t === TILE.BREAKER ? (player.breakerClosed ? '✅배전판(복구완료)' : '⚡배전판(전원·배선)')
@@ -5031,24 +5286,24 @@
               : t === TILE.PHONE_119 ? '📞119비상전화'
               : '⚠️화재위험요소';
             ctx.font = `bold ${Math.max(11, Math.min(19, Math.floor(26 / fp.depth)))}px "Noto Sans KR", sans-serif`;
-            ctx.fillStyle = '#fef08a';
+            ctx.fillStyle = '#fef047';
             ctx.textAlign = 'center';
             ctx.fillText(label, fp.x, fp.y);
           }
         } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR || t === TILE.EXIT) {
-          const wp = project3DPoint(c + 0.5, r + 0.5, 0.55);
+          const wp = project3DPoint(c + 0.5, r + 0.5, 0.66);
           if (wp && wp.depth < 6.5 && isPointVisibleInZBuffer(wp.x, wp.depth - 0.45)) {
             const badgeText = t === TILE.EXIT ? '🏃 EXIT 비상구'
               : t === TILE.LOCKED_DOOR ? '🔒 잠긴문 (열쇠/금고614)'
               : t === TILE.HOT_DOOR ? '🌡️🔥 고온 위험문 (열지마세요!)'
               : '🚪 방문 (행동키로 열기)';
             ctx.save();
-            ctx.font = `bold ${Math.max(11, Math.min(18, Math.floor(25 / wp.depth)))}px "Noto Sans KR", sans-serif`;
+            ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / wp.depth)))}px "Noto Sans KR", sans-serif`;
             const tw = ctx.measureText(badgeText).width + 12;
-            const th = Math.max(18, Math.min(26, Math.floor(32 / wp.depth)));
-            ctx.fillStyle = t === TILE.EXIT ? 'rgba(5, 150, 105, 0.92)' : 'rgba(15, 23, 42, 0.88)';
+            const th = Math.max(17, Math.min(24, Math.floor(28 / wp.depth)));
+            ctx.fillStyle = t === TILE.EXIT ? 'rgba(5, 150, 105, 0.90)' : 'rgba(15, 23, 42, 0.84)';
             ctx.strokeStyle = t === TILE.EXIT ? '#6ee7b7' : '#fbbf24';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 1.4;
             ctx.fillRect(wp.x - tw * 0.5, wp.y - th * 0.5, tw, th);
             ctx.strokeRect(wp.x - tw * 0.5, wp.y - th * 0.5, tw, th);
             ctx.fillStyle = '#ffffff';
@@ -5580,7 +5835,7 @@
         } else if (t === TILE.FURNITURE) {
           draw3DFurniturePiece(ctx, x, y, tileSize, wallH, r, c);
         } else if (t === TILE.DOOR || t === TILE.LOCKED_DOOR || t === TILE.HOT_DOOR || t === TILE.OPEN_DOOR) {
-          draw3DDoorway(ctx, x, y, tileSize, wallH, t, now);
+          draw3DDoorway(ctx, x, y, tileSize, wallH, t, now, r, c);
         } else if (t === TILE.SINK) {
           draw3DSinkFixture(ctx, x, y, tileSize, wallH);
         } else if (t === TILE.DEBRIS) {
