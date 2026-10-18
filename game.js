@@ -2537,9 +2537,10 @@
     }
 
     const activeSkin = getSelectedSkin();
+    // 1/2 Movement Speed in 3D Modes (1.88 tiles/s standing, 1.32 tiles/s crouching) for calm, non-dizzying navigation
     let baseSpeed = player.crouching
-      ? 2.65 * (activeSkin.crouchSpeedBonus || 1.0)
-      : 3.75;
+      ? 1.32 * (activeSkin.crouchSpeedBonus || 1.0)
+      : 1.88;
     if (player.carryingToy) baseSpeed *= 0.72;
 
     // Feature 10: Automatic Bluetooth / USB Gamepad Support (Zero UI clutter)
@@ -2577,11 +2578,11 @@
     let targetSurge = 0;
     let targetTurnBias = 0;
     const sensMult = Math.max(0.6, Math.min(1.4, (appSettings.sensitivity || 100) / 100));
-    const motionMult = appSettings.reduceMotion ? 0.35 : 1.0;
+    const motionMult = appSettings.reduceMotion ? 0.25 : 0.65;
 
     if (cameraMode3D === 'FPS_3D') {
       // Smooth, Non-Dizzying 1st-Person 3D Perspective Walkthrough Controls:
-      // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Smooth Turn + Strafe Assist
+      // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Calm Smooth Turn
       const turnInput = ((keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0)) || gpAxesX;
       const forwardInput = ((keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0)) || -gpAxesY;
 
@@ -2590,10 +2591,10 @@
       }
 
       if (turnInput !== 0) {
-        // Calm, steady turn rate scaled by user sensitivity setting
-        const turnSpeed = (forwardInput !== 0 ? 1.35 : 1.55) * sensMult;
+        // Gentle, non-dizzying turn rate (~45% slower than before)
+        const turnSpeed = (forwardInput !== 0 ? 0.72 : 0.86) * sensMult;
         fpsCamYaw += turnInput * turnSpeed * dt;
-        targetTurnBias = turnInput * 0.82 * motionMult;
+        targetTurnBias = turnInput * 0.45 * motionMult;
         player.dirX = Math.cos(fpsCamYaw);
         player.dirY = Math.sin(fpsCamYaw);
       } else if (forwardInput > 0) {
@@ -2602,8 +2603,8 @@
         let axisDiff = snapAxis - fpsCamYaw;
         while (axisDiff > Math.PI) axisDiff -= Math.PI * 2;
         while (axisDiff < -Math.PI) axisDiff += Math.PI * 2;
-        if (Math.abs(axisDiff) < 0.28) {
-          fpsCamYaw += axisDiff * Math.min(1, dt * 4.2);
+        if (Math.abs(axisDiff) < 0.24) {
+          fpsCamYaw += axisDiff * Math.min(1, dt * 2.6);
         }
       }
 
@@ -2612,13 +2613,7 @@
         mvX = Math.cos(fpsCamYaw) * forwardInput * moveMult;
         mvY = Math.sin(fpsCamYaw) * forwardInput * moveMult;
         isMoving = true;
-        targetSurge = (forwardInput > 0 ? 1.0 : -0.45) * motionMult;
-      } else if (turnInput !== 0) {
-        // Subtle forward step while turning in place so the character never feels stuck on a corner
-        mvX = Math.cos(fpsCamYaw) * 0.22;
-        mvY = Math.sin(fpsCamYaw) * 0.22;
-        isMoving = true;
-        targetSurge = 0.25 * motionMult;
+        targetSurge = (forwardInput > 0 ? 0.55 : -0.25) * motionMult;
       } else if (pointerMoveTarget) {
         const dx = pointerMoveTarget.x - player.x;
         const dy = pointerMoveTarget.y - player.y;
@@ -2628,12 +2623,12 @@
           let diff = desiredYaw - fpsCamYaw;
           while (diff > Math.PI) diff -= Math.PI * 2;
           while (diff < -Math.PI) diff += Math.PI * 2;
-          fpsCamYaw += diff * Math.min(1, dt * 5.2 * sensMult);
-          targetTurnBias = Math.max(-0.85, Math.min(0.85, diff * 1.1)) * motionMult;
+          fpsCamYaw += diff * Math.min(1, dt * 2.8 * sensMult);
+          targetTurnBias = Math.max(-0.5, Math.min(0.5, diff * 0.6)) * motionMult;
           mvX = dx / dist;
           mvY = dy / dist;
           isMoving = true;
-          targetSurge = 0.9 * motionMult;
+          targetSurge = 0.5 * motionMult;
         } else {
           pointerMoveTarget = null;
         }
@@ -2798,11 +2793,11 @@
     fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 10.0);
     fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 10.0);
 
-    // Update 3D Walk Stride Phase & World-Space 3D Footprints
-    fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 9.0);
-    fpsTurnBias += (targetTurnBias - fpsTurnBias) * Math.min(1, dt * 8.5);
+    // Update 3D Walk Stride Phase & World-Space 3D Footprints (Calm 1/2 cadence)
+    fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 6.5);
+    fpsTurnBias += (targetTurnBias - fpsTurnBias) * Math.min(1, dt * 6.5);
     if (isMoving) {
-      const strideSpeed = player.crouching ? 8.5 : 10.8;
+      const strideSpeed = player.crouching ? 4.2 : 5.4;
       fpsWalkPhase += dt * strideSpeed;
       const curHalf = Math.floor(fpsWalkPhase / Math.PI);
       if (curHalf !== fpsLastStepHalf) {
@@ -2857,7 +2852,7 @@
         mv2Y /= len2;
         player2.dirX = mv2X;
         player2.dirY = mv2Y;
-        const speed2 = player2.crouching ? 2.55 : 3.55;
+        const speed2 = player2.crouching ? 1.30 : 1.85;
         const step2X = mv2X * speed2 * dt;
         const step2Y = mv2Y * speed2 * dt;
         if (canMoveTo(player2.x + step2X, player2.y, player2.radius)) {
@@ -2971,8 +2966,8 @@
       pathHistory.push({ x: player.x, y: player.y, state: ptState });
     }
 
-    // Physical Fire Door & Smoke Spread Simulation (Scaled by Stage Difficulty)
-    const baseSpread = (st.fireSpreadInterval || 11.0) * gradeMults.spreadMult;
+    // Physical Fire Door & Smoke Spread Simulation (Scaled by Stage Difficulty & 1/2 Movement Pace)
+    const baseSpread = (st.fireSpreadInterval || 11.0) * 1.45 * gradeMults.spreadMult;
     const spreadInterval = player.fireDoorsClosed > 0 ? baseSpread * 1.45 : baseSpread;
     if (fireSpreadTimer >= spreadInterval) {
       fireSpreadTimer = 0;
@@ -3917,21 +3912,54 @@
     }
 
     if (rightTool === 'extinguisher') {
-      ctx.fillStyle = '#dc2626';
-      ctx.strokeStyle = '#fca5a5';
-      ctx.lineWidth = 1.2;
-      ctx.fillRect(rightHandPos.hdX - u * 0.045, rightHandPos.hdY - u * 0.05, u * 0.09, u * 0.18);
-      ctx.strokeRect(rightHandPos.hdX - u * 0.045, rightHandPos.hdY - u * 0.05, u * 0.09, u * 0.18);
-    } else if (rightTool === 'axe') {
-      ctx.fillStyle = '#92400e';
-      ctx.fillRect(rightHandPos.hdX - u * 0.018, rightHandPos.hdY - u * 0.16, u * 0.036, u * 0.24);
+      const tx = rightHandPos.hdX - u * 0.048;
+      const ty = rightHandPos.hdY - u * 0.04;
+      const tw = u * 0.096;
+      const th = u * 0.19;
+      // Metallic Valve & Lever Handle on Top
       ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(rightHandPos.hdX - u * 0.01, rightHandPos.hdY - u * 0.16, u * 0.11, u * 0.08);
+      ctx.fillRect(tx + tw * 0.32, ty - u * 0.038, tw * 0.36, u * 0.04);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(tx + tw * 0.15, ty - u * 0.048, tw * 0.72, u * 0.018);
+      // Black Discharge Hose
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = Math.max(1.5, u * 0.022);
+      ctx.beginPath();
+      ctx.moveTo(tx + tw * 0.75, ty - u * 0.02);
+      ctx.lineTo(tx + tw * 1.12, ty + th * 0.45);
+      ctx.stroke();
+      // Red Cylinder Body
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(tx, ty, tw, th);
+      ctx.strokeRect(tx, ty, tw, th);
+      // White Safety Instruction Label Band
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(tx + tw * 0.12, ty + th * 0.28, tw * 0.76, th * 0.34);
+    } else if (rightTool === 'axe') {
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(rightHandPos.hdX - u * 0.02, rightHandPos.hdY - u * 0.18, u * 0.04, u * 0.26);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(rightHandPos.hdX - u * 0.012, rightHandPos.hdY - u * 0.17, u * 0.07, u * 0.085);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(rightHandPos.hdX + u * 0.055, rightHandPos.hdY - u * 0.18, u * 0.045, u * 0.105);
     } else if (rightTool === 'bucket') {
       ctx.fillStyle = '#0284c7';
       ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 1.2;
       ctx.fillRect(rightHandPos.hdX - u * 0.055, rightHandPos.hdY - u * 0.01, u * 0.11, u * 0.12);
       ctx.strokeRect(rightHandPos.hdX - u * 0.055, rightHandPos.hdY - u * 0.01, u * 0.11, u * 0.12);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(rightHandPos.hdX - u * 0.06, rightHandPos.hdY - u * 0.02, u * 0.12, u * 0.024);
+    } else if (rightTool === 'flashlight') {
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(rightHandPos.hdX - u * 0.028, rightHandPos.hdY - u * 0.05, u * 0.056, u * 0.11);
+      ctx.strokeRect(rightHandPos.hdX - u * 0.028, rightHandPos.hdY - u * 0.05, u * 0.056, u * 0.11);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(rightHandPos.hdX - u * 0.032, rightHandPos.hdY - u * 0.068, u * 0.064, u * 0.022);
     }
 
     // 5. Neck, Head, Ears, Hair/Safety Helmet & 3/4 Turn Facial Profile
@@ -4335,16 +4363,18 @@
       : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : '▲전진·▼후진·◀▶회전'));
     ctx.save();
     const badgeY = height - 34;
+    const badgeText = `👁️ 1인칭 3D 탈출뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`;
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    const badgeW = Math.ceil(ctx.measureText(badgeText).width) + 18;
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
     ctx.strokeStyle = '#818cf8';
     ctx.lineWidth = 1.5;
-    ctx.fillRect(10, badgeY, 275, 24);
-    ctx.strokeRect(10, badgeY, 275, 24);
+    ctx.fillRect(10, badgeY, badgeW, 24);
+    ctx.strokeRect(10, badgeY, badgeW, 24);
     ctx.fillStyle = '#e0e7ff';
-    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`👁️ 1인칭 3D 탈출뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`, 18, badgeY + 12);
+    ctx.fillText(badgeText, 19, badgeY + 12);
     ctx.restore();
   }
 
@@ -4380,7 +4410,7 @@
     const reduceMot = !!(appSettings && appSettings.reduceMotion);
     const brightMul = Math.max(0.75, Math.min(1.85, ((appSettings && appSettings.brightness) || 100) / 100));
     const camEyeZ = player.crouching ? 0.32 : 0.50;
-    const walkBobY = reduceMot ? 0 : Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 1.6);
+    const walkBobY = reduceMot ? 0 : Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 0.45);
     const horizon = (player.crouching ? height * 0.39 : height * 0.44) + walkBobY;
     const vertScale = height * 0.74;
     const halfW = width * 0.5;
@@ -4534,24 +4564,67 @@
         }
       }
 
-      // Recessed 3D Ceiling LED Light Panel & Emergency Strobe above open rooms
+      // 3D Ceiling Acoustic Grid Panel Outline
+      if (dist < 7.8) {
+        const ceilTilePoly = projectClipped3DPolygon(
+          [[c, r, 0.995], [c + 1, r, 0.995], [c + 1, r + 1, 0.995], [c, r + 1, 0.995]],
+          0.20
+        );
+        if (ceilTilePoly) {
+          ctx.strokeStyle = 'rgba(71, 85, 105, 0.28)';
+          ctx.lineWidth = Math.max(0.6, 1.4 / Math.max(0.6, dist));
+          ctx.beginPath();
+          ctx.moveTo(ceilTilePoly[0].x, ceilTilePoly[0].y);
+          for (let k = 1; k < ceilTilePoly.length; k++) ctx.lineTo(ceilTilePoly[k].x, ceilTilePoly[k].y);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+
+      // Recessed 3D Ceiling LED Light Panel & Soft Radial Halo above open rooms
       if ((r % 2 === 1) && (c % 2 === 1) && dist < 9.5) {
         const ceilPoly = projectClipped3DPolygon(
-          [[c + 0.22, r + 0.22, 0.99], [c + 0.78, r + 0.22, 0.99], [c + 0.78, r + 0.78, 0.99], [c + 0.22, r + 0.78, 0.99]],
+          [[c + 0.20, r + 0.20, 0.99], [c + 0.80, r + 0.20, 0.99], [c + 0.80, r + 0.80, 0.99], [c + 0.20, r + 0.80, 0.99]],
           0.18
         );
         if (ceilPoly) {
+          const lightPt = project3DPoint(c + 0.5, r + 0.5, 0.98, 0.22);
+          if (lightPt && dist < 7.2) {
+            const haloR = Math.max(18, Math.min(72, 95 / lightPt.depth));
+            const haloGrad = ctx.createRadialGradient(lightPt.x, lightPt.y, haloR * 0.1, lightPt.x, lightPt.y, haloR);
+            haloGrad.addColorStop(0, st.isDarkStage ? 'rgba(56, 189, 248, 0.22)' : 'rgba(254, 249, 195, 0.26)');
+            haloGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+            ctx.fillStyle = haloGrad;
+            ctx.beginPath();
+            ctx.arc(lightPt.x, lightPt.y, haloR, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
           ctx.fillStyle = st.isDarkStage
-            ? 'rgba(56, 189, 248, 0.32)'
-            : (powerRestored ? 'rgba(254, 249, 195, 0.88)' : 'rgba(253, 224, 71, 0.68)');
+            ? 'rgba(56, 189, 248, 0.42)'
+            : (powerRestored ? 'rgba(254, 249, 195, 0.92)' : 'rgba(253, 224, 71, 0.76)');
           ctx.beginPath();
           ctx.moveTo(ceilPoly[0].x, ceilPoly[0].y);
           for (let k = 1; k < ceilPoly.length; k++) ctx.lineTo(ceilPoly[k].x, ceilPoly[k].y);
           ctx.closePath();
           ctx.fill();
-          ctx.strokeStyle = '#94a3b8';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = Math.max(0.8, 1.8 / Math.max(0.6, dist));
           ctx.stroke();
+        }
+      } else if ((r % 2 === 0) && (c % 2 === 0) && dist < 6.5) {
+        // Ceiling Optical Smoke Detector Dome & Red Sensing LED
+        const detPt = project3DPoint(c + 0.5, r + 0.5, 0.985, 0.25);
+        if (detPt) {
+          const dr = Math.max(2.5, Math.min(8, 11 / detPt.depth));
+          ctx.fillStyle = '#cbd5e1';
+          ctx.beginPath();
+          ctx.arc(detPt.x, detPt.y, dr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(detPt.x + dr * 0.25, detPt.y, Math.max(1.2, dr * 0.32), 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     }
@@ -4698,16 +4771,18 @@
 
       const x0 = Math.floor((i * width) / numRays);
       const x1 = Math.ceil(((i + 1) * width) / numRays);
-      const sw = Math.max(1, x1 - x0);
+      const sw = Math.max(1, x1 - x0) + 0.65;
 
       let wallX = side === 0 ? (camWorldY + rawDist * rayDirY) : (camWorldX + rawDist * rayDirX);
       wallX -= Math.floor(wallX);
 
       const isSideLit = side === 0;
-      const isEdgeSeam = wallX < 0.035 || wallX > 0.965;
+      const isEdgeSeam = wallX < 0.032 || wallX > 0.968;
+      const edgeDist = Math.min(wallX, 1 - wallX);
+      const cornerAO = edgeDist < 0.075 ? (0.86 + (edgeDist / 0.075) * 0.14) : 1.0;
 
-      // Dynamic Distance Shading + 3D Flashlight Cone (F) + Power Recovery Boost
-      let lightFactor = (isSideLit ? 1.02 : 0.84) / (1 + perpDist * 0.14);
+      // Dynamic Distance Shading + 3D Flashlight Cone (F) + Power Recovery Boost + Corner AO
+      let lightFactor = ((isSideLit ? 1.02 : 0.84) * cornerAO) / (1 + perpDist * 0.14);
       if (powerRestored) lightFactor *= 1.10;
       if (st.isDarkStage && !powerRestored) lightFactor *= 0.62;
       if (flashlightSpotEnabled || player.hasFlashlight) {
@@ -4921,7 +4996,7 @@
       } else {
         // Clean, Modern 3D Building Interior Wall Architecture (Acoustic Slate Panels + Framed Wainscoting + Emergency Guide Ribbon)
         const wallFeature = (mapX * 7 + mapY * 13) % 4;
-        const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.014;
+        const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.012;
         const upperHex = isPanelJoint ? '#334155' : '#64748b';
         const lowerHex = isEdgeSeam ? '#0f172a' : '#334155';
 
@@ -4942,9 +5017,37 @@
         if (wallX > 0.22 && wallX < 0.78) {
           const isFixtureBorder = wallX < 0.25 || wallX > 0.75;
           if (wallFeature === 0) {
-            // Framed Safety Blueprint Board (Dark Slate Frame + Deep Blueprint Interior)
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#0f172a' : '#0c4a6e', lightFactor);
-            ctx.fillRect(x0, wallTop + projH * 0.15, sw, projH * 0.30);
+            // Framed Safety Evacuation Blueprint Board (피난안내도: Aluminum Frame + Floor Plan Grid + Green Route + Red '현위치' Dot)
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#1e293b' : '#0c4a6e', lightFactor);
+            ctx.fillRect(x0, wallTop + projH * 0.145, sw, projH * 0.31);
+            if (!isFixtureBorder) {
+              // Top Green Header Bar ("피난안내도 EVACUATION MAP")
+              ctx.fillStyle = shadeHexColor('#059669', lightFactor * 1.05);
+              ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.038);
+              // Bright Schematic Floor-Plan Card
+              ctx.fillStyle = shadeHexColor('#e0f2fe', lightFactor * 0.98);
+              ctx.fillRect(x0, wallTop + projH * 0.205, sw, projH * 0.225);
+              // Internal Room Partition Lines on Blueprint
+              const isBlueprintGrid = Math.abs(wallX - 0.38) < 0.012 || Math.abs(wallX - 0.52) < 0.012 || Math.abs(wallX - 0.64) < 0.012;
+              if (isBlueprintGrid) {
+                ctx.fillStyle = shadeHexColor('#0284c7', lightFactor);
+                ctx.fillRect(x0, wallTop + projH * 0.22, sw, projH * 0.19);
+              } else {
+                ctx.fillStyle = shadeHexColor('#38bdf8', lightFactor * 0.85);
+                ctx.fillRect(x0, wallTop + projH * 0.25, sw, projH * 0.012);
+                ctx.fillRect(x0, wallTop + projH * 0.37, sw, projH * 0.012);
+              }
+              // Glowing Green Evacuation Route Line
+              if (wallX >= 0.30 && wallX <= 0.70) {
+                ctx.fillStyle = '#10b981';
+                ctx.fillRect(x0, wallTop + projH * 0.31, sw, projH * 0.022);
+              }
+              // Red '현위치 (You Are Here)' Indicator Dot
+              if (wallX >= 0.32 && wallX <= 0.36) {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(x0, wallTop + projH * 0.298, sw, projH * 0.044);
+              }
+            }
             if (wallX > 0.46 && wallX < 0.54 && perpDist < 5.2) {
               const fKey = `${mapX},${mapY},${side}`;
               if (!visibleWallFixtures.has(fKey)) {
@@ -4952,24 +5055,54 @@
               }
             }
           } else if (wallFeature === 1) {
-            // Exterior / Corridor Night Window with Aluminum Mullion Crossbars
+            // Exterior / Corridor Night Window with Aluminum Mullion, Venetian Blind Slats & Glass Reflection
             const isMullion = isFixtureBorder || Math.abs(wallX - 0.50) < 0.02;
-            ctx.fillStyle = shadeHexColor(isMullion ? '#1e293b' : '#1e3a8a', lightFactor);
+            ctx.fillStyle = shadeHexColor(isMullion ? '#1e293b' : '#0f172a', lightFactor);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.32);
             if (!isMullion) {
-              ctx.fillStyle = shadeHexColor('#38bdf8', lightFactor * 0.90);
-              ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.06);
+              const isRefl = (wallX > 0.31 && wallX < 0.39) || (wallX > 0.56 && wallX < 0.63);
+              ctx.fillStyle = shadeHexColor(isRefl ? '#38bdf8' : '#1e3a8a', lightFactor * (isRefl ? 0.95 : 0.85));
+              ctx.fillRect(x0, wallTop + projH * 0.155, sw, projH * 0.29);
+              // Upper Venetian Blind Slats
+              ctx.fillStyle = shadeHexColor('#cbd5e1', lightFactor * 0.92);
+              ctx.fillRect(x0, wallTop + projH * 0.155, sw, projH * 0.014);
+              ctx.fillRect(x0, wallTop + projH * 0.178, sw, projH * 0.014);
+              ctx.fillRect(x0, wallTop + projH * 0.201, sw, projH * 0.014);
+              // Horizontal Window Transom Bar
+              ctx.fillStyle = shadeHexColor('#334155', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.295, sw, projH * 0.018);
             }
           } else if (wallFeature === 2) {
-            // Recessed Wall Archive Bookshelf (자정의 서가 단서 책장)
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#451a03' : '#291507', lightFactor);
+            // Recessed 2-Tier Wall Archive Bookshelf (매뉴얼서가: Walnut Frame, 2 Wooden Planks, Varied Book Heights & Spine Labels)
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#451a03' : '#1c0d06', lightFactor);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
             if (!isFixtureBorder) {
-              const bookBand = Math.floor(wallX * 14) % 4;
-              const bookHex = bookBand === 0 ? '#dc2626' : (bookBand === 1 ? '#2563eb' : (bookBand === 2 ? '#059669' : '#d97706'));
-              ctx.fillStyle = shadeHexColor(bookHex, lightFactor);
-              ctx.fillRect(x0, wallTop + projH * 0.18, sw, projH * 0.11);
-              ctx.fillRect(x0, wallTop + projH * 0.33, sw, projH * 0.11);
+              const slotIdx = Math.floor((wallX - 0.25) * 24);
+              const inSlot = ((wallX - 0.25) * 24) % 1;
+              const isBookGap = inSlot < 0.14;
+              if (!isBookGap) {
+                const bookPalette = ['#dc2626', '#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2'];
+                const topHex = bookPalette[Math.abs(slotIdx) % bookPalette.length];
+                const botHex = bookPalette[Math.abs(slotIdx + 3) % bookPalette.length];
+                const topHMod = (slotIdx % 3) * 0.012;
+                const botHMod = ((slotIdx + 1) % 3) * 0.012;
+
+                // Upper Shelf Books + White Spine Classification Tag
+                ctx.fillStyle = shadeHexColor(topHex, lightFactor);
+                ctx.fillRect(x0, wallTop + projH * (0.175 + topHMod), sw, projH * (0.11 - topHMod));
+                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.95);
+                ctx.fillRect(x0, wallTop + projH * 0.245, sw, projH * 0.018);
+
+                // Lower Shelf Books + Gold Spine Classification Tag
+                ctx.fillStyle = shadeHexColor(botHex, lightFactor);
+                ctx.fillRect(x0, wallTop + projH * (0.325 + botHMod), sw, projH * (0.115 - botHMod));
+                ctx.fillStyle = shadeHexColor('#fde047', lightFactor * 0.95);
+                ctx.fillRect(x0, wallTop + projH * 0.402, sw, projH * 0.018);
+              }
+              // 2 Horizontal Walnut Shelf Planks
+              ctx.fillStyle = shadeHexColor('#78350f', lightFactor * 1.05);
+              ctx.fillRect(x0, wallTop + projH * 0.285, sw, projH * 0.022);
+              ctx.fillRect(x0, wallTop + projH * 0.440, sw, projH * 0.024);
             }
             if (wallX > 0.46 && wallX < 0.54 && perpDist < 5.0) {
               const fKey = `${mapX},${mapY},${side}`;
@@ -4978,16 +5111,34 @@
               }
             }
           } else {
-            // Recessed Indoor Fire Hydrant Cabinet (옥내소화전함 + 적색 발신기 표시등)
-            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#334155' : '#cbd5e1', lightFactor * 0.96);
+            // Recessed Indoor Fire Hydrant Cabinet (옥내소화전함: Steel Cabinet Door + Red Transmitter Lamp + Hose Reel Window)
+            const isDoorSeam = Math.abs(wallX - 0.28) < 0.01 || Math.abs(wallX - 0.72) < 0.01;
+            ctx.fillStyle = shadeHexColor(isFixtureBorder ? '#334155' : (isDoorSeam ? '#64748b' : '#cbd5e1'), lightFactor * 0.96);
             ctx.fillRect(x0, wallTop + projH * 0.14, sw, projH * 0.34);
-            if (wallX > 0.44 && wallX < 0.56) {
+            // Red Alarm Transmitter Indicator Lamp on Top Center
+            if (wallX > 0.45 && wallX < 0.55) {
               ctx.fillStyle = '#ef4444';
-              ctx.fillRect(x0, wallTop + projH * 0.16, sw, projH * 0.05);
+              ctx.fillRect(x0, wallTop + projH * 0.158, sw, projH * 0.045);
+              if (wallX > 0.48 && wallX < 0.52) {
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(x0, wallTop + projH * 0.168, sw, projH * 0.024);
+              }
             }
-            if (wallX > 0.32 && wallX < 0.68) {
+            // Middle Inspection Window & Red Fire Hose Reel Silhouette
+            if (wallX > 0.33 && wallX < 0.67) {
               ctx.fillStyle = shadeHexColor('#b91c1c', lightFactor);
-              ctx.fillRect(x0, wallTop + projH * 0.25, sw, projH * 0.14);
+              ctx.fillRect(x0, wallTop + projH * 0.23, sw, projH * 0.18);
+              if (wallX > 0.38 && wallX < 0.62) {
+                ctx.fillStyle = shadeHexColor('#f8fafc', lightFactor * 0.9);
+                ctx.fillRect(x0, wallTop + projH * 0.26, sw, projH * 0.03);
+                ctx.fillStyle = shadeHexColor('#7f1d1d', lightFactor);
+                ctx.fillRect(x0, wallTop + projH * 0.31, sw, projH * 0.07);
+              }
+            }
+            // Chrome Cabinet Lever Handle
+            if (wallX > 0.68 && wallX < 0.705) {
+              ctx.fillStyle = shadeHexColor('#475569', lightFactor);
+              ctx.fillRect(x0, wallTop + projH * 0.30, sw, projH * 0.06);
             }
             if (wallX > 0.46 && wallX < 0.54 && perpDist < 4.8) {
               const fKey = `${mapX},${mapY},${side}`;
@@ -5315,9 +5466,24 @@
         }
       } else if (obj.kind === 'item') {
         const { it } = obj;
-        // Draw a 3D Pedestal Cushion under the Item + Floating 3D Item Orb
+        // Draw a Glowing 3D Floor Pad + Pedestal Cushion under the Item + Floating 3D Item Orb
+        const glowPad = projectClipped3DPolygon(
+          [[it.c + 0.22, it.r + 0.22, 0.008], [it.c + 0.78, it.r + 0.22, 0.008], [it.c + 0.78, it.r + 0.78, 0.008], [it.c + 0.22, it.r + 0.78, 0.008]],
+          0.18
+        );
+        if (glowPad) {
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+          ctx.strokeStyle = 'rgba(125, 211, 252, 0.65)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(glowPad[0].x, glowPad[0].y);
+          for (let k = 1; k < glowPad.length; k++) ctx.lineTo(glowPad[k].x, glowPad[k].y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
         draw3DPerspectiveBox(it.c + 0.32, it.r + 0.32, it.c + 0.68, it.r + 0.68, 0, 0.08, '#1e293b', '#0f172a', '#020617', '#38bdf8');
-        const ip = project3DPoint(it.c + 0.5, it.r + 0.5, 0.22 + Math.sin(now * 3.5) * 0.04);
+        const ip = project3DPoint(it.c + 0.5, it.r + 0.5, 0.22 + Math.sin(now * 3.5) * 0.035);
         if (ip && isPointVisibleInZBuffer(ip.x, ip.depth - 0.12)) {
           const rad = Math.max(12, Math.min(34, 42 / ip.depth));
           ctx.save();
@@ -5472,56 +5638,17 @@
       }
     }
 
-    // 6. 1st-Person 3D Held Equipment Hands (Left: 3D Flashlight Beam / Wet Towel, Right: Extinguisher / Axe)
-    // + Compact Ground-Locked 3D Runner Avatar
-    const handBobX = reduceMot ? 0 : Math.cos(fpsWalkPhase) * 3.5;
-    const handBobY = reduceMot ? 0 : Math.abs(Math.sin(fpsWalkPhase)) * 4.5;
-
-    ctx.save();
-    // Left Hand: 3D Tactical Flashlight casting volumetric light cone
+    // 6. Volumetric Flashlight Beam Cone + Compact Ground-Locked 3D Runner Avatar Holding Active Equipment
     if (flashlightSpotEnabled || player.hasFlashlight) {
-      const lx = width * 0.34 + handBobX;
-      const ly = height - 18 + handBobY;
+      ctx.save();
       const beamGrad = ctx.createRadialGradient(halfW, horizon, 10, halfW, horizon, width * 0.36);
       beamGrad.addColorStop(0, 'rgba(254, 249, 195, 0.16)');
       beamGrad.addColorStop(0.6, 'rgba(253, 224, 71, 0.06)');
       beamGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
       ctx.fillStyle = beamGrad;
       ctx.fillRect(0, 0, width, height);
-
-      // Flashlight 3D Cylinder Body
-      ctx.fillStyle = '#1e293b';
-      ctx.strokeStyle = '#facc15';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(lx - 18, height + 8);
-      ctx.lineTo(lx + 14, ly - 26);
-      ctx.lineTo(lx + 34, ly - 16);
-      ctx.lineTo(lx + 6, height + 8);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.ellipse(lx + 24, ly - 21, 10, 6, -0.4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.restore();
     }
-
-    // Right Hand: Active Safety Gear (Extinguisher / Axe)
-    const rx = width * 0.66 - handBobX;
-    const ry = height - 22 + handBobY;
-    if (player.extinguisherCharges > 0 || player.hasAxe) {
-      ctx.fillStyle = player.extinguisherCharges > 0 ? '#dc2626' : '#b45309';
-      ctx.strokeStyle = '#fde047';
-      ctx.lineWidth = 2;
-      ctx.fillRect(rx - 16, ry - 32, 32, 56);
-      ctx.strokeRect(rx - 16, ry - 32, 32, 56);
-      ctx.font = '20px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(player.extinguisherCharges > 0 ? '🧯' : '🪓', rx, ry - 8);
-    }
-    ctx.restore();
 
     // Compact Ground-Anchored 3D Character ('나') — Scaled cleanly so it never blocks the center reticle
     const activeSkin = getSelectedSkin();
@@ -8089,7 +8216,10 @@
     if (saved && gameState === 'START') {
       const mins = String(Math.floor((saved.elapsedSeconds || 0) / 60)).padStart(2, '0');
       const secs = String(Math.floor((saved.elapsedSeconds || 0) % 60)).padStart(2, '0');
-      btnContinueSaved.textContent = `⏯️ 이어하기 (${saved.stageName || `${saved.stageIdx + 1}단계`} · ${mins}:${secs})`;
+      const fullStageName = String(saved.stageName || `${(saved.stageIdx || 0) + 1}단계`).split('[')[0].trim();
+      const shortBadge = fullStageName.includes(':') ? fullStageName.split(':')[0].trim() : fullStageName.slice(0, 6).trim();
+      btnContinueSaved.textContent = `⏯️ 이어하기 (${shortBadge} · ${mins}:${secs})`;
+      btnContinueSaved.title = `${fullStageName} (${mins}:${secs}) 이어서 시작하기`;
       btnContinueSaved.classList.remove('hidden');
     } else {
       btnContinueSaved.classList.add('hidden');
