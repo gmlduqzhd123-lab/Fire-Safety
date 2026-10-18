@@ -78,62 +78,83 @@
           🎯 지금 할 일: 🧣 수건을 챙기세요!
         </div>
 
-        <!-- Right: Essential Buttons including 3D View Toggle, Notebook/Hints, Settings -->
-        <div class="flex items-center gap-1 shrink-0">
-          <button id="btnCamera3D" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-400/60 text-indigo-200 transition flex items-center gap-1 shadow-sm" title="3D 입체뷰 / 1인칭 3D 시점 전환">
+        <!-- Right: Core Gameplay Buttons Only (3D View, Hints/Notebook, Restart, Menu) -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btnCamera3D" type="button" class="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-indigo-600/35 hover:bg-indigo-600/55 border border-indigo-400/60 text-indigo-100 transition flex items-center gap-1 shadow-sm" title="3D 입체뷰 / 1인칭 3D 시점 전환 (단축키 V)">
             <span id="camera3DIcon">🧊</span>
             <span id="camera3DText" class="text-[11px] sm:text-xs">3D입체뷰</span>
           </button>
 
-          <button id="btnFlashlightTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-yellow-500/20 hover:bg-yellow-500/35 border border-yellow-400/60 text-yellow-200 transition flex items-center gap-1 shadow-sm" title="3D 손전등 스포트라이트 켜기/끄기 (단축키 F)">
+          <!-- Shown automatically only when player holds the flashlight -->
+          <button id="btnFlashlightTop" type="button" class="hidden px-2 py-1 text-xs font-extrabold rounded-lg bg-yellow-500/20 hover:bg-yellow-500/35 border border-yellow-400/60 text-yellow-200 transition items-center gap-1 shadow-sm" title="3D 손전등 켜기/끄기 (단축키 F)">
             <span id="flashlightTopIcon">🔦</span>
-            <span id="flashlightTopText" class="text-[11px] sm:text-xs hidden lg:inline">손전등(F)</span>
+            <span id="flashlightTopText" class="text-[11px] sm:text-xs hidden lg:inline">손전등</span>
           </button>
 
-          <button id="btnPuzzleTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/60 text-cyan-200 transition flex items-center gap-1 shadow-sm" title="3D 방탈출 정밀 장치 조사: 금고·배선·방향자물쇠·서가정렬 (단축키 Q)">
+          <!-- Kept hidden in top bar for shortcut/test compatibility; accessible via in-world interaction or Menu -->
+          <button id="btnPuzzleTop" type="button" class="hidden" title="퍼즐 조사">
             <span>🔐</span>
-            <span class="text-[11px] sm:text-xs">퍼즐조사</span>
           </button>
 
-          <button id="btnNotebookTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-amber-200 transition flex items-center gap-1 shadow-sm" title="기록 수첩 · 2단계 힌트 · 소지품 (단축키 H / I)">
+          <button id="btnNotebookTop" type="button" class="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-100 transition flex items-center gap-1 shadow-sm" title="단서 수첩 · 힌트 · 가방 (단축키 H)">
             <span>📓</span>
-            <span class="text-[11px] sm:text-xs">수첩·힌트</span>
+            <span class="text-[11px] sm:text-xs">힌트·수첩</span>
             <span id="hintCountBadgeTop" class="hidden px-1 rounded bg-amber-500 text-slate-950 text-[9px] font-black">0</span>
-          </button>
-
-          <button id="btnHomeMain" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1" title="저장 확인 후 메인 화면으로">
-            <span>🏠</span>
-            <span class="text-[11px] sm:text-xs hidden md:inline">메인화면</span>
           </button>
 
           <button id="btnLandscapeToggle" type="button" class="hidden">
             <span id="landscapeToggleText">가로전용</span>
           </button>
 
-          <button id="btnRestartTop" type="button" class="hidden sm:flex px-2 py-1 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition items-center gap-1" title="다시 시작">
+          <button id="btnRestartTop" type="button" class="flex px-2.5 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 transition items-center gap-1" title="현재 단계 처음부터 다시 시작 (단축키 R)">
             <span>🔄</span>
-            <span id="pauseRestartText" class="hidden lg:inline">다시하기</span>
+            <span id="pauseRestartText" class="text-[11px] sm:text-xs">다시하기</span>
           </button>
 
-          <button id="btnSettingsTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-sky-500/50 text-sky-300 transition flex items-center gap-1" title="일시정지 · 환경설정 · 저장 내보내기/가져오기 (Esc)">
-            <span>🎛️</span>
-            <span class="text-[11px] sm:text-xs hidden sm:inline">설정·저장</span>
-          </button>
-
-          <button id="btnMoreMenu" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/50 text-amber-300 transition flex items-center gap-1" title="스테이지 선택 및 메뉴">
+          <button id="btnMoreMenu" type="button" class="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 transition flex items-center gap-1" title="메뉴 · 스테이지 선택 · 설정 · 종료">
             <span>⚙️</span>
             <span class="text-[11px] sm:text-xs">메뉴</span>
-          </button>
-
-          <button id="btnExitGameTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 transition flex items-center gap-1" title="자동 저장 후 게임 종료">
-            <span>🚪</span>
-            <span class="text-[11px] sm:text-xs hidden sm:inline">종료</span>
           </button>
         </div>
       </div>
 
-      <!-- Collapsible Stage Selector & Tools Drawer (Opened via ⚙️ 메뉴) -->
-      <div id="moreToolsDrawer" class="hidden pt-2 pb-1 border-t border-slate-800 flex-col gap-2">
+      <!-- Clean Collapsible Menu Drawer (Opened via ⚙️ 메뉴) -->
+      <div id="moreToolsDrawer" class="hidden pt-2 pb-1.5 border-t border-slate-800 flex-col gap-2">
+        <!-- Row 1: Essential Game Controls (Pause, Sound, Settings/Save, Main Screen, Exit) + Extra Tools Toggle -->
+        <div class="flex flex-wrap items-center justify-between gap-1.5">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button id="btnPause" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white transition flex items-center gap-1">
+              <span id="pauseIcon">⏸️</span>
+              <span id="pauseText">일시정지</span>
+            </button>
+
+            <button id="btnSound" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 transition" title="효과음 및 음성 켜기/끄기">
+              🔊
+            </button>
+
+            <button id="btnSettingsTop" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-sky-500/50 text-sky-200 transition flex items-center gap-1">
+              <span>🎛️</span>
+              <span>설정·저장</span>
+            </button>
+
+            <button id="btnHomeMain" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-200 transition flex items-center gap-1">
+              <span>🏠</span>
+              <span>메인화면</span>
+            </button>
+
+            <button id="btnExitGameTop" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500/50 text-rose-200 transition flex items-center gap-1">
+              <span>🚪</span>
+              <span>게임 종료</span>
+            </button>
+          </div>
+
+          <button id="btnToggleExtraTools" type="button" class="px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 transition flex items-center gap-1">
+            <span id="extraToolsToggleIcon">➕</span>
+            <span id="extraToolsToggleText">부가기능·수업도구 더보기</span>
+          </button>
+        </div>
+
+        <!-- Row 2: Direct Stage Selection -->
         <div id="headerStageRow" class="flex items-center justify-between gap-1">
           <div class="inline-flex w-full justify-start rounded-lg bg-slate-950 p-1 border border-slate-700 overflow-x-auto whitespace-nowrap no-scrollbar gap-1" role="group" aria-label="스테이지 선택">
             <button id="btnStage1" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md bg-orange-600 text-white transition shrink-0">1단계·침실</button>
@@ -147,10 +168,16 @@
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-1.5">
+        <!-- Row 3: Secondary / Classroom Tools (Hidden by default until user clicks ➕ 부가기능·수업도구 더보기) -->
+        <div id="extraToolsRow" class="hidden flex-wrap items-center gap-1.5 pt-1.5 border-t border-slate-800/80">
           <button id="btnCertModal" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1">
             <span>🏅</span>
             <span>수료증·스킨</span>
+          </button>
+
+          <button id="btnGuide" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
+            <span>🧯</span>
+            <span>안전수칙 백과</span>
           </button>
 
           <button id="btnPuzzleInspector" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 transition flex items-center gap-1">
@@ -158,18 +185,9 @@
             <span>금고·배선퍼즐</span>
           </button>
 
-          <button id="btnSound" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition">
-            🔊
-          </button>
-
-          <button id="btnPause" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition flex items-center gap-1">
-            <span id="pauseIcon">⏸️</span>
-            <span id="pauseText">일시정지</span>
-          </button>
-
-          <button id="btnGuide" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
-            <span>🧯</span>
-            <span>안전수칙</span>
+          <button id="btnCoopToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1">
+            <span>👥</span>
+            <span id="coopToggleText">2인협동:꺼짐</span>
           </button>
 
           <button id="btnMapEditor" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1">
@@ -180,11 +198,6 @@
           <button id="btnClassMode" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 transition flex items-center gap-1">
             <span>🏫</span>
             <span>학급랭킹</span>
-          </button>
-
-          <button id="btnCoopToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-300 transition flex items-center gap-1">
-            <span>👥</span>
-            <span id="coopToggleText">2인협동:꺼짐</span>
           </button>
 
           <button id="btnTeacherMode" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 transition flex items-center gap-1">
@@ -271,10 +284,10 @@
           <div class="flex flex-col items-center gap-1">
             <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 shadow-sm">
               <span id="overlayIcon" class="text-sm sm:text-base">🔥</span>
-              <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-extrabold tracking-wide text-orange-300">2022 개정 교육과정 연계 · 3D 방탈출 화재 안전 게임</span>
+              <span id="overlaySubtitle" class="text-[10px] sm:text-xs font-extrabold tracking-wide text-orange-300">3D 방탈출 화재 대피 시뮬레이션</span>
             </div>
 
-            <h2 id="overlayTitle" class="text-xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-300 bg-clip-text text-transparent mt-0.5">
+            <h2 id="overlayTitle" class="text-2xl sm:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-300 bg-clip-text text-transparent mt-0.5">
               화재 탈출 넘버원 3D
             </h2>
 
@@ -283,10 +296,10 @@
             </p>
           </div>
 
-          <!-- Main Screen Game Guide, World Portal Selector & 3-Step Visual Box -->
-          <div id="overlayTipsBox" class="flex flex-col gap-1.5">
-            <!-- PRD F01 & F02: World / Campaign Portal Status Selector (Available vs Concept Preview) -->
-            <div id="worldSelectBar" class="grid grid-cols-3 gap-1.5 text-left">
+          <!-- Main Screen Game Guide (Clean 3-Step Visual Box; Concept Preview Worlds Hidden) -->
+          <div id="overlayTipsBox" class="flex flex-col gap-2">
+            <!-- PRD F01 & F02: Kept hidden in DOM for compatibility so unplayable preview worlds don't clutter main screen -->
+            <div id="worldSelectBar" class="hidden grid-cols-3 gap-1.5 text-left">
               <button id="btnWorldFire" type="button" data-world="fire-safety" class="world-select-btn p-1.5 sm:p-2 rounded-xl bg-orange-500/20 border-2 border-orange-400 text-left transition flex flex-col justify-between">
                 <div class="flex items-center justify-between gap-1">
                   <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950">입장 가능</span>
@@ -315,7 +328,7 @@
               </button>
             </div>
 
-            <!-- World Preview Notice Box (Shown when a Concept Preview world is selected, PRD F02) -->
+            <!-- World Preview Notice Box -->
             <div id="worldPreviewNotice" class="hidden p-2.5 rounded-xl bg-slate-950 border border-cyan-500/40 text-left text-xs space-y-1">
               <div class="flex items-center justify-between">
                 <span id="worldPreviewTitle" class="font-extrabold text-cyan-300">🌊 심해 관측소 (THE ABYSS) — 콘셉트 미리보기</span>
@@ -326,32 +339,27 @@
               </p>
             </div>
 
-            <div id="fireStepCardsGrid" class="grid grid-cols-3 gap-2 sm:gap-2.5 text-center text-xs">
-              <div class="bg-slate-950/90 border border-sky-500/30 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center gap-0.5 shadow-inner">
-                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 tracking-wider">STEP 01</span>
-                <span class="text-lg sm:text-xl mt-0.5">🧣🚰</span>
-                <span class="font-extrabold text-sky-300 text-[11px] sm:text-xs">호흡기 보호 필수</span>
-                <span class="text-[10px] text-slate-400 leading-tight">수건을 적시거나 방연마스크를 착용해야 탈출 가능!</span>
+            <div id="fireStepCardsGrid" class="grid grid-cols-3 gap-2 sm:gap-3 text-center text-xs">
+              <div class="bg-slate-950/90 border border-sky-500/35 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-xl sm:text-2xl">🧣🚰</span>
+                <span class="font-extrabold text-sky-300 text-xs sm:text-sm">1. 수건 적시기</span>
+                <span class="text-[10px] sm:text-[11px] text-slate-300 leading-snug">수건을 세면대 물에 적시거나 방연마스크 착용</span>
               </div>
-              <div class="bg-slate-950/90 border border-amber-500/30 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center gap-0.5 shadow-inner">
-                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 tracking-wider">STEP 02</span>
-                <span class="text-lg sm:text-xl mt-0.5">🔑🪓</span>
-                <span class="font-extrabold text-amber-300 text-[11px] sm:text-xs">방탈출 퍼즐 & 구출</span>
-                <span class="text-[10px] text-slate-400 leading-tight">열쇠·도끼·차단기 퍼즐을 풀고 고립된 동생을 구출!</span>
+              <div class="bg-slate-950/90 border border-amber-500/35 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-xl sm:text-2xl">🔑🧒</span>
+                <span class="font-extrabold text-amber-300 text-xs sm:text-sm">2. 문 열기 & 구출</span>
+                <span class="text-[10px] sm:text-[11px] text-slate-300 leading-snug">열쇠·도끼·차단기 퍼즐을 풀고 가족 구출</span>
               </div>
-              <div class="bg-slate-950/90 border border-emerald-500/30 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center gap-0.5 shadow-inner">
-                <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 tracking-wider">STEP 03</span>
-                <span class="text-lg sm:text-xl mt-0.5">🧊👁️</span>
-                <span class="font-extrabold text-emerald-300 text-[11px] sm:text-xs">3D 입체 / 1인칭 뷰</span>
-                <span class="text-[10px] text-slate-400 leading-tight">상단 [🧊 3D입체뷰 / 👁️ 1인칭3D]로 시점을 전환해요!</span>
+              <div class="bg-slate-950/90 border border-emerald-500/35 rounded-2xl p-2.5 sm:p-3 flex flex-col items-center gap-1 shadow-inner">
+                <span class="text-xl sm:text-2xl">🧎🚪</span>
+                <span class="font-extrabold text-emerald-300 text-xs sm:text-sm">3. 낮은 자세 탈출</span>
+                <span class="text-[10px] sm:text-[11px] text-slate-300 leading-snug">연기 속 낮은 자세로 초록색 비상구(EXIT) 이동</span>
               </div>
             </div>
 
-            <div class="px-3 py-1 rounded-xl bg-slate-950/80 border border-slate-800/90 text-[10px] sm:text-[11px] text-slate-300 flex items-center justify-center gap-2 flex-wrap">
-              <span class="text-amber-300 font-extrabold">🕹️ 조작 및 시간 안내</span>
-              <span>십자키 이동 · <strong>[✋ 행동] [🧎 자세] [📓 수첩·힌트(H)]</strong></span>
-              <span class="text-slate-600">•</span>
-              <span class="text-sky-300">⏱️ 예상 소요 15~25분은 안내값이며 전체 제한시간이 아닙니다 (이 기기 브라우저에 자동 저장)</span>
+            <div class="px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800/90 text-[11px] text-slate-300 flex items-center justify-center gap-2 flex-wrap">
+              <span class="text-amber-300 font-extrabold">🕹️ 간편 조작</span>
+              <span>십자키(방향키) 이동 · <strong>[✋ 행동하기]</strong> 문 열기/아이템 사용 · <strong>[🧎 자세 낮추기]</strong></span>
             </div>
           </div>
 
@@ -375,7 +383,7 @@
             </div>
           </div>
 
-          <!-- Debriefing Safety Report Card + Path Replay Minimap + PRD Section 11 Post-Activity Reflection -->
+          <!-- Debriefing Safety Report Card + Path Replay Minimap -->
           <div id="debriefReportBox" class="hidden bg-slate-950/95 border border-slate-800 rounded-xl p-2.5 text-left text-xs space-y-2">
             <div class="flex items-center justify-between border-b border-slate-800 pb-1">
               <span class="font-extrabold text-emerald-400 flex items-center gap-1 text-[11px] sm:text-xs">📋 나의 화재 대피 안전 진단표 & 동선 리플레이</span>
@@ -395,29 +403,36 @@
               🩺 1줄 안전 처방전: 연기 구역에서는 낮은 자세(C)를 유지하고 문 열기 전 온도를 확인하세요!
             </div>
 
-            <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
+            <!-- Non-essential Classroom Submission & Reflection Tools tucked inside collapsible details -->
+            <details class="group rounded-lg bg-slate-900/80 border border-slate-800 p-2">
+              <summary class="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-300 hover:text-white">
+                <span>📂 수업 제출용 인증코드 · 성찰 기록 · 교과 정리 더보기</span>
+                <span class="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div class="mt-2 space-y-2 pt-2 border-t border-slate-800">
+                <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-950 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
 
-            <!-- Feature 8: Serverless Clear Verification Code for Classroom Submission -->
-            <div id="clearVerifyCodeBox" class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5">
-              <div class="text-[10px] sm:text-[11px] text-emerald-200 font-mono font-bold truncate" id="verifyCodeText">
-                🏅 클리어 인증코드: [미지정] 용감한 어린이 · 1단계 · #FS-0000
-              </div>
-              <button id="btnCopyVerifyCode" type="button" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[10px] shrink-0 transition">
-                📋 인증코드 한줄 복사 (학급 제출용)
-              </button>
-            </div>
+                <div id="clearVerifyCodeBox" class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5">
+                  <div class="text-[10px] sm:text-[11px] text-emerald-200 font-mono font-bold truncate" id="verifyCodeText">
+                    🏅 클리어 인증코드: [미지정] 용감한 어린이 · 1단계 · #FS-0000
+                  </div>
+                  <button id="btnCopyVerifyCode" type="button" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[10px] shrink-0 transition">
+                    📋 인증코드 한줄 복사 (학급 제출용)
+                  </button>
+                </div>
 
-            <!-- PRD Section 11: Post-Activity Reflection & Local Export -->
-            <div class="p-2 rounded-lg bg-slate-900/90 border border-indigo-500/30 space-y-1.5">
-              <div class="flex items-center justify-between">
-                <span class="font-extrabold text-indigo-300 text-[11px]">✍️ 활동 후 성찰 기록 (수업 과정 평가 및 로컬 저장)</span>
-                <button id="btnExportReflection" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]">💾 성찰·결과 내보내기(.txt)</button>
+                <div class="p-2 rounded-lg bg-slate-950 border border-indigo-500/30 space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <span class="font-extrabold text-indigo-300 text-[11px]">✍️ 활동 후 성찰 기록 (수업 과정 평가 및 로컬 저장)</span>
+                    <button id="btnExportReflection" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]">💾 성찰·결과 내보내기(.txt)</button>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                    <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                  </div>
+                </div>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" class="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-[11px] text-slate-200" />
-                <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" class="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-[11px] text-slate-200" />
-              </div>
-            </div>
+            </details>
           </div>
 
           <div class="flex flex-row flex-wrap items-center gap-2 pt-0.5">

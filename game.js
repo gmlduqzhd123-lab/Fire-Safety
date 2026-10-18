@@ -1101,6 +1101,17 @@
       }
     }
 
+    const flTopBtn = document.getElementById('btnFlashlightTop');
+    if (flTopBtn) {
+      if (player.hasFlashlight) {
+        flTopBtn.classList.remove('hidden');
+        flTopBtn.classList.add('flex');
+      } else {
+        flTopBtn.classList.add('hidden');
+        flTopBtn.classList.remove('flex');
+      }
+    }
+
     // Update Context-Sensitive Primary Action Button (#btnAction)
     const target = getInteractTarget();
     let actIcon = '✋';
@@ -7069,6 +7080,28 @@
   const dpadKnob = document.getElementById('dpadKnob');
   const btnMoreMenu = document.getElementById('btnMoreMenu');
   const moreToolsDrawer = document.getElementById('moreToolsDrawer');
+  const btnToggleExtraTools = document.getElementById('btnToggleExtraTools');
+  const extraToolsRow = document.getElementById('extraToolsRow');
+  const extraToolsToggleIcon = document.getElementById('extraToolsToggleIcon');
+  const extraToolsToggleText = document.getElementById('extraToolsToggleText');
+
+  if (btnToggleExtraTools && extraToolsRow) {
+    btnToggleExtraTools.addEventListener('click', () => {
+      SoundFX.init();
+      const isHidden = extraToolsRow.classList.contains('hidden');
+      if (isHidden) {
+        extraToolsRow.classList.remove('hidden');
+        extraToolsRow.classList.add('flex');
+        if (extraToolsToggleIcon) extraToolsToggleIcon.textContent = '➖';
+        if (extraToolsToggleText) extraToolsToggleText.textContent = '부가기능·수업도구 접기';
+      } else {
+        extraToolsRow.classList.add('hidden');
+        extraToolsRow.classList.remove('flex');
+        if (extraToolsToggleIcon) extraToolsToggleIcon.textContent = '➕';
+        if (extraToolsToggleText) extraToolsToggleText.textContent = '부가기능·수업도구 더보기';
+      }
+    });
+  }
 
   if (btnMoreMenu && moreToolsDrawer) {
     btnMoreMenu.addEventListener('click', () => {
@@ -7105,7 +7138,7 @@
     clearAllInputStates();
     gameState = 'START';
     overlayIcon.textContent = '🔥';
-    overlaySubtitle.textContent = '2022 개정 교육과정 연계 · 3D 방탈출 화재 안전 게임';
+    overlaySubtitle.textContent = '3D 방탈출 화재 대피 시뮬레이션';
     overlayTitle.textContent = '화재 탈출 넘버원 3D';
     overlayDesc.innerHTML = '불타는 다중 미로 건물 속에서 <strong>젖은 수건·열쇠·소방도끼·차단기 퍼즐</strong>을 풀고 고립된 가족과 친구를 구출해 <strong>비상구(EXIT)</strong>로 탈출하는 3D 방탈출 게임입니다.';
     overlayTipsBox.classList.remove('hidden');
@@ -7113,7 +7146,7 @@
     overlayStats.classList.remove('grid');
     debriefReportBox.classList.add('hidden');
     const worldBar = document.getElementById('worldSelectBar');
-    if (worldBar) worldBar.classList.remove('hidden');
+    if (worldBar) worldBar.classList.add('hidden');
     if (typeof selectWorldCard === 'function') selectWorldCard('fire');
     if (typeof syncContinueButtonUI === 'function') syncContinueButtonUI();
     if (btnMainGuide) btnMainGuide.classList.remove('hidden');
