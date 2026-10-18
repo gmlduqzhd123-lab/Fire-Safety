@@ -127,6 +127,7 @@
       name: '커스텀: 나만의 우리 집·교실 대피도',
       mission: '직접 설계한 커스텀 대피도에서 안전하게 비상구(EXIT·경량칸막이·완강기)로 탈출하세요!',
       curriculumFocus: '창작·설계 기반 재난 대피 동선 실습',
+      requireRescueNpc: Array.isArray(itemsData) && itemsData.some(it => it.type === 'npc'),
       map: gridData.map(row => [...row]),
       playerStart: { x: 1.5, y: 1.5 },
       guideSigns: [],

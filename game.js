@@ -386,15 +386,19 @@
     clearedStages = {};
   }
   function markCurrentStageCleared() {
-    const key = activeCustomStage
-      ? (activeCustomStage.isDailyChallenge ? 'daily' : 'custom')
-      : String(currentStageIdx);
-    if (key !== 'custom') {
-      clearedStages[key] = true;
-      try {
-        localStorage.setItem('fire_escape_cleared_stages', JSON.stringify(clearedStages));
-      } catch (e) {}
+    if (activeCustomStage) {
+      if (activeCustomStage.isDailyChallenge) {
+        clearedStages.daily = true;
+      } else {
+        return;
+      }
+    } else {
+      clearedStages[`s${currentStageIdx}`] = true;
+      clearedStages[String(currentStageIdx)] = true;
     }
+    try {
+      localStorage.setItem('fire_escape_cleared_stages', JSON.stringify(clearedStages));
+    } catch (e) {}
   }
 
   // Feature 4: Teacher Custom Safe Passcode & Quiz Config (?customQuiz=...)
@@ -403,12 +407,12 @@
   // Feature 2: Grade-Level Difficulty Multipliers
   function getGradeDifficultyMultipliers() {
     if (appSettings.gradePreset === 'low') {
-      return { spreadMult: 1.55, damageMult: 0.60, o2Mult: 0.58 };
+      return { spreadMult: 1.55, damageMult: 0.60, o2Mult: 0.58, fireMult: 0.60, smokeMult: 0.58 };
     }
     if (appSettings.gradePreset === 'advanced') {
-      return { spreadMult: 0.78, damageMult: 1.20, o2Mult: 1.20 };
+      return { spreadMult: 0.78, damageMult: 1.20, o2Mult: 1.20, fireMult: 1.20, smokeMult: 1.20 };
     }
-    return { spreadMult: 1.0, damageMult: 1.0, o2Mult: 1.0 };
+    return { spreadMult: 1.0, damageMult: 1.0, o2Mult: 1.0, fireMult: 1.0, smokeMult: 1.0 };
   }
 
   // Feature 6: Korean TTS Helper for Low-Grade / Multicultural Students
@@ -7026,18 +7030,19 @@
     const stampDefs = [
       ...STAGES.map((stItem, idx) => ({
         key: `s${idx}`,
+        legacyKey: String(idx),
         icon: ['🏡', '🏢', '🏬', '🏫', '🚇', '🔍', '🏕️'][idx] || '🏢',
         shortName: stItem.name.replace(/^\d+단계:\s*/, '').replace(/^사전예방:\s*/, '예방:').split('[')[0].trim()
       })),
-      { key: 'daily', icon: '🎲', shortName: '오늘의 119 챌린지' }
+      { key: 'daily', legacyKey: 'daily', icon: '🎲', shortName: '오늘의 119 챌린지' }
     ];
-    const clearedCount = stampDefs.reduce((acc, d) => acc + (clearedStages[d.key] ? 1 : 0), 0);
+    const clearedCount = stampDefs.reduce((acc, d) => acc + ((clearedStages[d.key] || clearedStages[d.legacyKey]) ? 1 : 0), 0);
     if (stageStampCountBadge) {
       stageStampCountBadge.textContent = `${clearedCount} / ${stampDefs.length} 완주`;
     }
     if (stageStampGrid) {
       stageStampGrid.innerHTML = stampDefs.map((d) => {
-        const isCleared = !!clearedStages[d.key];
+        const isCleared = !!(clearedStages[d.key] || clearedStages[d.legacyKey]);
         return `<div class="p-2 rounded-xl border ${isCleared ? 'bg-emerald-950/50 border-emerald-400/60 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'} flex flex-col items-center gap-0.5 relative">
           <span class="text-lg ${isCleared ? '' : 'grayscale opacity-40'}">${d.icon}</span>
           <span class="text-[10px] font-extrabold ${isCleared ? 'text-emerald-300' : 'text-slate-500'} truncate max-w-full">${d.shortName}</span>
@@ -7052,7 +7057,9 @@
     const cleanName = (studentNameInput.value || '').trim() || '용감한 어린이';
     const best = Math.max(score, getSavedBestScore());
     const unlockedCount = getUnlockedBadgeCount();
-    const clearedCount = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 'daily'].reduce((acc, k) => acc + (clearedStages[k] ? 1 : 0), 0);
+    const clearedCount = [
+      ['s0', '0'], ['s1', '1'], ['s2', '2'], ['s3', '3'], ['s4', '4'], ['s5', '5'], ['s6', '6'], ['daily', 'daily']
+    ].reduce((acc, [k1, k2]) => acc + ((clearedStages[k1] || clearedStages[k2]) ? 1 : 0), 0);
     const activeSkin = getSelectedSkin();
     const clsText = currentClassCode.trim() || '자유 참가 대원';
 
@@ -7098,7 +7105,7 @@
 
     cctx.fillStyle = '#93c5fd';
     cctx.font = 'bold 16px "Noto Sans KR", sans-serif';
-    cctx.fillText(`소속: ${clsText}  |  최고점수: ${best.toLocaleString()}점  |  배지: ${unlockedCount}/${BADGE_DEFS.length}개  |  완주도장: ${clearedCount}/${STAGES.length}곳`, 450, 229);
+    cctx.fillText(`소속: ${clsText}  |  최고점수: ${best.toLocaleString()}점  |  배지: ${unlockedCount}/${BADGE_DEFS.length}개  |  완주도장: ${clearedCount}/8곳`, 450, 229);
 
     // Citation Text
     cctx.fillStyle = '#e2e8f0';
@@ -7435,7 +7442,7 @@
       clearedStages.daily = true;
       try {
         localStorage.setItem('fire_escape_badges', JSON.stringify(unlockedBadges));
-        localStorage.setItem(CLEARED_STAGES_KEY, JSON.stringify(clearedStages));
+        localStorage.setItem('fire_escape_cleared_stages', JSON.stringify(clearedStages));
       } catch (e) {}
       SoundFX.win();
       updateHUD();
@@ -9089,6 +9096,14 @@
     p.set('stage', stg);
     p.set('grade', grd);
     p.set('timeMode', tm);
+    if (
+      customQuizConfig &&
+      (customQuizConfig.safeCode || customQuizConfig.safeClue || customQuizConfig.quizTitle || customQuizConfig.goodChoice || customQuizConfig.badChoice)
+    ) {
+      try {
+        p.set('customQuiz', btoa(encodeURIComponent(JSON.stringify(customQuizConfig))));
+      } catch (e) {}
+    }
     return `${baseUrl}?${p.toString()}`;
   }
 
@@ -9113,8 +9128,8 @@
       const tmVal = (teacherQrTimeSelect && teacherQrTimeSelect.value) || 'practice';
       applyGradePreset(grdVal, false);
       applyTimePolicyMode(tmVal);
-      if (stgVal === 'daily') {
-        loadStage(0, false, getDailyChallengeStage());
+      if (stgVal === 'daily' && typeof generateDailyChallengeStage === 'function') {
+        loadStage(0, false, generateDailyChallengeStage());
       } else {
         const idx = parseInt(stgVal, 10);
         if (!isNaN(idx) && idx >= 0 && idx < STAGES.length) {
@@ -9201,6 +9216,7 @@
   const customQuizBadInput = document.getElementById('customQuizBadInput');
   const btnApplyCustomQuizNow = document.getElementById('btnApplyCustomQuizNow');
   const btnCopyCustomQuizUrl = document.getElementById('btnCopyCustomQuizUrl');
+  const customQuizFeedback = document.getElementById('customQuizFeedback');
 
   function collectCustomQuizFromInputs() {
     const safeCode = (customSafeCodeInput && customSafeCodeInput.value.trim()) || '';
@@ -9211,13 +9227,30 @@
     return { safeCode, safeClue, quizTitle, goodChoice, badChoice };
   }
 
+  function updateCustomQuizFeedbackUI() {
+    if (!customQuizFeedback) return;
+    if (
+      customQuizConfig &&
+      (customQuizConfig.safeCode || customQuizConfig.safeClue || customQuizConfig.quizTitle)
+    ) {
+      customQuizFeedback.textContent = `현재 적용됨: 금고 암호 [${getStageSafePasscode()}]${customQuizConfig.quizTitle ? ` · 맞춤 퀴즈 [${customQuizConfig.quizTitle}]` : ''} (수업 프리셋 QR 자동 연동됨)`;
+      customQuizFeedback.className = 'text-[10px] text-emerald-300 font-bold';
+    } else {
+      customQuizFeedback.textContent = '현재 기본 교육과정 문제와 스테이지별 금고 암호(614 / 3322 / 0119)가 적용되어 있습니다.';
+      customQuizFeedback.className = 'text-[10px] text-slate-400';
+    }
+  }
+
   if (btnApplyCustomQuizNow) {
     btnApplyCustomQuizNow.addEventListener('click', () => {
       SoundFX.init();
       customQuizConfig = collectCustomQuizFromInputs();
       renderNotebookModal();
+      updateSafeLockUI();
+      updateCustomQuizFeedbackUI();
+      renderTeacherPresetQr();
       SoundFX.pickup();
-      showToast(`🔐 우리 반 맞춤 금고 암호(${getStageSafePasscode()})와 안전 퀴즈가 현재 게임에 즉시 적용되었습니다!`, 'border-emerald-400');
+      showToast(`🔐 우리 반 맞춤 금고 암호(${getStageSafePasscode()})와 안전 퀴즈가 현재 게임 및 수업 QR에 즉시 적용되었습니다!`, 'border-emerald-400');
     });
   }
 
@@ -9226,14 +9259,9 @@
       SoundFX.init();
       customQuizConfig = collectCustomQuizFromInputs();
       renderNotebookModal();
-      const baseUrl = window.location.origin && window.location.origin !== 'null'
-        ? `${window.location.origin}${window.location.pathname}`
-        : window.location.href.split('?')[0];
-      const encoded = btoa(encodeURIComponent(JSON.stringify(customQuizConfig)));
-      const p = new URLSearchParams();
-      if (currentClassCode) p.set('class', currentClassCode);
-      p.set('customQuiz', encoded);
-      const shareUrl = `${baseUrl}?${p.toString()}`;
+      updateSafeLockUI();
+      updateCustomQuizFeedbackUI();
+      const shareUrl = renderTeacherPresetQr();
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareUrl).catch(() => {});
       }
@@ -9489,6 +9517,7 @@
       const sharedClass = params.get('class');
       if (sharedClass && sharedClass.trim()) {
         currentClassCode = sharedClass.trim();
+        if (teacherQrClassInput) teacherQrClassInput.value = currentClassCode;
         try {
           localStorage.setItem('fire_escape_class_code', currentClassCode);
         } catch (e) {}
@@ -9496,16 +9525,22 @@
       const gradeParam = params.get('grade');
       if (gradeParam === 'low' || gradeParam === 'standard' || gradeParam === 'advanced') {
         applyGradePreset(gradeParam, false);
+        if (teacherQrGradeSelect) teacherQrGradeSelect.value = gradeParam;
       }
       const timeParam = params.get('timeMode');
       if (timeParam === 'standard' || timeParam === 'relaxed' || timeParam === 'practice') {
         applyTimePolicyMode(timeParam);
+        if (teacherQrTimeSelect) teacherQrTimeSelect.value = timeParam;
       }
       const stageParam = params.get('stage');
-      if (stageParam !== null && stageParam !== '') {
+      if (stageParam === 'daily' && typeof generateDailyChallengeStage === 'function') {
+        sharedCustomStage = generateDailyChallengeStage();
+        if (teacherQrStageSelect) teacherQrStageSelect.value = 'daily';
+      } else if (stageParam !== null && stageParam !== '') {
         const parsedStage = parseInt(stageParam, 10);
         if (!isNaN(parsedStage) && parsedStage >= 0 && parsedStage < STAGES.length) {
           initialStageIdx = parsedStage;
+          if (teacherQrStageSelect) teacherQrStageSelect.value = String(parsedStage);
         }
       }
       const customQuizParam = params.get('customQuiz');
@@ -9530,17 +9565,26 @@
 
     updateClassBanner();
     updateGradePresetModalUI();
+    updateCustomQuizFeedbackUI();
     renderBriefingSlide();
     updateSchoolRecordText();
     renderTeacherPresetQr();
 
     if (sharedCustomStage) {
       loadStage(0, true, sharedCustomStage);
-      overlayIcon.textContent = '🛠️';
-      overlaySubtitle.textContent = '공유받은 커스텀 대피도 맵';
-      overlayTitle.textContent = '나만의 우리 집·교실 대피도 도전!';
-      overlayDesc.textContent = '링크로 공유받은 커스텀 대피도 스테이지가 로드되었습니다! [게임 시작하기]를 눌러 탈출에 도전해 보세요.';
-      btnPrimaryAction.textContent = '공유받은 커스텀 맵 시작하기 ▶';
+      if (sharedCustomStage.isDailyChallenge) {
+        overlayIcon.textContent = '🎲';
+        overlaySubtitle.textContent = '수업 프리셋 · 오늘의 119 챌린지';
+        overlayTitle.textContent = sharedCustomStage.name;
+        overlayDesc.textContent = '선생님이 지정한 오늘의 119 돌발 재난 챌린지가 로드되었습니다! [게임 시작하기]를 눌러 탈출에 도전해 보세요.';
+        btnPrimaryAction.textContent = '오늘의 챌린지 시작하기 ▶';
+      } else {
+        overlayIcon.textContent = '🛠️';
+        overlaySubtitle.textContent = '공유받은 커스텀 대피도 맵';
+        overlayTitle.textContent = '나만의 우리 집·교실 대피도 도전!';
+        overlayDesc.textContent = '링크로 공유받은 커스텀 대피도 스테이지가 로드되었습니다! [게임 시작하기]를 눌러 탈출에 도전해 보세요.';
+        btnPrimaryAction.textContent = '공유받은 커스텀 맵 시작하기 ▶';
+      }
     } else {
       loadStage(initialStageIdx, true, null);
     }
