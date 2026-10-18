@@ -359,7 +359,8 @@
     sensitivity: 100,
     reduceMotion: false,
     gradePreset: 'standard', // 'low' | 'standard' | 'advanced'
-    voiceTts: false
+    voiceTts: false,
+    goldenBellMode: false
   };
   try {
     const savedSettings = JSON.parse(localStorage.getItem('fire-safety:settings:v1') || 'null');
@@ -370,11 +371,34 @@
       if (typeof savedSettings.reduceMotion === 'boolean') appSettings.reduceMotion = savedSettings.reduceMotion;
       if (['low', 'standard', 'advanced'].includes(savedSettings.gradePreset)) appSettings.gradePreset = savedSettings.gradePreset;
       if (typeof savedSettings.voiceTts === 'boolean') appSettings.voiceTts = savedSettings.voiceTts;
+      if (typeof savedSettings.goldenBellMode === 'boolean') appSettings.goldenBellMode = savedSettings.goldenBellMode;
       if (['standard', 'relaxed', 'practice'].includes(savedSettings.defaultMode)) {
         nextRunOptions.mode = savedSettings.defaultMode;
         nextRunOptions.hazardLimitSeconds = savedSettings.defaultMode === 'relaxed' ? 480 : (savedSettings.defaultMode === 'practice' ? null : 300);
         runOptions = { ...nextRunOptions };
       }
+    }
+  } catch (e) {}
+
+  // --- New Engagement Features State (Ideas 1~9) ---
+  let goldenBellTimerId = null;
+  let isSpeedDrillMode = false;
+  let isRelayMode = false;
+  let relayCurrentRunner = 1;
+  let relayBatonTriggered = {};
+  let autoGuideTimer = 0;
+  let autoGuidePath = [];
+  let lastGameOverReason = 'hp';
+  let rescuedCompanions = [];
+  let customGear = {
+    helmetColor: '#ef4444',
+    honorTitle: '용감한 대피 대장'
+  };
+  try {
+    const savedGear = JSON.parse(localStorage.getItem('fire_escape_custom_gear') || 'null');
+    if (savedGear && typeof savedGear === 'object') {
+      if (typeof savedGear.helmetColor === 'string') customGear.helmetColor = savedGear.helmetColor;
+      if (typeof savedGear.honorTitle === 'string') customGear.honorTitle = savedGear.honorTitle;
     }
   } catch (e) {}
 
@@ -512,8 +536,9 @@
 
   function getVisibleOverlayButtons() {
     const continueBtn = document.getElementById('btnContinueSaved');
+    const reviveBtn = document.getElementById('btnReviveWithQuiz');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    return [continueBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].filter(
+    return [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].filter(
       (b) => b && !b.classList.contains('hidden') && !b.disabled
     );
   }
@@ -524,8 +549,9 @@
     if (overlaySelectedIndex >= btns.length) overlaySelectedIndex = 0;
     if (overlaySelectedIndex < 0) overlaySelectedIndex = btns.length - 1;
     const continueBtn = document.getElementById('btnContinueSaved');
+    const reviveBtn = document.getElementById('btnReviveWithQuiz');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    [continueBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].forEach((b) => {
+    [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].forEach((b) => {
       if (b) b.classList.remove('kb-selected');
     });
     const targetBtn = btns[overlaySelectedIndex];
@@ -566,6 +592,39 @@
       eduModalChoices.appendChild(btn);
       eduChoiceButtons.push(btn);
     });
+
+    // Idea 1: Smartboard Classroom Golden Bell 5-Second Finger Voting Countdown
+    const gbBox = document.getElementById('eduGoldenBellBox');
+    const gbTimerText = document.getElementById('eduGoldenBellTimerText');
+    const gbBar = document.getElementById('eduGoldenBellBar');
+    if (goldenBellTimerId) {
+      clearInterval(goldenBellTimerId);
+      goldenBellTimerId = null;
+    }
+    if (gbBox) {
+      if (appSettings.goldenBellMode) {
+        gbBox.classList.remove('hidden');
+        let remSec = 5;
+        if (gbTimerText) gbTimerText.textContent = '5초';
+        if (gbBar) gbBar.style.width = '100%';
+        goldenBellTimerId = setInterval(() => {
+          remSec--;
+          if (remSec > 0) {
+            if (gbTimerText) gbTimerText.textContent = `${remSec}초`;
+            if (gbBar) gbBar.style.width = `${(remSec / 5) * 100}%`;
+            SoundFX.pickup();
+          } else {
+            clearInterval(goldenBellTimerId);
+            goldenBellTimerId = null;
+            if (gbTimerText) gbTimerText.textContent = '정답 공개!';
+            if (gbBar) gbBar.style.width = '0%';
+            SoundFX.bell();
+          }
+        }, 1000);
+      } else {
+        gbBox.classList.add('hidden');
+      }
+    }
 
     eduModal.classList.remove('hidden');
     eduModal.classList.add('flex');
@@ -615,12 +674,16 @@
     const allHidden = blockingModals.every((m) => !m || m.classList.contains('hidden'));
     if (gameState === 'PAUSED' && allHidden) {
       gameState = 'PLAYING';
-      pauseIcon.textContent = '⏸️';
+      pauseIcon.textContent = '▶️' ? '⏸️' : '⏸️';
       pauseText.textContent = '일시정지';
     }
   }
 
   function closeEduModal() {
+    if (goldenBellTimerId) {
+      clearInterval(goldenBellTimerId);
+      goldenBellTimerId = null;
+    }
     clearAllInputStates();
     eduModal.classList.add('hidden');
     eduModal.classList.remove('flex');
@@ -688,10 +751,10 @@
     player.hasFlashlight = !!activeSkin.defaultFlashlight;
     player.onFire = false;
     player.rollNeeded = 0;
-    player.keys = 0;
+    player.keys = isSpeedDrillMode ? 2 : 0;
     player.extinguisherCharges = activeSkin.bonusExtinguisher || 0;
     player.waterCharges = activeSkin.bonusWater || 0;
-    player.hasAxe = false;
+    player.hasAxe = isSpeedDrillMode ? true : false;
     player.rescuedDog = false;
     player.rescuedNpcs = 0;
     player.alarmRung = false;
@@ -702,6 +765,17 @@
     player.breakerClosed = !hasBreaker;
     player.carryingToy = false;
     player.hurtCooldown = 0;
+    player.usedReviveChance = false;
+    rescuedCompanions = [];
+    autoGuideTimer = 0;
+    autoGuidePath = [];
+    relayCurrentRunner = 1;
+    relayBatonTriggered = {};
+    if (isSpeedDrillMode && runOptions.mode !== 'practice') {
+      runOptions.hazardLimitSeconds = 180;
+    }
+    const reviveBtnEl = document.getElementById('btnReviveWithQuiz');
+    if (reviveBtnEl) reviveBtnEl.classList.add('hidden');
 
     const p2Offsets = [
       { dx: 0.85, dy: 0 },
@@ -1955,6 +2029,13 @@
         showToast('🔦 [비상 손전등 점등!] 어두운 정전 구역과 연기 속에서 시야가 2배 넓어졌습니다! (+200점)', 'border-yellow-400');
       } else if (it.type === 'npc') {
         player.rescuedNpcs++;
+        rescuedCompanions.push({
+          type: 'npc',
+          name: it.name || '고립된 이웃',
+          icon: it.icon || '🧒',
+          x: it.c + 0.5,
+          y: it.r + 0.5
+        });
         unlockBadge('alarm_npc');
         score += 350;
         addFloatText(it.c + 0.5, it.r + 0.5, `${it.name} 구출! +350`, '#4ade80');
@@ -2009,6 +2090,13 @@
         showToast('🪓 소방 도끼를 획득했습니다! 길을 막는 나무 판자(🪵)나 경량칸막이(🧱)를 부술 수 있습니다.');
       } else if (it.type === 'dog') {
         player.rescuedDog = true;
+        rescuedCompanions.push({
+          type: 'dog',
+          name: it.name || '초코',
+          icon: '🐶',
+          x: it.c + 0.5,
+          y: it.r + 0.5
+        });
         score += 400;
         addFloatText(it.c + 0.5, it.r + 0.5, '초코 구출! +400', '#4ade80');
         showToast('🐶 반려견 초코를 구출했습니다! 함께 비상구로 탈출하세요!');
@@ -2421,6 +2509,8 @@
     if (statHintsEl) statHintsEl.textContent = `${hintLog.length}회`;
     const continueBtn = document.getElementById('btnContinueSaved');
     if (continueBtn) continueBtn.classList.add('hidden');
+    const reviveBtnClear = document.getElementById('btnReviveWithQuiz');
+    if (reviveBtnClear) reviveBtnClear.classList.add('hidden');
     const worldBar = document.getElementById('worldSelectBar');
     if (worldBar) worldBar.classList.add('hidden');
 
@@ -2482,6 +2572,7 @@
     clearAllInputStates();
     closeOtherModalsExcept(null, true);
     gameState = 'GAME_OVER';
+    lastGameOverReason = reason || 'hp';
     SoundFX.gameOver();
 
     // Bug #4 Fix: Push exact game-over position to pathHistory
@@ -2499,6 +2590,14 @@
     if (statHintsEl) statHintsEl.textContent = `${hintLog.length}회`;
     const continueBtn = document.getElementById('btnContinueSaved');
     if (continueBtn) continueBtn.classList.add('hidden');
+    const reviveBtn = document.getElementById('btnReviveWithQuiz');
+    if (reviveBtn) {
+      if (!player.usedReviveChance) {
+        reviveBtn.classList.remove('hidden');
+      } else {
+        reviveBtn.classList.add('hidden');
+      }
+    }
     const worldBar = document.getElementById('worldSelectBar');
     if (worldBar) worldBar.classList.add('hidden');
 
@@ -2513,7 +2612,7 @@
     overlaySubtitle.textContent = '대피 실패 · 동선 리플레이 분석';
     if (reason === 'exposure') {
       overlayTitle.textContent = `위험 노출 허용 시간(${runOptions.hazardLimitSeconds || 300}초)을 초과했습니다!`;
-      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🎛️ 설정·저장]</strong>에서 <strong>긴장 완화 모드(480초)</strong> 또는 <strong>연습 모드</strong>로 전환하거나, 수첩(H키) 힌트를 확인해 신속히 탈출하세요!`;
+      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🛡️ 안전 퀴즈 풀고 그 자리 부활!]</strong> 버튼을 눌러 오답노트를 풀고 이어서 탈출해 보세요!`;
     } else {
       overlayTitle.textContent = reason === 'o2' ? '유독가스에 질식했습니다!' : '불길에 큰 화상을 입었습니다!';
       overlayDesc.innerHTML = reason === 'o2'
@@ -2527,6 +2626,99 @@
     gameOverlay.classList.remove('hidden');
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
+  }
+
+  // --- Idea 4: AI Firefighter Captain 5s Safe BFS Path Finder ---
+  function computeSafeBfsPathToTarget(targetC, targetR) {
+    const startC = Math.max(0, Math.min(COLS - 1, Math.floor(player.x)));
+    const startR = Math.max(0, Math.min(ROWS - 1, Math.floor(player.y)));
+    const fireSet = new Set(fires.map(f => `${f.r},${f.c}`));
+    const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+    const parent = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    const q = [{ c: startC, r: startR }];
+    visited[startR][startC] = true;
+    const dirs = [
+      { dc: 1, dr: 0 },
+      { dc: -1, dr: 0 },
+      { dc: 0, dr: 1 },
+      { dc: 0, dr: -1 }
+    ];
+    let reached = null;
+    while (q.length > 0) {
+      const cur = q.shift();
+      if (cur.c === targetC && cur.r === targetR) {
+        reached = cur;
+        break;
+      }
+      for (const { dc, dr } of dirs) {
+        const nc = cur.c + dc;
+        const nr = cur.r + dr;
+        if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS || visited[nr][nc]) continue;
+        if (nc === targetC && nr === targetR) {
+          visited[nr][nc] = true;
+          parent[nr][nc] = cur;
+          reached = { c: nc, r: nr };
+          q.length = 0;
+          break;
+        }
+        if (fireSet.has(`${nr},${nc}`)) continue;
+        const t = grid[nr][nc];
+        const passable = (
+          t === TILE.FLOOR ||
+          t === TILE.OPEN_DOOR ||
+          t === TILE.DOOR ||
+          (t === TILE.LOCKED_DOOR && player.keys > 0) ||
+          (t === TILE.DEBRIS && player.hasAxe) ||
+          t === TILE.EXIT ||
+          t === TILE.PARTITION ||
+          t === TILE.LIFELINE
+        );
+        if (passable) {
+          visited[nr][nc] = true;
+          parent[nr][nc] = cur;
+          q.push({ c: nc, r: nr });
+        }
+      }
+    }
+    if (!reached) return [];
+    const path = [];
+    let curr = reached;
+    while (curr && !(curr.c === startC && curr.r === startR)) {
+      path.unshift(curr);
+      curr = parent[curr.r][curr.c];
+    }
+    return path;
+  }
+
+  function triggerAiCaptainAutoGuide() {
+    SoundFX.init();
+    const notebookEl = document.getElementById('notebookModal');
+    if (notebookEl && !notebookEl.classList.contains('hidden')) {
+      notebookEl.classList.add('hidden');
+      notebookEl.classList.remove('flex');
+    }
+    const moreDrawerEl = document.getElementById('moreToolsDrawer');
+    if (moreDrawerEl) moreDrawerEl.classList.add('hidden');
+    if (gameState === 'PAUSED') {
+      resumeIfNoBlockingModalOpen();
+    }
+    if (gameState !== 'PLAYING') {
+      showToast('🧑‍🚒 게임을 시작한 뒤 [대장님 5초 길안내]를 눌러보세요!', 'border-amber-400');
+      return;
+    }
+    const nextObj = getNextStepObjective();
+    if (!nextObj) {
+      showToast('🎯 현재 안내할 목표가 없습니다. 초록색 비상구(EXIT)로 이동하세요!');
+      return;
+    }
+    autoGuideTimer = 5.0;
+    autoGuidePath = computeSafeBfsPathToTarget(nextObj.c, nextObj.r);
+    if (!player.crouching && smokes.some(s => Math.hypot(s.c + 0.5 - player.x, s.r + 0.5 - player.y) < 2.2)) {
+      player.crouching = true;
+    }
+    SoundFX.pickup();
+    showToast(`🧑‍🚒 [소방관 대장님 출동!] 5초 동안 안전한 경로로 [${nextObj.label}]까지 안내합니다!`, 'border-amber-400');
+    speakGuideIfEnabled(`소방관 대장님이 5초 동안 ${nextObj.label}까지 안전한 길로 안내합니다.`);
   }
 
   // --- 3D Walkthrough Kinematics, Follow-Camera & World-Space Footsteps State ---
@@ -2574,6 +2766,90 @@
     if (typeof updateSafeLockUI === 'function') updateSafeLockUI();
     if (player.hurtCooldown > 0) player.hurtCooldown -= dt;
     if (autoInteractCooldown > 0) autoInteractCooldown -= dt;
+
+    // Idea 8: 4-Player Group Relay Mode Baton-Pass Check
+    if (isRelayMode) {
+      if (relayCurrentRunner === 1 && (player.wetTowel || player.hasMask) && !relayBatonTriggered.r2) {
+        relayBatonTriggered.r2 = true;
+        relayCurrentRunner = 2;
+        SoundFX.bell();
+        addFloatText(player.x, player.y, '🤝 바통 터치! 2번 주자 차례!', '#2dd4bf');
+        showToast('🤝 [4인 모둠 릴레이 바통 터치!] 1번 주자(호흡기 보호) 성공! 👉 2번 주자(비상벨·차단·소화기)에게 기기를 넘겨주세요!', 'border-teal-400');
+      } else if (
+        relayCurrentRunner === 2 &&
+        (player.alarmRung || (st.requireGasClosed && player.gasClosed) || player.extinguisherCharges > 0 || player.keys > 0) &&
+        !relayBatonTriggered.r3
+      ) {
+        relayBatonTriggered.r3 = true;
+        relayCurrentRunner = 3;
+        SoundFX.bell();
+        addFloatText(player.x, player.y, '🤝 바통 터치! 3번 주자 차례!', '#38bdf8');
+        showToast('🤝 [4인 모둠 릴레이 바통 터치!] 2번 주자 미션 성공! 👉 3번 주자(열쇠·이웃/반려견 구출)에게 기기를 넘겨주세요!', 'border-sky-400');
+      } else if (
+        relayCurrentRunner === 3 &&
+        (player.rescuedNpcs > 0 || player.rescuedDog || !items.some(it => it.type === 'npc' || it.type === 'dog')) &&
+        !relayBatonTriggered.r4
+      ) {
+        relayBatonTriggered.r4 = true;
+        relayCurrentRunner = 4;
+        SoundFX.bell();
+        addFloatText(player.x, player.y, '🤝 바통 터치! 4번 최종 주자!', '#facc15');
+        showToast('🤝 [4인 모둠 릴레이 바통 터치!] 3번 주자 구출 완료! 👉 4번 주자(비상구 최종 탈출)에게 기기를 넘겨주세요!', 'border-amber-400');
+      }
+    }
+
+    // Idea 4: AI Firefighter Captain 5s BFS Auto-Guide Execution
+    if (autoGuideTimer > 0) {
+      autoGuideTimer = Math.max(0, autoGuideTimer - dt);
+      const nextObj = getNextStepObjective();
+      if (nextObj) {
+        autoGuidePath = computeSafeBfsPathToTarget(nextObj.c, nextObj.r);
+        if (autoGuidePath.length > 0) {
+          const wp = autoGuidePath[0];
+          const wpTile = grid[wp.r] && grid[wp.r][wp.c];
+          if (
+            (wpTile === TILE.DOOR ||
+              (wpTile === TILE.LOCKED_DOOR && player.keys > 0) ||
+              (wpTile === TILE.DEBRIS && player.hasAxe)) &&
+            Math.hypot(wp.c + 0.5 - player.x, wp.r + 0.5 - player.y) <= 1.35 &&
+            autoInteractCooldown <= 0
+          ) {
+            autoInteractCooldown = 0.35;
+            triggerInteraction({ kind: 'tile', c: wp.c, r: wp.r, tile: wpTile, dist: 1.0 });
+          }
+          pointerMoveTarget = { x: wp.c + 0.5, y: wp.r + 0.5 };
+        } else {
+          pointerMoveTarget = { x: nextObj.c + 0.5, y: nextObj.r + 0.5 };
+        }
+        const distToObj = Math.hypot(nextObj.c + 0.5 - player.x, nextObj.r + 0.5 - player.y);
+        if (distToObj <= 1.15 && autoInteractCooldown <= 0) {
+          const nearTarget = getInteractTarget();
+          if (nearTarget) {
+            autoInteractCooldown = 0.4;
+            triggerInteraction(nearTarget);
+          }
+        }
+      }
+      if (autoGuideTimer <= 0) {
+        autoGuidePath = [];
+        pointerMoveTarget = null;
+      }
+    }
+
+    // Idea 7: Smooth Breadcrumb Following for Rescued Companions (NPCs & Dog)
+    if (rescuedCompanions.length > 0) {
+      rescuedCompanions.forEach((comp, idx) => {
+        const desiredDist = 0.62 * (idx + 1);
+        const dx = player.x - comp.x;
+        const dy = player.y - comp.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > desiredDist) {
+          const step = Math.min(dist - desiredDist, dt * 2.2);
+          comp.x += (dx / (dist || 1)) * step;
+          comp.y += (dy / (dist || 1)) * step;
+        }
+      });
+    }
 
     // Check PRD Hazard Exposure Limit (300s Standard / 480s Relaxed / null Practice)
     if (
@@ -3398,7 +3674,7 @@
     let pantsBackCol = '#0f172a';
     let shoeCol = '#ef4444';
     let hairCol = '#27170e';
-    let helmetCol = null;
+    let helmetCol = (skinId !== 'npc' && skinId !== 'p2' && customGear && customGear.helmetColor) ? customGear.helmetColor : null;
 
     if (skinId === 'firefighter') {
       jacketMain = '#ea580c';
@@ -3406,14 +3682,14 @@
       stripeCol = '#fde047';
       pantsCol = '#1e293b';
       shoeCol = '#fbbf24';
-      helmetCol = '#dc2626';
+      helmetCol = (customGear && customGear.helmetColor) || '#dc2626';
     } else if (skinId === 'safety_officer') {
       jacketMain = '#10b981';
       jacketDark = '#047857';
       stripeCol = '#fef08a';
       pantsCol = '#1e3a8a';
       shoeCol = '#38bdf8';
-      helmetCol = '#f8fafc';
+      helmetCol = (customGear && customGear.helmetColor) || '#f8fafc';
     } else if (skinId === 'master') {
       jacketMain = '#4f46e5';
       jacketDark = '#312e81';
@@ -3427,12 +3703,14 @@
       pantsCol = '#334155';
       shoeCol = '#38bdf8';
       hairCol = '#3f2314';
+      helmetCol = null;
     } else if (skinId === 'p2') {
       jacketMain = '#ec4899';
       jacketDark = '#be185d';
       stripeCol = '#fbcfe8';
       pantsCol = '#1e293b';
       shoeCol = '#f43f5e';
+      helmetCol = null;
     }
 
     ctx.save();
@@ -3777,7 +4055,7 @@
     let pantsBackCol = '#0f172a';
     let shoeCol = '#ef4444';
     let hairCol = '#27170e';
-    let helmetCol = null;
+    let helmetCol = (skinId !== 'npc' && skinId !== 'p2' && customGear && customGear.helmetColor) ? customGear.helmetColor : null;
 
     if (skinId === 'firefighter') {
       jacketMain = '#ea580c';
@@ -3785,14 +4063,14 @@
       stripeCol = '#fde047';
       pantsCol = '#1e293b';
       shoeCol = '#fbbf24';
-      helmetCol = '#dc2626';
+      helmetCol = (customGear && customGear.helmetColor) || '#dc2626';
     } else if (skinId === 'safety_officer') {
       jacketMain = '#10b981';
       jacketDark = '#047857';
       stripeCol = '#fef08a';
       pantsCol = '#1e3a8a';
       shoeCol = '#38bdf8';
-      helmetCol = '#f8fafc';
+      helmetCol = (customGear && customGear.helmetColor) || '#f8fafc';
     } else if (skinId === 'master') {
       jacketMain = '#4f46e5';
       jacketDark = '#312e81';
@@ -3806,6 +4084,7 @@
       pantsCol = '#334155';
       shoeCol = '#38bdf8';
       hairCol = '#3f2314';
+      helmetCol = null;
     }
 
     ctx.save();
@@ -6350,26 +6629,56 @@
           ctx.setLineDash([]);
         }
 
-        if (player.rescuedDog) {
-          const dogX = px - player.dirX * tileSize * 0.55;
-          const dogY = py - player.dirY * tileSize * 0.55 - tileSize * 0.14;
-          ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+        // Idea 7: Rescued Companions (Dog & NPCs) Following Along Breadcrumbs + Cheering Speech Bubbles
+        if (player.rescuedDog || player.rescuedNpcs > 0 || rescuedCompanions.length > 0) {
+          const dogComp = rescuedCompanions.find(c => c.type === 'dog');
+          if (player.rescuedDog || dogComp) {
+            const dogX = dogComp ? dogComp.x * tileSize : (px - player.dirX * tileSize * 0.55);
+            const dogY = dogComp ? (dogComp.y * tileSize - tileSize * 0.12) : (py - player.dirY * tileSize * 0.55 - tileSize * 0.14);
+            ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🐶', dogX, dogY);
+          }
+          const npcComp = rescuedCompanions.find(c => c.type === 'npc');
+          if (player.rescuedNpcs > 0 || npcComp) {
+            const npcX = npcComp ? npcComp.x * tileSize : (px - player.dirX * tileSize * 0.78);
+            const npcY = npcComp ? (npcComp.y * tileSize + tileSize * 0.12) : (footY - player.dirY * tileSize * 0.65);
+            drawHumanCharacter(ctx, npcX, npcY, tileSize * 0.85, {
+              crouching: player.crouching,
+              moving: activelyMoving,
+              now: now + 0.6,
+              dirX: player.dirX,
+              dirY: player.dirY,
+              skinId: 'npc',
+              wetTowel: player.wetTowel
+            });
+          }
+          // Context-aware cheering & safety tip speech bubble above rescued companion
+          const bubbleComp = rescuedCompanions[0] || {
+            x: player.x - player.dirX * 0.68,
+            y: player.y - player.dirY * 0.68,
+            icon: player.rescuedDog ? '🐶' : '🧒'
+          };
+          const bx = bubbleComp.x * tileSize;
+          const by = bubbleComp.y * tileSize - tileSize * 0.78;
+          const tipText = !player.crouching && smokes.length > 0
+            ? '💬 "연기 속에선 낮은 자세(🧎)로 가요!"'
+            : '💬 "함께 비상구(EXIT)로 탈출해요! 힘내요!"';
+          ctx.save();
+          ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+          const bw = ctx.measureText(tipText).width + 10;
+          const bh = Math.max(13, Math.floor(tileSize * 0.23));
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          ctx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 1.2;
+          ctx.strokeRect(bx - bw / 2, by - bh / 2, bw, bh);
+          ctx.fillStyle = '#a7f3d0';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('🐶', dogX, dogY);
-        }
-        if (player.rescuedNpcs > 0) {
-          const npcX = px - player.dirX * tileSize * 0.78;
-          const npcY = footY - player.dirY * tileSize * 0.65;
-          drawHumanCharacter(ctx, npcX, npcY, tileSize * 0.85, {
-            crouching: player.crouching,
-            moving: activelyMoving,
-            now: now + 0.6,
-            dirX: player.dirX,
-            dirY: player.dirY,
-            skinId: 'npc',
-            wetTowel: player.wetTowel
-          });
+          ctx.fillText(tipText, bx, by);
+          ctx.restore();
         }
 
         const rightTool = player.extinguisherCharges > 0
@@ -6390,17 +6699,20 @@
           onFire: player.onFire
         });
 
-        // Bold '나' 3D Floating Tag above Human Head
+        // Bold '나' + Honor Title / Relay Runner / AI Captain 3D Floating Tag above Human Head
         ctx.save();
-        const meTag = isCoopMode ? '1P 나' : (isCloseUp ? (player.crouching ? '나 · 🧎낮은자세' : '나') : '나');
-        ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.21))}px "Noto Sans KR", sans-serif`;
+        const titlePrefix = (customGear && customGear.honorTitle) ? `[${customGear.honorTitle}] ` : '';
+        const relayTag = isRelayMode ? `🤝${relayCurrentRunner}주자 · ` : '';
+        const guideTag = autoGuideTimer > 0 ? `🧑‍🚒길안내(${autoGuideTimer.toFixed(0)}s) · ` : '';
+        const meTag = `${guideTag}${relayTag}${isCoopMode ? '1P 나' : (isCloseUp ? `${titlePrefix}나` : '나')}`;
+        ctx.font = `900 ${Math.max(10, Math.floor(tileSize * 0.20))}px "Noto Sans KR", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const mw = ctx.measureText(meTag).width + 10;
         const mh = Math.max(14, Math.floor(tileSize * 0.26));
         const headTopY = footY - (player.crouching ? humanH * 0.78 : humanH * 0.96);
         const my = Math.max(mh / 2 - wallH, headTopY - mh / 2 - 4);
-        ctx.fillStyle = player.crouching ? '#059669' : '#2563eb';
+        ctx.fillStyle = autoGuideTimer > 0 ? '#d97706' : (player.crouching ? '#059669' : '#2563eb');
         ctx.fillRect(px - mw / 2, my - mh / 2, mw, mh);
         ctx.strokeStyle = '#fde047';
         ctx.lineWidth = 1.5;
@@ -7544,8 +7856,9 @@
     cctx.strokeRect(140, 158, 620, 86);
 
     cctx.fillStyle = '#fde047';
-    cctx.font = 'bold 28px "Noto Sans KR", sans-serif';
-    cctx.fillText(`${activeSkin.icon} 대원 성명 : ${cleanName}`, 450, 198);
+    cctx.font = 'bold 26px "Noto Sans KR", sans-serif';
+    const titleStr = (customGear && customGear.honorTitle) ? `[${customGear.honorTitle}] ` : '';
+    cctx.fillText(`${activeSkin.icon} ${titleStr}대원 성명 : ${cleanName}`, 450, 198);
 
     cctx.fillStyle = '#93c5fd';
     cctx.font = 'bold 16px "Noto Sans KR", sans-serif';
@@ -9935,11 +10248,430 @@
     });
   }
 
+  // --- Ideas 1~9: New Classroom & Student Engagement Feature Handlers ---
+  const btnToggleGoldenBell = document.getElementById('btnToggleGoldenBell');
+  const btnSpeedDrillMode = document.getElementById('btnSpeedDrillMode');
+  const speedDrillToggleText = document.getElementById('speedDrillToggleText');
+  const btnStartSpeedDrillTeacher = document.getElementById('btnStartSpeedDrillTeacher');
+  const btnRelayModeToggle = document.getElementById('btnRelayModeToggle');
+  const relayToggleText = document.getElementById('relayToggleText');
+  const btnAutoPilotGuide = document.getElementById('btnAutoPilotGuide');
+  const btnNotebookAutoGuide = document.getElementById('btnNotebookAutoGuide');
+  const btnReviveWithQuiz = document.getElementById('btnReviveWithQuiz');
+  const btnSeasonSpring = document.getElementById('btnSeasonSpring');
+  const btnSeasonSummer = document.getElementById('btnSeasonSummer');
+  const btnSeasonAutumn = document.getElementById('btnSeasonAutumn');
+  const btnSeasonWinter = document.getElementById('btnSeasonWinter');
+  const seasonPackNotice = document.getElementById('seasonPackNotice');
+  const teacherBatchCodeInput = document.getElementById('teacherBatchCodeInput');
+  const btnAnalyzeBatchCodes = document.getElementById('btnAnalyzeBatchCodes');
+  const btnSampleBatchCodes = document.getElementById('btnSampleBatchCodes');
+  const btnDownloadBatchCsv = document.getElementById('btnDownloadBatchCsv');
+  const teacherBatchSummaryBox = document.getElementById('teacherBatchSummaryBox');
+  const helmetColorSelect = document.getElementById('helmetColorSelect');
+  const honorTitleSelect = document.getElementById('honorTitleSelect');
+  const customGearPreviewBadge = document.getElementById('customGearPreviewBadge');
+
+  function syncGoldenBellUI() {
+    if (!btnToggleGoldenBell) return;
+    if (appSettings.goldenBellMode) {
+      btnToggleGoldenBell.textContent = '🔔 골든벨:켜짐';
+      btnToggleGoldenBell.className = 'px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-xs font-extrabold text-slate-950 shrink-0';
+    } else {
+      btnToggleGoldenBell.textContent = '골든벨 켜기';
+      btnToggleGoldenBell.className = 'px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-extrabold text-slate-950 shrink-0';
+    }
+  }
+
+  if (btnToggleGoldenBell) {
+    btnToggleGoldenBell.addEventListener('click', () => {
+      SoundFX.init();
+      appSettings.goldenBellMode = !appSettings.goldenBellMode;
+      syncGoldenBellUI();
+      persistAppSettings();
+      SoundFX.pickup();
+      showToast(
+        appSettings.goldenBellMode
+          ? '🔔 [전자칠판 골든벨 모드 ON] 모든 퀴즈 창에서 학급 손가락 투표 5초 카운트다운이 작동합니다!'
+          : '🔔 전자칠판 골든벨 모드를 껐습니다.',
+        'border-amber-400'
+      );
+    });
+  }
+
+  function syncSpeedDrillUI() {
+    if (speedDrillToggleText) {
+      speedDrillToggleText.textContent = isSpeedDrillMode ? '3분핵심대피:켜짐' : '3분핵심대피:꺼짐';
+    }
+    if (btnStartSpeedDrillTeacher) {
+      btnStartSpeedDrillTeacher.textContent = isSpeedDrillMode ? '⚡ 3분모드:켜짐' : '⚡ 3분모드 시작';
+    }
+  }
+
+  function toggleSpeedDrillMode(startImmediately = false) {
+    SoundFX.init();
+    isSpeedDrillMode = !isSpeedDrillMode;
+    syncSpeedDrillUI();
+    if (isSpeedDrillMode) {
+      player.keys = Math.max(2, player.keys);
+      player.hasAxe = true;
+      if (runOptions.mode !== 'practice') runOptions.hazardLimitSeconds = 180;
+      SoundFX.pickup();
+      showToast('⚡ [3분 스피드 핵심 대피 모드 ON] 열쇠·도끼가 기본 지급되어 4대 핵심 수칙만 3분 내 체험합니다!', 'border-orange-400');
+      if (startImmediately) {
+        if (teacherModal) {
+          teacherModal.classList.add('hidden');
+          teacherModal.classList.remove('flex');
+        }
+        loadStage(currentStageIdx, true, activeCustomStage);
+        gameOverlay.classList.add('hidden');
+        gameState = 'PLAYING';
+        pauseIcon.textContent = '⏸️';
+        pauseText.textContent = '일시정지';
+      }
+    } else {
+      if (runOptions.mode !== 'practice') {
+        runOptions.hazardLimitSeconds = runOptions.mode === 'relaxed' ? 480 : 300;
+      }
+      showToast('⚡ 3분 스피드 핵심 대피 모드를 껐습니다. (표준 방탈출 퍼즐 모드)');
+    }
+    updateHUD();
+  }
+
+  if (btnSpeedDrillMode) {
+    btnSpeedDrillMode.addEventListener('click', () => toggleSpeedDrillMode(false));
+  }
+  if (btnStartSpeedDrillTeacher) {
+    btnStartSpeedDrillTeacher.addEventListener('click', () => {
+      if (!isSpeedDrillMode) {
+        toggleSpeedDrillMode(true);
+      } else {
+        if (teacherModal) {
+          teacherModal.classList.add('hidden');
+          teacherModal.classList.remove('flex');
+        }
+        loadStage(currentStageIdx, true, activeCustomStage);
+        gameOverlay.classList.add('hidden');
+        gameState = 'PLAYING';
+        pauseIcon.textContent = '⏸️';
+        pauseText.textContent = '일시정지';
+      }
+    });
+  }
+
+  // Idea 8: 4-Player Group Relay Mode Toggle
+  if (btnRelayModeToggle) {
+    btnRelayModeToggle.addEventListener('click', () => {
+      SoundFX.init();
+      isRelayMode = !isRelayMode;
+      relayCurrentRunner = 1;
+      relayBatonTriggered = {};
+      if (relayToggleText) {
+        relayToggleText.textContent = isRelayMode ? '4인릴레이:켜짐' : '4인릴레이:꺼짐';
+      }
+      SoundFX.pickup();
+      showToast(
+        isRelayMode
+          ? '🤝 [4인 모둠 릴레이 모드 ON] ①호흡기보호 → ②비상벨·차단 → ③이웃구출 → ④비상구탈출 구간마다 바통 터치 알림이 뜹니다!'
+          : '🤝 4인 모둠 릴레이 모드를 껐습니다.',
+        'border-teal-400'
+      );
+      renderCanvas();
+    });
+  }
+
+  // Idea 4: AI Firefighter Captain 5s BFS Auto-Guide Buttons & KeyG Shortcut
+  if (btnAutoPilotGuide) {
+    btnAutoPilotGuide.addEventListener('click', triggerAiCaptainAutoGuide);
+  }
+  if (btnNotebookAutoGuide) {
+    btnNotebookAutoGuide.addEventListener('click', triggerAiCaptainAutoGuide);
+  }
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.code === 'KeyG' && !e.repeat && gameState === 'PLAYING') {
+      e.preventDefault();
+      triggerAiCaptainAutoGuide();
+    }
+  });
+
+  // Idea 5: 7 School Safety Standards Seasonal 1-Click Lesson Packs
+  function applySeasonalLessonPack(seasonKey) {
+    SoundFX.init();
+    const packs = {
+      spring: {
+        stageIdx: 3,
+        slideIdx: 1,
+        label: '🌱 봄 학기(3~5월) 안전 팩: [4단계: 초등학교 과학실 화재] + 화학·실험실 소화 원리 슬라이드가 자동 세팅되었습니다!'
+      },
+      summer: {
+        stageIdx: 4,
+        slideIdx: 0,
+        label: '☀️ 여름 학기(6~8월) 안전 팩: [5단계: 지하철 정전 미로] + 어두운 다중이용시설 유도등 대피 슬라이드가 자동 세팅되었습니다!'
+      },
+      autumn: {
+        stageIdx: 2,
+        slideIdx: 3,
+        label: '🍁 가을 학기(9~10월) 안전 팩: [3단계: 아파트 베란다] + 완강기·경량칸막이 피난 설비 슬라이드가 자동 세팅되었습니다!'
+      },
+      winter: {
+        stageIdx: 1,
+        slideIdx: 2,
+        label: '❄️ 겨울 학기(11~2월) 안전 팩: [2단계: 1층 주방·난방기] + 식용유(K급)·전기 화재 진압 슬라이드가 자동 세팅되었습니다!'
+      }
+    };
+    const pack = packs[seasonKey] || packs.spring;
+    loadStage(pack.stageIdx, true, null);
+    if (teacherQrStageSelect) teacherQrStageSelect.value = String(pack.stageIdx);
+    if (typeof currentBriefingSlideIdx !== 'undefined') {
+      currentBriefingSlideIdx = pack.slideIdx;
+      if (typeof renderBriefingSlide === 'function') renderBriefingSlide();
+    }
+    if (typeof renderTeacherPresetQr === 'function') renderTeacherPresetQr();
+    if (seasonPackNotice) {
+      seasonPackNotice.textContent = pack.label;
+    }
+    SoundFX.pickup();
+    showToast(pack.label, 'border-teal-400');
+  }
+
+  if (btnSeasonSpring) btnSeasonSpring.addEventListener('click', () => applySeasonalLessonPack('spring'));
+  if (btnSeasonSummer) btnSeasonSummer.addEventListener('click', () => applySeasonalLessonPack('summer'));
+  if (btnSeasonAutumn) btnSeasonAutumn.addEventListener('click', () => applySeasonalLessonPack('autumn'));
+  if (btnSeasonWinter) btnSeasonWinter.addEventListener('click', () => applySeasonalLessonPack('winter'));
+
+  // Idea 3: Student Clear Verification Code 1-Second Batch Aggregator & CSV Exporter
+  let parsedBatchRecords = [];
+
+  function parseStudentVerificationCodes(rawText) {
+    const lines = String(rawText || '')
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(Boolean);
+    const results = [];
+    lines.forEach((line, idx) => {
+      // Format A: 119-S1-S1850-42
+      const shortMatch = line.match(/119-(CUS|S\d+)-([SAB])(\d+)-(\d+)/i);
+      if (shortMatch) {
+        results.push({
+          index: idx + 1,
+          student: `학생_${idx + 1}`,
+          stage: shortMatch[1].toUpperCase(),
+          grade: `${shortMatch[2].toUpperCase()}등급`,
+          score: parseInt(shortMatch[3], 10) || 0,
+          raw: line
+        });
+        return;
+      }
+      // Format B: Descriptive line containing stage / score / grade
+      const scoreMatch = line.match(/(\d{2,6})\s*점/) || line.match(/#FS-(\d+)/i);
+      const gradeMatch = line.match(/([SAB])\s*등급|\(([SAB])\)/i);
+      const stageMatch = line.match(/(\d+단계|커스텀|예방점검|챌린지)/);
+      const nameMatch = line.match(/\]\s*([^·|]+?)\s*·/) || line.match(/^([^·,:]+?)\s*[·,:]/);
+      if (scoreMatch || gradeMatch || stageMatch) {
+        const gLetter = gradeMatch ? (gradeMatch[1] || gradeMatch[2] || 'A').toUpperCase() : 'A';
+        results.push({
+          index: idx + 1,
+          student: nameMatch ? nameMatch[1].trim() : `학생_${idx + 1}`,
+          stage: stageMatch ? stageMatch[1] : '1단계',
+          grade: `${gLetter}등급`,
+          score: scoreMatch ? (parseInt(scoreMatch[1], 10) || 1000) : 1200,
+          raw: line
+        });
+      }
+    });
+    return results;
+  }
+
+  function analyzeBatchCodesNow() {
+    SoundFX.init();
+    const raw = teacherBatchCodeInput ? teacherBatchCodeInput.value : '';
+    parsedBatchRecords = parseStudentVerificationCodes(raw);
+    if (!teacherBatchSummaryBox) return;
+    if (parsedBatchRecords.length === 0) {
+      teacherBatchSummaryBox.innerHTML = '⚠️ 인식된 클리어 인증코드가 없습니다. [🧪 예시 데이터 넣기]를 눌러 형식을 확인해 보세요.';
+      return;
+    }
+    const total = parsedBatchRecords.length;
+    const sumScore = parsedBatchRecords.reduce((acc, r) => acc + r.score, 0);
+    const avgScore = Math.round(sumScore / total);
+    const sCount = parsedBatchRecords.filter(r => r.grade.startsWith('S')).length;
+    const aCount = parsedBatchRecords.filter(r => r.grade.startsWith('A')).length;
+    const bCount = total - sCount - aCount;
+    teacherBatchSummaryBox.innerHTML = `
+      <div class="font-extrabold text-emerald-300">✅ 총 ${total}명 제출 완료 · 학급 평균 ${avgScore.toLocaleString()}점</div>
+      <div class="text-slate-300 mt-0.5">• 등급 분포: <strong>S등급 ${sCount}명</strong> / <strong>A등급 ${aCount}명</strong> / <strong>B등급 ${bCount}명</strong></div>
+      <div class="text-slate-400 text-[10px] mt-0.5">• 명단 미리보기: ${parsedBatchRecords.slice(0, 5).map(r => `${r.student}(${r.stage}·${r.score}점)`).join(', ')}${total > 5 ? ` 외 ${total - 5}명` : ''}</div>
+    `;
+    SoundFX.pickup();
+    showToast(`📊 총 ${total}명의 클리어 인증코드 집계가 완료되었습니다! (평균 ${avgScore.toLocaleString()}점)`, 'border-indigo-400');
+  }
+
+  if (btnAnalyzeBatchCodes) {
+    btnAnalyzeBatchCodes.addEventListener('click', analyzeBatchCodesNow);
+  }
+  if (btnSampleBatchCodes) {
+    btnSampleBatchCodes.addEventListener('click', () => {
+      if (!teacherBatchCodeInput) return;
+      teacherBatchCodeInput.value = [
+        '[서울초 5-2] 김안전 · 1단계 · 1850점 · 등급:안전 박사 (S) · 119-S1-S1850-42',
+        '[서울초 5-2] 이소방 · 2단계 · 1620점 · 등급:안전 박사 (S) · 119-S2-S1620-38',
+        '[서울초 5-2] 박대피 · 3단계 · 1390점 · 등급:우수 대원 (A) · 119-S3-A1390-55',
+        '119-S4-S1940-61'
+      ].join('\n');
+      analyzeBatchCodesNow();
+    });
+  }
+  if (btnDownloadBatchCsv) {
+    btnDownloadBatchCsv.addEventListener('click', () => {
+      SoundFX.init();
+      if (parsedBatchRecords.length === 0) {
+        analyzeBatchCodesNow();
+      }
+      if (parsedBatchRecords.length === 0) {
+        showToast('⚠️ 먼저 분석할 학생 인증코드를 입력해 주세요!', 'border-amber-500');
+        return;
+      }
+      const csvRows = [
+        ['연번', '학생명', '클리어단계', '안전등급', '획득점수', '원본인증코드'].join(','),
+        ...parsedBatchRecords.map(r =>
+          [
+            r.index,
+            `"${String(r.student).replace(/"/g, '""')}"`,
+            `"${String(r.stage).replace(/"/g, '""')}"`,
+            `"${String(r.grade).replace(/"/g, '""')}"`,
+            r.score,
+            `"${String(r.raw).replace(/"/g, '""')}"`
+          ].join(',')
+        )
+      ].join('\r\n');
+      try {
+        const blob = new Blob(['\uFEFF' + csvRows], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `학급_화재대피_인증집계_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        SoundFX.pickup();
+        showToast('📥 학급 클리어 통계 엑셀(CSV) 파일이 다운로드되었습니다!', 'border-emerald-400');
+      } catch (e) {}
+    });
+  }
+
+  // Idea 6: Safety Review Quiz In-Place Revive on Game Over
+  if (btnReviveWithQuiz) {
+    btnReviveWithQuiz.addEventListener('click', () => {
+      SoundFX.init();
+      if (player.usedReviveChance) return;
+
+      let qTitle = '💨 유독가스 질식 위기 극복 안전 퀴즈!';
+      let qDesc = '화재 현장에서 뜨거운 유독가스와 연기는 <strong>대류 현상</strong> 때문에 천장(위쪽)부터 차오릅니다. 연기를 피하며 대피하는 가장 올바른 방법은 무엇일까요?';
+      let goodLabel = '✅ 젖은 수건·방연마스크로 코와 입을 막고 [낮은 자세(🧎)]로 벽을 짚으며 이동한다';
+      let badLabel = '❌ 연기를 빨리 통과하기 위해 서서 전속력으로 달린다';
+
+      if (lastGameOverReason === 'hp') {
+        qTitle = '🔥 화상 위기 극복 안전 오답노트 퀴즈!';
+        qDesc = '대피 도중 내 옷에 불이 옮겨붙었을 때, 불길이 얼굴로 번지는 것을 막고 가장 안전하게 불을 끄는 행동은 무엇일까요?';
+        goodLabel = '✅ 뛰지 말고 즉시 멈춰 바닥에 엎드린 뒤, 두 손으로 얼굴을 가리고 뒹군다 (멈추기·엎드리기·구르기)';
+        badLabel = '❌ 바람으로 불을 끄기 위해 복도를 따라 빠르게 뛰어간다';
+      } else if (lastGameOverReason === 'exposure') {
+        qTitle = '⏱️ 골든타임 초과 위기 극복 안전 퀴즈!';
+        qDesc = '불이 났을 때 장난감이나 귀중품을 챙기느라 대피 시간을 지체하면 매우 위험합니다. 올바른 대피 원칙은 무엇일까요?';
+        goodLabel = '✅ 물건에 미련을 두지 않고 즉시 젖은 수건으로 호흡기를 보호하며 비상구(EXIT)로 대피한다';
+        badLabel = '❌ 아끼는 물건을 모두 가방에 챙긴 뒤 천천히 엘리베이터를 탄다';
+      }
+
+      gameOverlay.classList.add('hidden');
+      openEduModal('🛡️ 안전 오답노트 · 그 자리 부활 찬스 (1회)', qTitle, qDesc, [
+        {
+          label: goodLabel,
+          primary: true,
+          onSelect: () => {
+            player.usedReviveChance = true;
+            player.hp = 80;
+            player.o2 = 85;
+            player.onFire = false;
+            player.rollNeeded = 0;
+            player.crouching = true;
+            player.hurtCooldown = 3.0;
+            // Remove any fire right on the player's current tile so they don't immediately burn again
+            const pc = Math.floor(player.x);
+            const pr = Math.floor(player.y);
+            fires = fires.filter(f => !(f.c === pc && f.r === pr));
+            if (lastGameOverReason === 'exposure' && typeof runOptions.hazardLimitSeconds === 'number') {
+              runOptions.hazardLimitSeconds += 120;
+            }
+            if (btnReviveWithQuiz) btnReviveWithQuiz.classList.add('hidden');
+            SoundFX.win();
+            closeEduModal();
+            gameState = 'PLAYING';
+            pauseIcon.textContent = '⏸️';
+            pauseText.textContent = '일시정지';
+            addFloatText(player.x, player.y, '🛡️ 안전 퀴즈 부활 성공!', '#34d399');
+            showToast('🛡️ [안전 오답노트 정답!] 그 자리에서 체력 80%·산소 85%로 부활했습니다! 끝까지 비상구로 탈출하세요!', 'border-emerald-400');
+            updateHUD();
+            renderCanvas();
+          }
+        },
+        {
+          label: badLabel,
+          primary: false,
+          onSelect: () => {
+            SoundFX.warning();
+            showToast('💡 아쉽습니다! 안전 수칙을 다시 생각하며 올바른 보기를 선택해 보세요!', 'border-amber-400');
+          }
+        }
+      ]);
+    });
+  }
+
+  // Idea 9: 3D Character Safety Helmet Color & Honor Title Customizer
+  function syncCustomGearUI() {
+    if (helmetColorSelect && customGear.helmetColor) {
+      helmetColorSelect.value = customGear.helmetColor;
+    }
+    if (honorTitleSelect && customGear.honorTitle) {
+      honorTitleSelect.value = customGear.honorTitle;
+    }
+    if (customGearPreviewBadge) {
+      const colorNames = {
+        '#ef4444': '소방 레드 안전모',
+        '#facc15': '골든 히어로 안전모',
+        '#38bdf8': '네온 블루 안전모',
+        '#10b981': '에메랄드 구조대 안전모'
+      };
+      const cName = colorNames[customGear.helmetColor] || '맞춤 안전모';
+      customGearPreviewBadge.textContent = `[${customGear.honorTitle}] · ${cName}`;
+    }
+  }
+
+  function saveAndApplyCustomGear() {
+    if (helmetColorSelect) customGear.helmetColor = helmetColorSelect.value || '#ef4444';
+    if (honorTitleSelect) customGear.honorTitle = honorTitleSelect.value || '용감한 대피 대장';
+    try {
+      localStorage.setItem('fire_escape_custom_gear', JSON.stringify(customGear));
+    } catch (e) {}
+    syncCustomGearUI();
+    renderCanvas();
+    SoundFX.pickup();
+    showToast(`⛑️ [${customGear.honorTitle}] 칭호와 3D 안전모 색상이 캐릭터 및 수료증에 적용되었습니다!`, 'border-cyan-400');
+  }
+
+  if (helmetColorSelect) helmetColorSelect.addEventListener('change', saveAndApplyCustomGear);
+  if (honorTitleSelect) honorTitleSelect.addEventListener('change', saveAndApplyCustomGear);
+
   // --- Bug #3 Fix & Features 1, 2, 4, 10: Automatically Load ?map=, ?class=, ?stage=, ?grade=, ?timeMode=, ?customQuiz= & Register PWA ---
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
     appInitialized = true;
+    syncGoldenBellUI();
+    syncSpeedDrillUI();
+    syncCustomGearUI();
 
     if (isPerfDiagEnabled && perfDiagOverlay) {
       perfDiagOverlay.classList.remove('hidden');

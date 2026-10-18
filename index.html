@@ -190,6 +190,21 @@
             <span id="coopToggleText">2인협동:꺼짐</span>
           </button>
 
+          <button id="btnRelayModeToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-teal-300 transition flex items-center gap-1" title="모둠 4인 릴레이 이어달리기 모드">
+            <span>🤝</span>
+            <span id="relayToggleText">4인릴레이:꺼짐</span>
+          </button>
+
+          <button id="btnSpeedDrillMode" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/40 text-orange-300 transition flex items-center gap-1" title="3분 스피드 핵심 대피 모드">
+            <span>⚡</span>
+            <span id="speedDrillToggleText">3분핵심대피:꺼짐</span>
+          </button>
+
+          <button id="btnAutoPilotGuide" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-200 transition flex items-center gap-1" title="AI 소방관 대장님 5초 길 안내 (단축키 G)">
+            <span>🧑‍🚒</span>
+            <span>대장님 5초 길안내</span>
+          </button>
+
           <button id="btnMapEditor" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition flex items-center gap-1">
             <span>🛠️</span>
             <span>맵에디터</span>
@@ -440,6 +455,9 @@
             <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[135px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ⏯️ 이어하기
             </button>
+            <button id="btnReviveWithQuiz" type="button" class="hidden flex-1 min-w-[165px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl border border-emerald-300/60 transition whitespace-nowrap inline-flex items-center justify-center animate-pulse">
+              🛡️ 안전 퀴즈 풀고 그 자리 부활!
+            </button>
             <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[135px] h-11 sm:h-12 px-4 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ▶️ 게임 시작하기
             </button>
@@ -469,6 +487,16 @@
               <h3 id="eduModalTitle" class="text-sm sm:text-lg font-extrabold text-white mt-0.5">미션 제목</h3>
             </div>
             <button id="btnCloseEduModal" type="button" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold text-xs shrink-0">✕</button>
+          </div>
+          <!-- Idea 1: Smartboard Classroom Golden Bell Finger Voting Countdown Bar -->
+          <div id="eduGoldenBellBox" class="hidden p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-extrabold text-amber-300">
+              <span>🔔 학급 골든벨 손가락 투표! (1번☝️ / 2번✌️ / 3번🤟)</span>
+              <span id="eduGoldenBellTimerText" class="font-mono text-white bg-amber-600 px-2 py-0.5 rounded">5초</span>
+            </div>
+            <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
+              <div id="eduGoldenBellBar" class="h-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-300" style="width: 100%;"></div>
+            </div>
           </div>
           <div id="eduModalDesc" class="text-xs sm:text-sm text-slate-300 leading-relaxed"></div>
           <div id="eduModalChoices" class="space-y-2"></div>
@@ -562,6 +590,20 @@
           <span>🖼️</span>
           <span>내가 만든 대피도 이미지(PNG) 저장</span>
         </button>
+      </div>
+
+      <!-- Idea 10: Photo Tracing Floor-Plan Background Uploader -->
+      <div class="p-2.5 rounded-xl bg-slate-950 border border-cyan-500/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-extrabold text-cyan-300">📷 실제 피난안내도 사진 밑그림 트레이싱:</span>
+          <label for="editorBgImageInput" class="cursor-pointer px-2.5 py-1 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold transition">📂 도면 사진 불러오기</label>
+          <input id="editorBgImageInput" type="file" accept="image/*" class="hidden" />
+          <button id="btnClearEditorBg" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 font-bold transition">🗑️ 밑그림 지우기</button>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] text-slate-400">투명도:</span>
+          <input id="editorBgOpacityRange" type="range" min="15" max="85" value="45" class="w-20 accent-cyan-400" aria-label="밑그림 투명도 조절" />
+        </div>
       </div>
 
       <!-- Expanded Palette Buttons -->
@@ -673,6 +715,35 @@
           <span id="activeSkinBadge" class="text-[11px] text-emerald-300">장착중: 🧒 용감한 초등학생</span>
         </div>
         <div id="skinSelectionGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- Idea 9: 3D Character Safety Gear & Honor Title Customizer -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-cyan-500/35 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-cyan-300">⛑️ 나만의 3D 안전모 색상 & 명예 소방 칭호 꾸미기</span>
+          <span id="customGearPreviewBadge" class="text-[11px] font-bold text-amber-300">[용감한 대피 대장] · 빨간 안전모</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-300 font-bold shrink-0">안전모 색상:</span>
+            <select id="helmetColorSelect" aria-label="3D 캐릭터 안전모 색상 선택" class="flex-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold">
+              <option value="#ef4444">🔴 소방 레드</option>
+              <option value="#facc15">🟡 골든 히어로</option>
+              <option value="#38bdf8">🔵 네온 사이버 블루</option>
+              <option value="#10b981">🟢 에메랄드 구조대</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-300 font-bold shrink-0">명예 칭호:</span>
+            <select id="honorTitleSelect" aria-label="명예 소방 칭호 선택" class="flex-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-amber-200 font-bold">
+              <option value="용감한 대피 대장">🔥 용감한 대피 대장</option>
+              <option value="연기 돌파 전문가">💨 연기 돌파 전문가</option>
+              <option value="119 구조 영웅">🚒 119 구조 영웅</option>
+              <option value="방화문 수호천사">🚪 방화문 수호천사</option>
+              <option value="우리 학교 안전 박사">🎓 우리 학교 안전 박사</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <!-- 10 Safety Badges Grid -->
@@ -794,6 +865,53 @@
           </div>
           <button id="btnPrintWorksheet" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shrink-0">🖨️ 인쇄하기</button>
         </div>
+
+        <!-- Idea 1: Smartboard Classroom Golden Bell Finger Voting Mode -->
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/40 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-amber-300">🔔 전자칠판 학급 골든벨 (손가락 투표 5초 카운트다운) 모드</div>
+            <div class="text-[11px] text-slate-400">교실 기기가 부족할 때 전자칠판 1대로 반 전체가 손가락(1·2·3번)으로 투표하며 퀴즈를 풉니다.</div>
+          </div>
+          <button id="btnToggleGoldenBell" type="button" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-extrabold text-slate-950 shrink-0">골든벨 켜기</button>
+        </div>
+
+        <!-- Idea 2: 3-Minute Speed Core Drill Mode for Morning Study / 5-Min Safety Class -->
+        <div class="p-2.5 rounded-xl bg-slate-950 border border-orange-500/40 flex items-center justify-between gap-2">
+          <div>
+            <div class="text-xs font-extrabold text-orange-300">⚡ 아침 자습·창체 5분용 ‘3분 스피드 핵심 대피’ 모드</div>
+            <div class="text-[11px] text-slate-400">복잡한 열쇠·암호 없이 [젖은 수건 → 낮은 자세 → 문 온도 확인 → 비상구] 4대 수칙만 3분 내 체험합니다.</div>
+          </div>
+          <button id="btnStartSpeedDrillTeacher" type="button" class="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-xs font-extrabold text-white shrink-0">⚡ 3분모드 시작</button>
+        </div>
+      </div>
+
+      <!-- Idea 5: 7 School Safety Standards Seasonal / Monthly 1-Click Lesson Packs -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-teal-500/40 space-y-2 text-xs">
+        <div class="font-extrabold text-teal-300 flex items-center justify-between">
+          <span>🗓️ 학교 안전교육 7대 표준안 맞춤 ‘계절·월별 원클릭 수업 팩’</span>
+          <span class="text-[10px] text-slate-400">클릭 시 맞춤 스테이지·브리핑·QR 프리셋이 1초 만에 세팅됩니다</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          <button id="btnSeasonSpring" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-teal-950 border border-teal-500/40 text-left transition">
+            <div class="font-extrabold text-emerald-300 text-xs">🌱 봄 (3~5월)</div>
+            <div class="text-[10px] text-slate-300 mt-0.5">과학실 실험·캠핑장 산불·배터리 안전</div>
+          </button>
+          <button id="btnSeasonSummer" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-sky-950 border border-sky-500/40 text-left transition">
+            <div class="font-extrabold text-sky-300 text-xs">☀️ 여름 (6~8월)</div>
+            <div class="text-[10px] text-slate-300 mt-0.5">냉방기 과부하·지하철 정전 대피</div>
+          </button>
+          <button id="btnSeasonAutumn" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-amber-950 border border-amber-500/40 text-left transition">
+            <div class="font-extrabold text-amber-300 text-xs">🍁 가을 (9~10월)</div>
+            <div class="text-[10px] text-slate-300 mt-0.5">아파트 완강기·경량칸막이 피난</div>
+          </button>
+          <button id="btnSeasonWinter" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-rose-950 border border-rose-500/40 text-left transition">
+            <div class="font-extrabold text-rose-300 text-xs">❄️ 겨울 (11~2월)</div>
+            <div class="text-[10px] text-slate-300 mt-0.5">난방기·주방 식용유(K급)·문어발 콘센트</div>
+          </button>
+        </div>
+        <div id="seasonPackNotice" class="text-[11px] text-teal-200 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800">
+          💡 계절 버튼을 누르면 해당 시기에 꼭 필요한 안전교육 스테이지와 브리핑 슬라이드가 즉시 준비됩니다.
+        </div>
       </div>
 
       <!-- Feature 1: Smartboard Instant Entry QR Code & Class Preset Link Generator -->
@@ -880,6 +998,25 @@
         </div>
       </details>
 
+      <!-- Idea 3: Student Verification Code 1-Second Batch Aggregator & CSV Download -->
+      <details class="bg-slate-950 border border-indigo-500/40 rounded-xl p-2.5 text-xs">
+        <summary class="cursor-pointer font-extrabold text-indigo-300 select-none">📊 학생 클리어 인증코드 1초 일괄 집계 & 엑셀(CSV) 다운로드</summary>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
+          <p class="text-[11px] text-slate-300 leading-relaxed">
+            학생들이 제출한 클리어 인증코드(예: <code class="text-emerald-300 font-mono">[서울초 5-2] 김안전 · 1단계 · 1450점 · 등급:안전 박사 (S) · #FS-1234</code> 또는 <code class="text-emerald-300 font-mono">119-S1-S1850-42</code>)를 여러 줄 붙여넣으면 1초 만에 통계를 집계하고 엑셀(CSV)로 저장합니다.
+          </p>
+          <textarea id="teacherBatchCodeInput" rows="3" placeholder="여기에 학생들이 복사해 제출한 인증코드 여러 줄을 붙여넣으세요..." class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono"></textarea>
+          <div class="flex flex-wrap gap-1.5">
+            <button id="btnAnalyzeBatchCodes" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold">📊 1초 일괄 분석하기</button>
+            <button id="btnSampleBatchCodes" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold">🧪 예시 데이터 넣기</button>
+            <button id="btnDownloadBatchCsv" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold">📥 엑셀(CSV) 다운로드</button>
+          </div>
+          <div id="teacherBatchSummaryBox" class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300">
+            인증코드를 붙여넣고 [1초 일괄 분석하기]를 누르면 참여 인원, 평균 점수, 등급 분포가 표시됩니다.
+          </div>
+        </div>
+      </details>
+
       <!-- Feature 8: School Record (학교생활기록부) Auto-Phrase Generator -->
       <details class="bg-slate-950 border border-emerald-500/40 rounded-xl p-2.5 text-xs">
         <summary class="cursor-pointer font-extrabold text-emerald-300 select-none">📝 학교생활기록부(안전교육·자율·창체) 예시 문구 자동 생성기</summary>
@@ -922,6 +1059,7 @@
           <h3 id="notebookModalTitle" class="text-base sm:text-lg font-extrabold text-white mt-0.5">📓 방탈출 수첩 · 단계별 힌트 · 소지품 가방</h3>
         </div>
         <div class="flex items-center gap-1.5">
+          <button id="btnNotebookAutoGuide" type="button" class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition">🧑‍🚒 대장님 5초 길안내</button>
           <button id="btnToggleClueZoom" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-sky-300">🔍 글자크게(확대)</button>
           <button id="btnCloseNotebookModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
         </div>

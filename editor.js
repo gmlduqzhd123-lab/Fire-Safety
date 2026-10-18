@@ -148,12 +148,53 @@
     const btnLoadMapCode = document.getElementById('btnLoadMapCode');
     const btnPlayCustomMap = document.getElementById('btnPlayCustomMap');
     const btnResetCustomMap = document.getElementById('btnResetCustomMap');
+    const editorBgImageInput = document.getElementById('editorBgImageInput');
+    const btnClearEditorBg = document.getElementById('btnClearEditorBg');
+    const editorBgOpacityRange = document.getElementById('editorBgOpacityRange');
 
     let editorBrush = 'floor';
     let editorGrid = [];
     let editorFires = [];
     let editorSmokes = [];
     let editorItems = [];
+    let editorBgImg = null;
+    let editorBgOpacity = 0.45;
+
+    if (editorBgImageInput) {
+      editorBgImageInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            editorBgImg = img;
+            drawEditorCanvas();
+            if (callbacks && callbacks.showToast) {
+              callbacks.showToast('📷 피난안내도 밑그림 사진이 적용되었습니다! 투명도를 조절하며 벽·비상구를 따라 그려보세요.');
+            }
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (btnClearEditorBg) {
+      btnClearEditorBg.addEventListener('click', () => {
+        editorBgImg = null;
+        if (editorBgImageInput) editorBgImageInput.value = '';
+        drawEditorCanvas();
+        if (callbacks && callbacks.showToast) {
+          callbacks.showToast('🗑️ 밑그림 사진을 지웠습니다.');
+        }
+      });
+    }
+    if (editorBgOpacityRange) {
+      editorBgOpacityRange.addEventListener('input', () => {
+        editorBgOpacity = Math.max(0.15, Math.min(0.85, Number(editorBgOpacityRange.value || 45) / 100));
+        drawEditorCanvas();
+      });
+    }
 
     function syncEditorCode() {
       const data = { g: editorGrid, f: editorFires, s: editorSmokes, i: editorItems };
@@ -181,7 +222,7 @@
           else if (t === TILE.EXIT) editorCtx.fillStyle = '#059669';
           else if (t === TILE.HOT_DOOR) editorCtx.fillStyle = '#991b1b';
           else if (t === TILE.PHONE_119) editorCtx.fillStyle = '#581c87';
-          else editorCtx.fillStyle = '#1e293b';
+          else editorCtx.fillStyle = editorBgImg ? 'rgba(30, 41, 59, 0.55)' : '#1e293b';
 
           editorCtx.fillRect(x, y, tw - 1, th - 1);
           editorCtx.font = '13px sans-serif';
@@ -203,6 +244,12 @@
           else if (t === TILE.HAZARD) editorCtx.fillText('⚠️', x + tw / 2, y + th / 2);
           else if (t === TILE.EXIT) editorCtx.fillText('🏃', x + tw / 2, y + th / 2);
         }
+      }
+      if (editorBgImg) {
+        editorCtx.save();
+        editorCtx.globalAlpha = editorBgOpacity;
+        editorCtx.drawImage(editorBgImg, 0, 0, ew, eh);
+        editorCtx.restore();
       }
       for (const s of editorSmokes) {
         editorCtx.fillText('💨', (s.c + 0.5) * tw, (s.r + 0.5) * th);
