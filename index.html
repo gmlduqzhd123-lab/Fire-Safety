@@ -306,6 +306,16 @@
           <!-- ⛶ 전체화면 · 📲 앱 설치 · 📱 QR (엽쌤 앱 공통, 메인 화면에서만 보임) -->
           <div class="ys-top ys-top-card"><button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
 
+          <!-- Top Quick Navigation Bar on Game End (Stage Clear / Game Over / All Clear) -->
+          <div id="overlayResultTopBar" class="hidden items-center justify-end gap-1.5 -mb-1">
+            <button id="btnHomeOverlayTop" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800/95 hover:bg-slate-700 border border-slate-600 text-amber-200 font-extrabold text-[11px] transition inline-flex items-center gap-1 shadow">
+              🏠 메인화면
+            </button>
+            <button id="btnExitOverlayTop" type="button" class="px-2.5 py-1 rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500/50 text-rose-200 font-extrabold text-[11px] transition inline-flex items-center gap-1 shadow">
+              🚪 게임 종료
+            </button>
+          </div>
+
           <!-- Hero Title & Game Introduction -->
           <div class="flex flex-col items-center gap-1">
             <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 shadow-sm">
@@ -461,15 +471,15 @@
             </details>
           </div>
 
-          <div class="flex flex-row flex-wrap items-center gap-2 pt-0.5">
+          <div id="overlayActionsRow" class="sticky bottom-0 z-10 bg-slate-950/95 backdrop-blur-sm flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 pt-1.5 pb-1 border-t border-slate-800/80">
             <!-- PRD F04: Continue Valid Saved Campaign Button -->
-            <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[135px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[130px] h-11 sm:h-12 px-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ⏯️ 이어하기
             </button>
-            <button id="btnReviveWithQuiz" type="button" class="hidden flex-1 min-w-[165px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl border border-emerald-300/60 transition whitespace-nowrap inline-flex items-center justify-center animate-pulse">
-              🛡️ 안전 퀴즈 풀고 그 자리 부활!
+            <button id="btnReviveWithQuiz" type="button" class="hidden flex-1 min-w-[155px] h-11 sm:h-12 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl border border-emerald-300/60 transition whitespace-nowrap inline-flex items-center justify-center animate-pulse">
+              🛡️ 안전 퀴즈 풀고 부활!
             </button>
-            <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[135px] h-11 sm:h-12 px-4 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[130px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ▶️ 게임 시작하기
             </button>
             <button id="btnMainGuide" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
@@ -478,10 +488,13 @@
             <button id="btnOpenCertFromOverlay" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🏅 수료증·도감
             </button>
-            <button id="btnSecondaryAction" type="button" class="hidden h-11 sm:h-12 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnSecondaryAction" type="button" class="hidden h-11 sm:h-12 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🔄 다시하기
             </button>
-            <button id="btnExitGameOverlay" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnHomeFromOverlay" type="button" class="hidden h-11 sm:h-12 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+              🏠 메인화면
+            </button>
+            <button id="btnExitGameOverlay" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🚪 게임 종료
             </button>
           </div>

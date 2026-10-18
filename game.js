@@ -537,8 +537,9 @@
   function getVisibleOverlayButtons() {
     const continueBtn = document.getElementById('btnContinueSaved');
     const reviveBtn = document.getElementById('btnReviveWithQuiz');
+    const homeOverlayBtn = document.getElementById('btnHomeFromOverlay');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    return [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].filter(
+    return [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, homeOverlayBtn, exitOverlayBtn].filter(
       (b) => b && !b.classList.contains('hidden') && !b.disabled
     );
   }
@@ -550,8 +551,9 @@
     if (overlaySelectedIndex < 0) overlaySelectedIndex = btns.length - 1;
     const continueBtn = document.getElementById('btnContinueSaved');
     const reviveBtn = document.getElementById('btnReviveWithQuiz');
+    const homeOverlayBtn = document.getElementById('btnHomeFromOverlay');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].forEach((b) => {
+    [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, homeOverlayBtn, exitOverlayBtn].forEach((b) => {
       if (b) b.classList.remove('kb-selected');
     });
     const targetBtn = btns[overlaySelectedIndex];
@@ -2518,6 +2520,13 @@
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
     if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
+    const homeFromOverlayClear = document.getElementById('btnHomeFromOverlay');
+    if (homeFromOverlayClear) homeFromOverlayClear.classList.remove('hidden');
+    const resultTopBarClear = document.getElementById('overlayResultTopBar');
+    if (resultTopBarClear) {
+      resultTopBarClear.classList.remove('hidden');
+      resultTopBarClear.classList.add('flex');
+    }
     btnOpenCertFromOverlay.classList.remove('hidden');
     populateDebriefReport(false);
 
@@ -2564,6 +2573,8 @@
     }
     if (typeof saveCampaignState === 'function') saveCampaignState();
     gameOverlay.classList.remove('hidden');
+    const overlayCardClear = document.getElementById('overlayCard');
+    if (overlayCardClear) overlayCardClear.scrollTop = 0;
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
   }
@@ -2605,6 +2616,13 @@
     overlayStats.classList.add('grid');
     overlayTipsBox.classList.add('hidden');
     if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
+    const homeFromOverlayOver = document.getElementById('btnHomeFromOverlay');
+    if (homeFromOverlayOver) homeFromOverlayOver.classList.remove('hidden');
+    const resultTopBarOver = document.getElementById('overlayResultTopBar');
+    if (resultTopBarOver) {
+      resultTopBarOver.classList.remove('hidden');
+      resultTopBarOver.classList.add('flex');
+    }
     btnOpenCertFromOverlay.classList.remove('hidden');
     populateDebriefReport(true);
 
@@ -2612,7 +2630,7 @@
     overlaySubtitle.textContent = '대피 실패 · 동선 리플레이 분석';
     if (reason === 'exposure') {
       overlayTitle.textContent = `위험 노출 허용 시간(${runOptions.hazardLimitSeconds || 300}초)을 초과했습니다!`;
-      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🛡️ 안전 퀴즈 풀고 그 자리 부활!]</strong> 버튼을 눌러 오답노트를 풀고 이어서 탈출해 보세요!`;
+      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🛡️ 안전 퀴즈 풀고 부활!]</strong> 버튼을 눌러 오답노트를 풀고 이어서 탈출해 보세요!`;
     } else {
       overlayTitle.textContent = reason === 'o2' ? '유독가스에 질식했습니다!' : '불길에 큰 화상을 입었습니다!';
       overlayDesc.innerHTML = reason === 'o2'
@@ -2624,6 +2642,8 @@
     btnSecondaryAction.classList.remove('hidden');
     btnSecondaryAction.textContent = '1단계부터 시작';
     gameOverlay.classList.remove('hidden');
+    const overlayCardOver = document.getElementById('overlayCard');
+    if (overlayCardOver) overlayCardOver.scrollTop = 0;
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
   }
@@ -7654,6 +7674,15 @@
     debriefReportBox.classList.add('hidden');
     const worldBar = document.getElementById('worldSelectBar');
     if (worldBar) worldBar.classList.add('hidden');
+    const reviveBtnMain = document.getElementById('btnReviveWithQuiz');
+    if (reviveBtnMain) reviveBtnMain.classList.add('hidden');
+    const homeFromOverlayMain = document.getElementById('btnHomeFromOverlay');
+    if (homeFromOverlayMain) homeFromOverlayMain.classList.add('hidden');
+    const resultTopBarMain = document.getElementById('overlayResultTopBar');
+    if (resultTopBarMain) {
+      resultTopBarMain.classList.add('hidden');
+      resultTopBarMain.classList.remove('flex');
+    }
     if (typeof selectWorldCard === 'function') selectWorldCard('fire');
     if (typeof syncContinueButtonUI === 'function') syncContinueButtonUI();
     if (btnMainGuide) btnMainGuide.classList.remove('hidden');
@@ -7661,6 +7690,8 @@
     btnSecondaryAction.classList.add('hidden');
     btnPrimaryAction.textContent = '▶️ 게임 시작하기';
     gameOverlay.classList.remove('hidden');
+    const overlayCardMain = document.getElementById('overlayCard');
+    if (overlayCardMain) overlayCardMain.scrollTop = 0;
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
   }
@@ -7673,6 +7704,24 @@
         moreToolsDrawer.classList.remove('flex');
       }
       showMainTitleScreen();
+    });
+  }
+
+  const btnHomeFromOverlay = document.getElementById('btnHomeFromOverlay');
+  if (btnHomeFromOverlay) {
+    btnHomeFromOverlay.addEventListener('click', () => {
+      SoundFX.init();
+      showMainTitleScreen();
+      showToast('🏠 메인 타이틀 화면으로 돌아왔습니다!');
+    });
+  }
+
+  const btnHomeOverlayTop = document.getElementById('btnHomeOverlayTop');
+  if (btnHomeOverlayTop) {
+    btnHomeOverlayTop.addEventListener('click', () => {
+      SoundFX.init();
+      showMainTitleScreen();
+      showToast('🏠 메인 타이틀 화면으로 돌아왔습니다!');
     });
   }
 
@@ -10285,7 +10334,9 @@
     updateHUD();
   }
 
+  const btnExitOverlayTop = document.getElementById('btnExitOverlayTop');
   if (btnExitGameOverlay) btnExitGameOverlay.addEventListener('click', openExitGameModalFn);
+  if (btnExitOverlayTop) btnExitOverlayTop.addEventListener('click', openExitGameModalFn);
   if (btnExitGameTop) btnExitGameTop.addEventListener('click', openExitGameModalFn);
   if (btnExitFromSettings) btnExitFromSettings.addEventListener('click', openExitGameModalFn);
   if (btnCloseExitModal) btnCloseExitModal.addEventListener('click', closeExitGameModalFn);
@@ -10832,6 +10883,11 @@
   function initApp() {
     if (appInitialized) return;
     appInitialized = true;
+    window.fireEscapeAPI = Object.assign(window.fireEscapeAPI || {}, {
+      triggerStageClear: handleStageClear,
+      triggerGameOver: handleGameOver,
+      showMainTitleScreen
+    });
     syncGoldenBellUI();
     syncSpeedDrillUI();
     syncCustomGearUI();

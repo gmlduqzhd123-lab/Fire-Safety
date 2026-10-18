@@ -313,29 +313,69 @@ body.landscape-console #eduModal {
 }
 
 body.landscape-console #overlayCard {
-  max-width: 680px !important;
-  max-height: 95% !important;
+  max-width: 720px !important;
+  max-height: 97% !important;
 }
 
-/* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) so Start button is always visible */
+/* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) so Start & End-of-Game buttons are always visible */
 @media (max-height: 540px) {
   body.landscape-console #overlayCard {
-    padding: 8px 14px !important;
-    gap: 4px !important;
+    padding: 6px 12px !important;
+    gap: 3px !important;
   }
   body.landscape-console #overlayTitle {
-    font-size: 1.15rem !important;
-    line-height: 1.35rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.25rem !important;
   }
   body.landscape-console #overlayDesc {
-    font-size: 0.7rem !important;
-    line-height: 1rem !important;
+    font-size: 0.68rem !important;
+    line-height: 0.92rem !important;
   }
   body.landscape-console #fireStepCardsGrid {
     display: none !important;
   }
   body.landscape-console #worldSelectBar > button {
     padding: 4px 6px !important;
+  }
+  body.landscape-console #overlayStats {
+    padding: 3px 6px !important;
+    gap: 4px !important;
+  }
+  body.landscape-console #debriefReportBox {
+    padding: 4px 8px !important;
+    gap: 3px !important;
+  }
+  body.landscape-console #debriefReportBox > * + * {
+    margin-top: 3px !important;
+  }
+  body.landscape-console #replayMinimap {
+    height: 68px !important;
+    width: auto !important;
+  }
+  body.landscape-console #debriefPrescriptionBox {
+    padding: 3px 6px !important;
+    font-size: 0.65rem !important;
+  }
+  body.landscape-console #debriefReportBox details {
+    padding: 3px 6px !important;
+  }
+  body.landscape-console #overlayActionsRow {
+    bottom: -6px !important;
+    margin-bottom: -6px !important;
+    padding-top: 5px !important;
+    padding-bottom: 6px !important;
+    background: #020617 !important;
+    gap: 4px !important;
+  }
+  body.landscape-console #overlayActionsRow > button {
+    height: 34px !important;
+    padding: 0 9px !important;
+    font-size: 0.72rem !important;
+    border-radius: 10px !important;
+    min-width: auto !important;
+  }
+  body.landscape-console .ys-credit {
+    display: none !important;
   }
 }
 
