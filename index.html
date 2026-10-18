@@ -34,7 +34,7 @@
 
   <!-- Smartphone Portrait Warning Overlay ('가로로 돌려주세요') -->
   <div id="rotateNoticeOverlay" class="fixed inset-0 z-[100] hidden flex-col items-center justify-center bg-slate-950/98 backdrop-blur-md p-6 text-center select-none">
-    <div class="ys-top ys-top-fixed"><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
+    <div class="ys-top ys-top-fixed"><button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
     <div class="relative w-24 h-24 mb-5 flex items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500/20 to-red-600/20 border border-orange-500/40 shadow-2xl shadow-orange-600/20">
       <div class="rotate-phone-anim text-5xl">📱</div>
       <span class="absolute -bottom-2 px-2.5 py-0.5 rounded-full bg-orange-600 text-[10px] font-black text-white tracking-wider uppercase shadow">LANDSCAPE ONLY</span>
@@ -58,31 +58,36 @@
   <div id="appRoot" class="w-full min-h-screen flex flex-col bg-slate-950 text-slate-100">
 
   <!-- Top Navigation & Live Step-by-Step Objective Header -->
-  <header id="appHeader" class="w-full bg-slate-900/95 border-b border-slate-800 px-2.5 sm:px-4 py-1.5 sticky top-0 z-30 backdrop-blur">
-    <div id="headerInner" class="max-w-5xl mx-auto flex flex-col gap-1.5">
-      <!-- Single Clean Top Bar: [Title + Stage] | [Live Next-Step Guide] | [3 Essential Buttons] -->
-      <div id="headerTopRow" class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-1.5 shrink-0">
-          <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow text-xs sm:text-sm shrink-0">
+  <header id="appHeader" class="w-full bg-slate-900/95 border-b border-slate-800 px-2 sm:px-3 py-1 sticky top-0 z-30 backdrop-blur">
+    <div id="headerInner" class="max-w-5xl mx-auto flex flex-col gap-1">
+      <!-- Single Clean Top Bar: [Title + Stage] | [Live Next-Step Guide] | [Essential Buttons] -->
+      <div id="headerTopRow" class="flex items-center justify-between gap-1.5">
+        <div class="flex items-center gap-1 shrink-0">
+          <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow text-xs shrink-0">
             🔥
           </div>
-          <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white flex items-center gap-1.5">
-            <span class="hidden sm:inline shrink-0">화재 탈출</span>
-            <span id="stageBadge" class="text-[11px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold truncate max-w-[130px] sm:max-w-none">1단계: 2층 침실</span>
+          <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white flex items-center gap-1">
+            <span class="hidden lg:inline shrink-0">화재 탈출</span>
+            <span id="stageBadge" class="text-[10.5px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold truncate max-w-[135px] lg:max-w-[260px]">1단계: 2층 침실</span>
             <span id="classBanner" class="hidden text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold shrink-0">🏫 학급 미지정</span>
           </h1>
         </div>
 
         <!-- Center: At-a-Glance Live Objective Guide Pill -->
-        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[11px] sm:text-xs font-extrabold text-center truncate shadow-sm">
+        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10.5px] sm:text-xs font-extrabold text-center truncate shadow-sm">
           🎯 지금 할 일: 🧣 수건을 챙기세요!
         </div>
 
-        <!-- Right: Core Gameplay Buttons Only (3D View, Hints/Notebook, Restart, Menu) -->
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button id="btnCamera3D" type="button" class="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-indigo-600/35 hover:bg-indigo-600/55 border border-indigo-400/60 text-indigo-100 transition flex items-center gap-1 shadow-sm" title="3D 입체뷰 / 1인칭 3D 시점 전환 (단축키 V)">
+        <!-- Right: Core Gameplay Buttons Only (Fullscreen, 3D View, Hints/Notebook, Restart, Menu) -->
+        <div class="flex items-center gap-1 shrink-0">
+          <button id="btnFullscreenTop" type="button" data-fullscreen-btn class="px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-emerald-600/35 hover:bg-emerald-600/55 border border-emerald-400/60 text-emerald-100 transition flex items-center gap-1 shadow-sm" title="전체화면 전환 (단축키 F11)">
+            <span id="fullscreenTopIcon">⛶</span>
+            <span id="fullscreenTopText" class="text-[10.5px] sm:text-xs">전체화면</span>
+          </button>
+
+          <button id="btnCamera3D" type="button" class="px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-indigo-600/35 hover:bg-indigo-600/55 border border-indigo-400/60 text-indigo-100 transition flex items-center gap-1 shadow-sm" title="3D 입체뷰 / 1인칭 3D 시점 전환 (단축키 V)">
             <span id="camera3DIcon">🧊</span>
-            <span id="camera3DText" class="text-[11px] sm:text-xs">3D입체뷰</span>
+            <span id="camera3DText" class="text-[10.5px] sm:text-xs">3D입체뷰</span>
           </button>
 
           <!-- Shown automatically only when player holds the flashlight -->
@@ -275,13 +280,19 @@
     <div class="relative w-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl" id="canvasContainer">
       <canvas id="gameCanvas" class="w-full h-full cursor-pointer"></canvas>
 
+      <!-- Quick 1-Tap Map Zoom Toggle Pill (1.0x Wide Full-Bleed <-> 1.4x Close-Up Follow Cam) -->
+      <button id="btnMapZoomToggle" type="button" class="absolute top-1.5 right-1.5 z-20 px-2 py-0.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-sky-400/60 text-sky-200 text-[10px] sm:text-[11px] font-extrabold shadow transition flex items-center gap-1" title="화면 확대 / 전체 맵 전환 (단축키 Z)">
+        <span id="mapZoomIcon">🔍</span>
+        <span id="mapZoomText">화면확대</span>
+      </button>
+
       <!-- Live Toast Notification Banner inside Game View -->
-      <div id="toastBanner" class="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-slate-950/95 border border-amber-500/60 text-amber-200 text-[11px] sm:text-xs font-bold shadow-lg transition-all duration-300 opacity-0 -translate-y-2 max-w-[92%] truncate text-center">
+      <div id="toastBanner" class="pointer-events-none absolute top-1.5 left-1/2 -translate-x-1/2 z-20 px-2.5 py-0.5 rounded-full bg-slate-950/95 border border-amber-500/60 text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-lg transition-all duration-300 opacity-0 -translate-y-2 max-w-[85%] truncate text-center">
         화재가 발생했습니다! 노란 화살표(🎯 목표)를 따라 대피하세요!
       </div>
 
       <!-- Context Prompt Pill near Bottom of Canvas -->
-      <div id="contextPrompt" class="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[11px] sm:text-xs font-extrabold shadow-lg transition-opacity duration-200 opacity-0 max-w-[92%] truncate">
+      <div id="contextPrompt" class="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 z-20 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10.5px] sm:text-xs font-extrabold shadow-lg transition-opacity duration-200 opacity-0 max-w-[92%] truncate">
         우측 [✋ 행동하기] 버튼을 누르세요!
       </div>
 
@@ -292,8 +303,8 @@
         <div class="pointer-events-none fixed bottom-0 right-1/4 w-72 h-72 bg-sky-500/10 rounded-full blur-3xl"></div>
 
         <div id="overlayCard" class="relative bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-3.5 sm:p-6 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-center flex flex-col gap-2 sm:gap-3.5 my-auto max-h-[96%] overflow-y-auto no-scrollbar break-keep">
-          <!-- 📲 앱 설치 · 📱 QR (엽쌤 앱 공통, 메인 화면에서만 보임) -->
-          <div class="ys-top ys-top-card"><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
+          <!-- ⛶ 전체화면 · 📲 앱 설치 · 📱 QR (엽쌤 앱 공통, 메인 화면에서만 보임) -->
+          <div class="ys-top ys-top-card"><button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
 
           <!-- Hero Title & Game Introduction -->
           <div class="flex flex-col items-center gap-1">

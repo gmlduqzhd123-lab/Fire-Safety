@@ -3425,17 +3425,37 @@
     };
   };
 
+  let dioramaZoom = 1.0;
+
   function computeDioramaLayout(w, h) {
-    const padX = 18;
-    const padTop = 22;
-    const padBottom = 14;
-    const tileW = (w - padX * 2) / COLS;
-    const tileH = (h - padTop - padBottom) / (ROWS + 0.48);
-    const tileSize = Math.max(12, Math.min(tileW, tileH));
-    const wallH = tileSize * 0.50;
-    const offsetX = (w - tileSize * COLS) / 2;
-    const offsetY = padTop + wallH + (h - padTop - padBottom - wallH - tileSize * ROWS) / 2;
-    return { tileSize, wallH, offsetX, offsetY, isCloseUp: false };
+    const isCompact = h < 540;
+    const padX = isCompact ? 4 : 8;
+    const padTop = isCompact ? 4 : 10;
+    const padBottom = isCompact ? 4 : 6;
+    const wallRatio = isCompact ? 0.36 : 0.44;
+    const slabRatio = isCompact ? 0.16 : 0.22;
+    const rawTileW = (w - padX * 2) / COLS;
+    const tileH = (h - padTop - padBottom) / (ROWS + wallRatio + slabRatio);
+    const tileSize = Math.max(12, Math.min(rawTileW, tileH));
+    const stretchX = Math.max(1, Math.min(1.52, rawTileW / Math.max(1, tileSize)));
+    const zoom = dioramaZoom || 1;
+    const wallH = tileSize * wallRatio;
+    const slabH = tileSize * slabRatio;
+    const boardW = tileSize * COLS * stretchX;
+    const boardH = tileSize * ROWS;
+    let offsetX = (w - boardW * zoom) / 2;
+    let offsetY = (padTop + wallH) * zoom + (h - (padTop + padBottom + wallH + boardH + slabH) * zoom) / 2;
+    if (zoom > 1.01 && typeof player !== 'undefined' && player) {
+      const targetX = w * 0.5 - (player.x * tileSize * stretchX) * zoom;
+      const targetY = h * 0.52 - (player.y * tileSize) * zoom;
+      const minX = w - (boardW + padX) * zoom;
+      const maxX = padX * zoom;
+      const minY = h - (boardH + slabH + padBottom) * zoom;
+      const maxY = (padTop + wallH) * zoom;
+      offsetX = Math.min(Math.max(targetX, Math.min(minX, maxX)), Math.max(minX, maxX));
+      offsetY = Math.min(Math.max(targetY, Math.min(minY, maxY)), Math.max(minY, maxY));
+    }
+    return { tileSize, stretchX, zoom, wallH, slabH, offsetX, offsetY, isCloseUp: zoom > 1.05 };
   }
 
   function computeShortestEscapePath(startC, startR, goalC, goalR) {
@@ -3526,14 +3546,17 @@
     cameraMode3D = cameraMode3D === 'DIORAMA_3D' ? 'FPS_3D' : 'DIORAMA_3D';
     const iconEl = document.getElementById('camera3DIcon');
     const textEl = document.getElementById('camera3DText');
+    const zoomBtnEl = document.getElementById('btnMapZoomToggle');
     if (cameraMode3D === 'FPS_3D') {
       orientCameraToOpenSpace();
       if (iconEl) iconEl.textContent = '👁️';
       if (textEl) textEl.textContent = '1인칭3D';
+      if (zoomBtnEl) zoomBtnEl.classList.add('hidden');
       showToast('👁️ [1인칭 3D 건물 탈출 뷰] ▲ 전진 · ▼ 후진 · ◀/▶ 방향전환으로 실제 3D 건물 속을 걸어 탈출하세요!', 'border-indigo-400');
     } else {
       if (iconEl) iconEl.textContent = '🧊';
       if (textEl) textEl.textContent = '3D입체뷰';
+      if (zoomBtnEl) zoomBtnEl.classList.remove('hidden');
       showToast('🧊 [3D 전체 건물 입체 뷰] 건물 전체 방 구조와 탈출 동선을 한눈에 보는 3D 입체 시점입니다!', 'border-indigo-400');
     }
     renderCanvas();
@@ -3542,6 +3565,29 @@
   const btnCamera3D = document.getElementById('btnCamera3D');
   if (btnCamera3D) {
     btnCamera3D.addEventListener('click', toggleCamera3DMode);
+  }
+
+  function toggleMapZoomMode() {
+    SoundFX.init();
+    SoundFX.pickup();
+    dioramaZoom = dioramaZoom > 1.05 ? 1.0 : 1.4;
+    const zIcon = document.getElementById('mapZoomIcon');
+    const zText = document.getElementById('mapZoomText');
+    if (dioramaZoom > 1.05) {
+      if (zIcon) zIcon.textContent = '🗺️';
+      if (zText) zText.textContent = '전체맵뷰';
+      showToast('🔍 [1.4배 플레이어 중심 확대뷰] 캐릭터와 방 구조를 크게 확대했습니다! (우측 상단 미니맵 표시)', 'border-sky-400');
+    } else {
+      if (zIcon) zIcon.textContent = '🔍';
+      if (zText) zText.textContent = '화면확대';
+      showToast('🗺️ [와이드 전체 건물 뷰] 건물 전체 대피 동선을 한눈에 표시합니다!', 'border-sky-400');
+    }
+    renderCanvas();
+  }
+
+  const btnMapZoomToggle = document.getElementById('btnMapZoomToggle');
+  if (btnMapZoomToggle) {
+    btnMapZoomToggle.addEventListener('click', toggleMapZoomMode);
   }
 
   function getCanvasGridCoords(clientX, clientY) {
@@ -3569,8 +3615,8 @@
       return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
     }
     const layout = computeDioramaLayout(local.width, local.height);
-    const gx = (local.x - layout.offsetX) / layout.tileSize;
-    const gy = (local.y - layout.offsetY) / layout.tileSize;
+    const gx = (local.x - layout.offsetX) / (layout.tileSize * (layout.stretchX || 1) * (layout.zoom || 1));
+    const gy = (local.y - layout.offsetY) / (layout.tileSize * (layout.zoom || 1));
     return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
   }
 
@@ -6046,16 +6092,16 @@
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
-    const isCloseUp = false;
     const layout = computeDioramaLayout(width, height);
-    const { tileSize, wallH, offsetX, offsetY } = layout;
+    const { tileSize, stretchX = 1, zoom = 1, wallH, offsetX, offsetY, isCloseUp } = layout;
     const boardW = COLS * tileSize;
     const boardH = ROWS * tileSize;
-    const sideBevel = Math.max(4, tileSize * 0.16);
-    const slabH = Math.max(8, tileSize * 0.28);
+    const sideBevel = Math.max(3, tileSize * 0.12);
+    const slabH = layout.slabH || Math.max(6, tileSize * 0.22);
 
     ctx.save();
     ctx.translate(offsetX, offsetY);
+    ctx.scale(stretchX * zoom, zoom);
 
     // 0. Draw 3D Architectural Building Plinth / Foundation Slab & Outer Drop Shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
@@ -6913,11 +6959,111 @@
   const landscapeToggleText = document.getElementById('landscapeToggleText');
   let userForceRotateFallback = false;
 
+  function isFullscreenActive() {
+    return !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  }
+
+  function syncFullscreenUI() {
+    const active = isFullscreenActive();
+    const iconEl = document.getElementById('fullscreenTopIcon');
+    const textEl = document.getElementById('fullscreenTopText');
+    if (iconEl) iconEl.textContent = active ? '🗗' : '⛶';
+    if (textEl) textEl.textContent = active ? '축소' : '전체화면';
+    document.querySelectorAll('.ys-chip[data-fullscreen-btn]').forEach((btn) => {
+      btn.textContent = active ? '🗗 전체화면 해제' : '⛶ 전체화면';
+    });
+  }
+
+  function requestGameFullscreen(quiet = true) {
+    const docEl = document.documentElement;
+    const req =
+      docEl.requestFullscreen ||
+      docEl.webkitRequestFullscreen ||
+      docEl.mozRequestFullScreen ||
+      docEl.msRequestFullscreen;
+    if (req && !isFullscreenActive()) {
+      try {
+        const res = req.call(docEl, { navigationUI: 'hide' });
+        if (res && typeof res.then === 'function') {
+          res.then(() => {
+            if (screen.orientation && typeof screen.orientation.lock === 'function') {
+              screen.orientation.lock('landscape').catch(() => {});
+            }
+            syncFullscreenUI();
+            setTimeout(resizeCanvas, 80);
+            if (!quiet) {
+              showToast('⛶ [전체화면 모드 ON] 상단 주소창을 숨기고 화면 전체로 플레이합니다!', 'border-emerald-400');
+            }
+          }).catch(() => {
+            if (!quiet) {
+              dioramaZoom = dioramaZoom > 1.05 ? 1.0 : 1.4;
+              resizeCanvas();
+              showToast('🔍 현재 브라우저(인앱)에서 전체화면이 제한되어 플레이 화면을 크게 확대했습니다!', 'border-sky-400');
+            }
+          });
+        }
+      } catch (e) {}
+    }
+    if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      try {
+        screen.orientation.lock('landscape').catch(() => {});
+      } catch (e) {}
+    }
+    try {
+      window.scrollTo(0, 1);
+    } catch (e) {}
+  }
+
+  function toggleGameFullscreen() {
+    SoundFX.init();
+    SoundFX.pickup();
+    if (isFullscreenActive()) {
+      const exitFn =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+      if (exitFn) {
+        try {
+          const p = exitFn.call(document);
+          if (p && typeof p.then === 'function') {
+            p.then(() => {
+              syncFullscreenUI();
+              setTimeout(resizeCanvas, 80);
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      }
+      showToast('🗗 전체화면 모드를 해제했습니다.');
+    } else {
+      requestGameFullscreen(false);
+    }
+  }
+
+  document.querySelectorAll('[data-fullscreen-btn]').forEach((btn) => {
+    btn.addEventListener('click', toggleGameFullscreen);
+  });
+  document.addEventListener('fullscreenchange', () => {
+    syncFullscreenUI();
+    setTimeout(resizeCanvas, 60);
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    syncFullscreenUI();
+    setTimeout(resizeCanvas, 60);
+  });
+
   function syncViewportOrientation() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    const visH = (window.visualViewport && window.visualViewport.height) ? Math.round(window.visualViewport.height) : vh;
     document.documentElement.style.setProperty('--vp-w', `${vw}px`);
     document.documentElement.style.setProperty('--vp-h', `${vh}px`);
+    document.documentElement.style.setProperty('--app-vh', `${visH}px`);
 
     const isPortraitViewport = vw < vh;
     if (!isPortraitViewport) {
@@ -6945,6 +7091,7 @@
     if (landscapeToggleText) {
       landscapeToggleText.textContent = '가로전용';
     }
+    syncFullscreenUI();
   }
 
   function resizeCanvas() {
@@ -6954,8 +7101,8 @@
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
     canvasContainer.style.height = '';
-    const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 290);
-    const availH = canvasContainer.clientHeight || Math.max(200, Math.min(window.innerWidth, window.innerHeight) - 52);
+    const availW = canvasContainer.clientWidth || Math.max(280, Math.max(window.innerWidth, window.innerHeight) - 228);
+    const availH = canvasContainer.clientHeight || Math.max(200, Math.min(window.innerWidth, window.innerHeight) - 38);
     cssCanvasW = Math.max(240, Math.floor(availW));
     cssCanvasH = Math.max(180, Math.floor(availH));
 
@@ -6971,6 +7118,9 @@
   }
 
   window.addEventListener('resize', resizeCanvas);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeCanvas);
+  }
   window.addEventListener('orientationchange', () => {
     setTimeout(resizeCanvas, 120);
   });
@@ -7377,6 +7527,11 @@
         toggleCamera3DMode();
       }
     }
+    if (e.code === 'KeyZ' && !e.repeat) {
+      if (gameState === 'PLAYING' && cameraMode3D === 'DIORAMA_3D') {
+        toggleMapZoomMode();
+      }
+    }
     if (e.code === 'KeyH' && !e.repeat) {
       if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         e.preventDefault();
@@ -7470,13 +7625,15 @@
     btnForceLandscapeFallback.addEventListener('click', () => {
       SoundFX.init();
       userForceRotateFallback = true;
-      if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      if (!navigator.webdriver) {
+        requestGameFullscreen(true);
+      } else if (screen.orientation && typeof screen.orientation.lock === 'function') {
         try {
           screen.orientation.lock('landscape').catch(() => {});
         } catch (e) {}
       }
       resizeCanvas();
-      showToast('📱 화면 회전 잠금 상태에서도 플레이할 수 있도록 가로 화면으로 전환했습니다!');
+      showToast('📱 화면 회전 잠금 상태에서도 플레이할 수 있도록 가로 전체화면으로 전환했습니다!');
     });
   }
 
@@ -8244,6 +8401,9 @@
 
   btnPrimaryAction.addEventListener('click', () => {
     SoundFX.init();
+    if (!navigator.webdriver) {
+      requestGameFullscreen(true);
+    }
     if (gameState === 'START') {
       if (selectedWorldId !== 'fire') {
         SoundFX.warning();
@@ -8551,6 +8711,9 @@
   if (btnContinueSaved) {
     btnContinueSaved.addEventListener('click', () => {
       SoundFX.init();
+      if (!navigator.webdriver) {
+        requestGameFullscreen(true);
+      }
       const saved = loadValidCampaignSave();
       if (saved) {
         restoreCampaignState(saved);

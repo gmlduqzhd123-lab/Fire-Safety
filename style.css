@@ -100,11 +100,13 @@ body.landscape-console {
   overflow: hidden !important;
   height: 100vh !important;
   height: 100dvh !important;
+  height: var(--app-vh, 100dvh) !important;
 }
 
 body.landscape-console #appRoot {
   height: 100vh !important;
   height: 100dvh !important;
+  height: var(--app-vh, 100dvh) !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
@@ -131,7 +133,7 @@ body.force-landscape.is-portrait-viewport #appRoot {
 
 /* Ultra-compact single-row top bar in Landscape Console Mode */
 body.landscape-console #appHeader {
-  padding: 3px 8px !important;
+  padding: 2px 6px !important;
   position: relative !important;
 }
 
@@ -140,14 +142,14 @@ body.landscape-console #headerInner {
   flex-direction: row !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 6px !important;
+  gap: 4px !important;
   flex-wrap: nowrap !important;
 }
 
 body.landscape-console #headerTopRow {
   flex: 1 1 auto !important;
   min-width: 0 !important;
-  gap: 6px !important;
+  gap: 4px !important;
 }
 
 body.landscape-console #headerStageRow {
@@ -160,8 +162,8 @@ body.landscape-console #moreToolsDrawer:not(.hidden) {
   flex-direction: column !important;
   position: absolute !important;
   top: 100% !important;
-  right: 8px !important;
-  left: 8px !important;
+  right: 6px !important;
+  left: 6px !important;
   z-index: 60 !important;
   background: rgba(15, 23, 42, 0.98) !important;
   padding: 8px 10px !important;
@@ -170,17 +172,17 @@ body.landscape-console #moreToolsDrawer:not(.hidden) {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8) !important;
 }
 
-/* 3-Column Handheld Gamepad Grid: [Left: HUD + D-Pad] [Center: Map Canvas] [Right: Action Buttons] */
+/* 3-Column Handheld Gamepad Grid: Slimmed side docks so Center Map Canvas is maximally large */
 body.landscape-console #gameMain {
   max-width: none !important;
   width: 100% !important;
   flex: 1 1 0% !important;
   min-height: 0 !important;
-  padding: 4px 8px 6px 8px !important;
+  padding: 2px 4px 3px 4px !important;
   display: grid !important;
-  grid-template-columns: 144px minmax(0, 1fr) 124px !important;
+  grid-template-columns: 118px minmax(0, 1fr) 98px !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
-  gap: 6px !important;
+  gap: 4px !important;
   align-items: stretch !important;
   overflow: hidden !important;
 }
@@ -192,28 +194,29 @@ body.landscape-console #controlsSection {
 body.landscape-console #hudSection {
   grid-column: 1 !important;
   grid-row: 1 !important;
-  padding: 6px !important;
-  gap: 4px !important;
+  padding: 4px 5px !important;
+  gap: 2px !important;
   justify-content: center !important;
 }
 
 body.landscape-console #hudVitalsRow {
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 3px !important;
+  gap: 2px !important;
 }
 
 body.landscape-console #hudBarsBox {
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 3px !important;
+  gap: 2px !important;
   min-width: 0 !important;
 }
 
 body.landscape-console #hudMissionRow {
   flex-direction: column !important;
   align-items: flex-start !important;
-  gap: 2px !important;
+  gap: 1px !important;
+  padding-top: 2px !important;
 }
 
 body.landscape-console #missionShort {
@@ -230,14 +233,14 @@ body.landscape-console #dpadWrapper {
   justify-content: center !important;
   background: rgba(15, 23, 42, 0.92) !important;
   border: 1px solid #1e293b !important;
-  border-radius: 0.75rem !important;
-  padding: 4px !important;
+  border-radius: 0.65rem !important;
+  padding: 2px !important;
   min-height: 0 !important;
 }
 
 body.landscape-console #dpadPad {
-  width: 132px !important;
-  height: 132px !important;
+  width: 110px !important;
+  height: 110px !important;
 }
 
 body.landscape-console #canvasContainer {
@@ -251,6 +254,7 @@ body.landscape-console #canvasContainer {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  border-radius: 0.65rem !important;
 }
 
 body.landscape-console #gameCanvas {
@@ -263,22 +267,22 @@ body.landscape-console #actionButtonsWrapper {
   grid-row: 1 / span 2 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 5px !important;
+  gap: 4px !important;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
   margin: 0 !important;
   background: rgba(15, 23, 42, 0.92) !important;
   border: 1px solid #1e293b !important;
-  border-radius: 0.75rem !important;
-  padding: 5px !important;
+  border-radius: 0.65rem !important;
+  padding: 3px !important;
 }
 
 body.landscape-console #actionButtonsWrapper > button:not(.hidden) {
   flex: 1 1 0% !important;
   width: 100% !important;
   min-height: 0 !important;
-  padding: 4px 6px !important;
+  padding: 3px 4px !important;
 }
 
 /* Smartphone Portrait Rotate Prompt Animation */
