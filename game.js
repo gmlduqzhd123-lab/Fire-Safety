@@ -357,15 +357,19 @@
     graphicsQuality: 'auto',
     brightness: 100,
     sensitivity: 100,
-    reduceMotion: false
+    reduceMotion: false,
+    gradePreset: 'standard', // 'low' | 'standard' | 'advanced'
+    voiceTts: false
   };
   try {
     const savedSettings = JSON.parse(localStorage.getItem('fire-safety:settings:v1') || 'null');
     if (savedSettings && typeof savedSettings === 'object') {
-      if (['auto', 'high', 'low'].includes(savedSettings.graphicsQuality)) appSettings.graphicsQuality = savedSettings.graphicsQuality;
-      if (typeof savedSettings.brightness === 'number') appSettings.brightness = Math.max(85, Math.min(135, savedSettings.brightness));
-      if (typeof savedSettings.sensitivity === 'number') appSettings.sensitivity = Math.max(60, Math.min(140, savedSettings.sensitivity));
+      if (['auto', 'high', 'normal', 'low'].includes(savedSettings.graphicsQuality)) appSettings.graphicsQuality = savedSettings.graphicsQuality;
+      if (typeof savedSettings.brightness === 'number') appSettings.brightness = Math.max(80, Math.min(180, savedSettings.brightness));
+      if (typeof savedSettings.sensitivity === 'number') appSettings.sensitivity = Math.max(50, Math.min(200, savedSettings.sensitivity));
       if (typeof savedSettings.reduceMotion === 'boolean') appSettings.reduceMotion = savedSettings.reduceMotion;
+      if (['low', 'standard', 'advanced'].includes(savedSettings.gradePreset)) appSettings.gradePreset = savedSettings.gradePreset;
+      if (typeof savedSettings.voiceTts === 'boolean') appSettings.voiceTts = savedSettings.voiceTts;
       if (['standard', 'relaxed', 'practice'].includes(savedSettings.defaultMode)) {
         nextRunOptions.mode = savedSettings.defaultMode;
         nextRunOptions.hazardLimitSeconds = savedSettings.defaultMode === 'relaxed' ? 480 : (savedSettings.defaultMode === 'practice' ? null : 300);
@@ -373,6 +377,52 @@
       }
     }
   } catch (e) {}
+
+  // Feature 7: 8-Stage Completion Stamp Passport Storage
+  let clearedStages = {};
+  try {
+    clearedStages = JSON.parse(localStorage.getItem('fire_escape_cleared_stages') || '{}') || {};
+  } catch (e) {
+    clearedStages = {};
+  }
+  function markCurrentStageCleared() {
+    const key = activeCustomStage
+      ? (activeCustomStage.isDailyChallenge ? 'daily' : 'custom')
+      : String(currentStageIdx);
+    if (key !== 'custom') {
+      clearedStages[key] = true;
+      try {
+        localStorage.setItem('fire_escape_cleared_stages', JSON.stringify(clearedStages));
+      } catch (e) {}
+    }
+  }
+
+  // Feature 4: Teacher Custom Safe Passcode & Quiz Config (?customQuiz=...)
+  let customQuizConfig = null;
+
+  // Feature 2: Grade-Level Difficulty Multipliers
+  function getGradeDifficultyMultipliers() {
+    if (appSettings.gradePreset === 'low') {
+      return { spreadMult: 1.55, damageMult: 0.60, o2Mult: 0.58 };
+    }
+    if (appSettings.gradePreset === 'advanced') {
+      return { spreadMult: 0.78, damageMult: 1.20, o2Mult: 1.20 };
+    }
+    return { spreadMult: 1.0, damageMult: 1.0, o2Mult: 1.0 };
+  }
+
+  // Feature 6: Korean TTS Helper for Low-Grade / Multicultural Students
+  function speakGuideIfEnabled(rawText) {
+    if (!appSettings.voiceTts || SoundFX.muted) return;
+    const clean = String(rawText || '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/[^\w\s가-힣0-9.,!?()·~-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (clean) {
+      SoundFX.speak(clean, 1.06, 1.0);
+    }
+  }
 
   let isPerfDiagEnabled = false;
   try {
@@ -514,6 +564,7 @@
     eduModal.classList.remove('hidden');
     eduModal.classList.add('flex');
     updateEduSelectionUI();
+    speakGuideIfEnabled(`${titleText}. ${String(descText || '').replace(/<[^>]*>/g, ' ')}`);
   }
 
   function closeEduModal() {
@@ -1000,6 +1051,9 @@
     if (stepGuideBanner && bannerText && hudCache.bannerText !== bannerText) {
       hudCache.bannerText = bannerText;
       stepGuideBanner.innerHTML = `<span id="stepGuideText">${bannerText}</span>`;
+      if (gameState === 'PLAYING') {
+        speakGuideIfEnabled(bannerText);
+      }
     }
 
     // Show/Hide conditional item buttons only on state change
@@ -1699,7 +1753,16 @@
   function inspectHazardTile(c, r) {
     const mappedIdx = HAZARD_COORD_MAP[`${r},${c}`];
     const quizIdx = typeof mappedIdx === 'number' ? mappedIdx : (player.hazardsFixed % HAZARD_QUIZZES.length);
-    const q = HAZARD_QUIZZES[quizIdx % HAZARD_QUIZZES.length];
+    const baseQ = HAZARD_QUIZZES[quizIdx % HAZARD_QUIZZES.length];
+    const useCustom = customQuizConfig && customQuizConfig.quizTitle && player.hazardsFixed === 0;
+    const q = useCustom
+      ? {
+          title: `🎯 [우리 반 맞춤 퀴즈] ${customQuizConfig.quizTitle}`,
+          desc: '선생님이 출제한 우리 학교·우리 반 맞춤 화재 안전 퀴즈입니다! 올바른 행동을 선택하세요.',
+          good: customQuizConfig.goodChoice || baseQ.good,
+          bad: customQuizConfig.badChoice || baseQ.bad
+        }
+      : baseQ;
     openEduModal(
       `화재 예방 사전 점검 (${player.hazardsFixed + 1}/${player.totalHazards})`,
       q.title,
@@ -2222,7 +2285,56 @@
 
     debriefCurriculumNote.innerHTML = `<strong>📚 [교과 & 안전 핵심 정리 - ${st.curriculumFocus}]</strong><br/>우측 미니맵에서 나의 실제 이동 궤적(🟢안전 이동, 🔵낮은 자세, 🔴화상·질식 지점)을 복기하고, [🏅 수료증·스킨]에서 배지와 직업 스킨을 확인해 보세요!`;
 
+    // Feature 5: Tailored 1-line safety prescription based on actual trajectory & behavior metrics
+    const prescriptionBox = document.getElementById('debriefPrescriptionBox');
+    if (prescriptionBox) {
+      let prescHtml = '';
+      if (metrics.backdraftTriggered > 0) {
+        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 닫힌 문을 열기 전 손등으로 문손잡이 온도를 확인하지 않아 <strong>백드래프트 폭발(${metrics.backdraftTriggered}회)</strong>이 발생했습니다! 뜨거운 문은 절대 열지 말고 다른 비상구를 찾으세요.`;
+      } else if (metrics.waterOnSpecialFireMistake > 0) {
+        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 전기·식용유·금속 화재에 물을 뿌려 <strong>역화 위험(${metrics.waterOnSpecialFireMistake}회)</strong>이 발생했습니다! 특수 화재에는 반드시 용도에 맞는 소화기(🧯)나 모래를 사용하세요.`;
+      } else if (!st.isPreventionMode && crouchPct < 65) {
+        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 연기 구역에서 <strong>낮은 자세 유지율(${crouchPct}%)</strong>이 낮아 유독가스를 많이 마셨습니다! 연기 속에서는 젖은 수건(😷)을 코와 입에 대고 <strong>[🧎 낮은 자세(C키)]</strong>로 이동하세요.`;
+      } else if (!st.isPreventionMode && player.fireDoorsClosed === 0) {
+        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 대피 후 <strong>방화문 닫기(🚪)</strong>를 실천하면 연기 확산 속도를 45% 이상 늦춰 뒤따르는 이웃의 생명을 구할 수 있습니다!`;
+      } else {
+        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 호흡기 보호, 낮은 자세 유지(${crouchPct}%), 문 온도 확인(${metrics.doorHeatChecked}회)까지 <strong>완벽한 표준 대피 동선</strong>으로 탈출했습니다!`;
+      }
+      prescriptionBox.innerHTML = prescHtml;
+    }
+
+    // Feature 8: Deterministic classroom clear verification code (for Google Forms / Padlet / Klas)
+    const verifyBox = document.getElementById('clearVerifyCodeBox');
+    const verifyText = document.getElementById('verifyCodeText');
+    if (verifyBox && verifyText) {
+      if (isGameOver) {
+        verifyBox.classList.add('hidden');
+        verifyBox.classList.remove('flex');
+      } else {
+        const stCode = activeCustomStage ? 'CUS' : `S${currentStageIdx + 1}`;
+        const gTag = debriefGrade.textContent.includes('S등급') ? 'S' : (debriefGrade.textContent.includes('A등급') ? 'A' : 'B');
+        const checksum = ((currentStageIdx + 1) * 17 + (score % 97) + (crouchPct % 31)) % 90 + 10;
+        const codeStr = `119-${stCode}-${gTag}${score}-${checksum}`;
+        verifyText.textContent = codeStr;
+        verifyBox.classList.remove('hidden');
+        verifyBox.classList.add('flex');
+      }
+    }
+
     renderReplayMinimap();
+  }
+
+  const btnCopyVerifyCode = document.getElementById('btnCopyVerifyCode');
+  if (btnCopyVerifyCode) {
+    btnCopyVerifyCode.addEventListener('click', () => {
+      const verifyText = document.getElementById('verifyCodeText');
+      const code = verifyText ? verifyText.textContent.trim() : '';
+      if (code && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).catch(() => {});
+      }
+      SoundFX.pickup();
+      showToast(`🔐 클리어 인증코드 [${code}]가 복사되었습니다! 학급 게시판이나 과제 제출란에 붙여넣으세요.`, 'border-emerald-400');
+    });
   }
 
   // --- Stage Clear / Game Over Handlers (Bug #4 Fix: Record final position in pathHistory) ---
@@ -2230,6 +2342,7 @@
     clearAllInputStates();
     SoundFX.win();
     SoundFX.speak('안전하게 탈출에 성공했습니다! 참 잘했어요!');
+    markCurrentStageCleared();
 
     // Bug #4 Fix: Push exact exit coordinate so replay trajectory connects to the exit
     pathHistory.push({ x: player.x, y: player.y, state: player.crouching ? 'crouch' : 'safe' });
@@ -2425,6 +2538,35 @@
       : 3.75;
     if (player.carryingToy) baseSpeed *= 0.72;
 
+    // Feature 10: Automatic Bluetooth / USB Gamepad Support (Zero UI clutter)
+    let gpAxesX = 0;
+    let gpAxesY = 0;
+    if (navigator.getGamepads) {
+      try {
+        const pads = navigator.getGamepads();
+        const gp = pads && (pads[0] || pads[1] || pads[2] || pads[3]);
+        if (gp && gp.connected) {
+          const ax0 = gp.axes && gp.axes.length > 0 ? gp.axes[0] : 0;
+          const ax1 = gp.axes && gp.axes.length > 1 ? gp.axes[1] : 0;
+          if (Math.abs(ax0) > 0.25) gpAxesX = ax0;
+          if (Math.abs(ax1) > 0.25) gpAxesY = ax1;
+          if (gp.buttons && gp.buttons[12] && gp.buttons[12].pressed) gpAxesY = -1;
+          if (gp.buttons && gp.buttons[13] && gp.buttons[13].pressed) gpAxesY = 1;
+          if (gp.buttons && gp.buttons[14] && gp.buttons[14].pressed) gpAxesX = -1;
+          if (gp.buttons && gp.buttons[15] && gp.buttons[15].pressed) gpAxesX = 1;
+          if (gp.buttons && gp.buttons[0] && gp.buttons[0].pressed && autoInteractCooldown <= 0) {
+            autoInteractCooldown = 0.35;
+            triggerInteraction();
+          }
+          if (gp.buttons && gp.buttons[1] && gp.buttons[1].pressed && autoInteractCooldown <= 0) {
+            autoInteractCooldown = 0.35;
+            player.crouching = !player.crouching;
+            updateHUD();
+          }
+        }
+      } catch (e) {}
+    }
+
     let mvX = 0;
     let mvY = 0;
     let isMoving = false;
@@ -2436,8 +2578,8 @@
     if (cameraMode3D === 'FPS_3D') {
       // Smooth, Non-Dizzying 1st-Person 3D Perspective Walkthrough Controls:
       // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Smooth Turn + Strafe Assist
-      const turnInput = (keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0);
-      const forwardInput = (keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0);
+      const turnInput = ((keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0)) || gpAxesX;
+      const forwardInput = ((keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0)) || -gpAxesY;
 
       if (turnInput !== 0 || forwardInput !== 0) {
         pointerMoveTarget = null;
@@ -2501,6 +2643,10 @@
       if (keysPressed.down) mvY += 1;
       if (keysPressed.left) mvX -= 1;
       if (keysPressed.right) mvX += 1;
+      if (mvX === 0 && mvY === 0 && (gpAxesX !== 0 || gpAxesY !== 0)) {
+        mvX = gpAxesX;
+        mvY = gpAxesY;
+      }
 
       if (mvX !== 0 || mvY !== 0) {
         pointerMoveTarget = null;
@@ -2756,8 +2902,9 @@
         break;
       }
     }
+    const gradeMults = getGradeDifficultyMultipliers();
     if (inFire) {
-      const fireMult = st.fireDamageMult || 1.0;
+      const fireMult = (st.fireDamageMult || 1.0) * gradeMults.fireMult;
       player.hp -= 24 * fireMult * dt;
       if (!player.onFire) {
         player.onFire = true;
@@ -2773,7 +2920,7 @@
     }
 
     if (player.onFire) {
-      const burnRate = (isMoving ? 9.5 : 3.5) * (st.fireDamageMult || 1.0);
+      const burnRate = (isMoving ? 9.5 : 3.5) * (st.fireDamageMult || 1.0) * gradeMults.fireMult;
       player.hp -= burnRate * dt;
       burnBeepTimer += dt;
       if (burnBeepTimer >= 0.9) {
@@ -2798,7 +2945,7 @@
       metrics.smokeTimeTotal += dt;
       if (player.crouching) metrics.smokeTimeCrouched += dt;
 
-      let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0) * (st.smokeO2DrainMult || 1.0);
+      let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0) * (st.smokeO2DrainMult || 1.0) * gradeMults.smokeMult;
       if (player.crouching) drainRate *= 0.35;
       if (player.hasMask) drainRate *= 0.15;
       else if (player.wetTowel) drainRate *= 0.4;
@@ -2821,7 +2968,7 @@
     }
 
     // Physical Fire Door & Smoke Spread Simulation (Scaled by Stage Difficulty)
-    const baseSpread = st.fireSpreadInterval || 11.0;
+    const baseSpread = (st.fireSpreadInterval || 11.0) * gradeMults.spreadMult;
     const spreadInterval = player.fireDoorsClosed > 0 ? baseSpread * 1.45 : baseSpread;
     if (fireSpreadTimer >= spreadInterval) {
       fireSpreadTimer = 0;
@@ -6872,6 +7019,32 @@
         <span class="text-[9px] leading-tight text-slate-400">${b.desc}</span>
       </div>`;
     }).join('');
+
+    // Feature 7: 8-Building Stage Completion Stamp Board (7 Campaign Stages + Daily Challenge)
+    const stageStampGrid = document.getElementById('stageStampGrid');
+    const stageStampCountBadge = document.getElementById('stageStampCountBadge');
+    const stampDefs = [
+      ...STAGES.map((stItem, idx) => ({
+        key: `s${idx}`,
+        icon: ['🏡', '🏢', '🏬', '🏫', '🚇', '🔍', '🏕️'][idx] || '🏢',
+        shortName: stItem.name.replace(/^\d+단계:\s*/, '').replace(/^사전예방:\s*/, '예방:').split('[')[0].trim()
+      })),
+      { key: 'daily', icon: '🎲', shortName: '오늘의 119 챌린지' }
+    ];
+    const clearedCount = stampDefs.reduce((acc, d) => acc + (clearedStages[d.key] ? 1 : 0), 0);
+    if (stageStampCountBadge) {
+      stageStampCountBadge.textContent = `${clearedCount} / ${stampDefs.length} 완주`;
+    }
+    if (stageStampGrid) {
+      stageStampGrid.innerHTML = stampDefs.map((d) => {
+        const isCleared = !!clearedStages[d.key];
+        return `<div class="p-2 rounded-xl border ${isCleared ? 'bg-emerald-950/50 border-emerald-400/60 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-500'} flex flex-col items-center gap-0.5 relative">
+          <span class="text-lg ${isCleared ? '' : 'grayscale opacity-40'}">${d.icon}</span>
+          <span class="text-[10px] font-extrabold ${isCleared ? 'text-emerald-300' : 'text-slate-500'} truncate max-w-full">${d.shortName}</span>
+          <span class="text-[9px] font-black px-1.5 py-0.2 rounded ${isCleared ? 'bg-rose-500/30 text-rose-200 border border-rose-400/50' : 'bg-slate-800 text-slate-500'}">${isCleared ? '💮 완주도장' : '미클리어'}</span>
+        </div>`;
+      }).join('');
+    }
   }
 
   function downloadCertificatePng() {
@@ -6879,6 +7052,7 @@
     const cleanName = (studentNameInput.value || '').trim() || '용감한 어린이';
     const best = Math.max(score, getSavedBestScore());
     const unlockedCount = getUnlockedBadgeCount();
+    const clearedCount = ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 'daily'].reduce((acc, k) => acc + (clearedStages[k] ? 1 : 0), 0);
     const activeSkin = getSelectedSkin();
     const clsText = currentClassCode.trim() || '자유 참가 대원';
 
@@ -6923,8 +7097,8 @@
     cctx.fillText(`${activeSkin.icon} 대원 성명 : ${cleanName}`, 450, 198);
 
     cctx.fillStyle = '#93c5fd';
-    cctx.font = 'bold 17px "Noto Sans KR", sans-serif';
-    cctx.fillText(`소속 학급: ${clsText}   |   최고 점수: ${best.toLocaleString()}점   |   안전 배지: ${unlockedCount}/${BADGE_DEFS.length}개`, 450, 229);
+    cctx.font = 'bold 16px "Noto Sans KR", sans-serif';
+    cctx.fillText(`소속: ${clsText}  |  최고점수: ${best.toLocaleString()}점  |  배지: ${unlockedCount}/${BADGE_DEFS.length}개  |  완주도장: ${clearedCount}/${STAGES.length}곳`, 450, 229);
 
     // Citation Text
     cctx.fillStyle = '#e2e8f0';
@@ -7199,6 +7373,12 @@
       pauseIcon.textContent = '▶️';
       pauseText.textContent = '계속하기';
     }
+    if (teacherQrClassInput && currentClassCode && !teacherQrClassInput.value) {
+      teacherQrClassInput.value = currentClassCode;
+    }
+    if (typeof renderTeacherPresetQr === 'function') renderTeacherPresetQr();
+    if (typeof renderBriefingSlide === 'function') renderBriefingSlide();
+    if (typeof updateSchoolRecordText === 'function') updateSchoolRecordText();
     teacherModal.classList.remove('hidden');
     teacherModal.classList.add('flex');
   }
@@ -7249,12 +7429,17 @@
       BADGE_DEFS.forEach((b) => {
         unlockedBadges[b.id] = true;
       });
+      STAGES.forEach((_, idx) => {
+        clearedStages[`s${idx}`] = true;
+      });
+      clearedStages.daily = true;
       try {
         localStorage.setItem('fire_escape_badges', JSON.stringify(unlockedBadges));
+        localStorage.setItem(CLEARED_STAGES_KEY, JSON.stringify(clearedStages));
       } catch (e) {}
       SoundFX.win();
       updateHUD();
-      showToast('🔓 [교사 시연 모드] 안전 배지 10종과 직업 스킨 4종이 모두 해금되었습니다! [수료증·스킨]에서 확인하세요.', 'border-amber-400');
+      showToast('🔓 [교사 시연 모드] 안전 배지 10종, 직업 스킨 4종, 8대 건물 완주 도장이 모두 해금되었습니다!', 'border-amber-400');
     });
   }
 
@@ -7716,6 +7901,9 @@
   let activeInvCategory = 'all';
 
   function getStageSafePasscode() {
+    if (customQuizConfig && customQuizConfig.safeCode && /^\d{3,4}$/.test(String(customQuizConfig.safeCode).trim())) {
+      return String(customQuizConfig.safeCode).trim();
+    }
     if (currentStageIdx === 0) return '614';
     if (currentStageIdx === 1) return '3322';
     return '0119';
@@ -7789,6 +7977,9 @@
     if (notebookClueList) {
       const sizeCls = isClueZoomed ? 'text-sm sm:text-base leading-relaxed' : 'text-xs leading-relaxed';
       notebookClueList.className = `space-y-1.5 text-slate-300 ${sizeCls}`;
+      const customClueBody = (customQuizConfig && customQuizConfig.safeClue)
+        ? `🎯 <strong>[선생님 출제 우리 반 암호 단서]</strong> ${customQuizConfig.safeClue} (정답 암호: <strong>${safeCode}</strong>)`
+        : `우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>이며, 구역별 비상 암호(<strong>${safeCode}</strong> 또는 긴급 직통번호 <strong>0119</strong>) 입력으로 비상 마스터 열쇠(🔑)를 꺼낼 수 있습니다.`;
       const clueNotes = [
         {
           badge: '[새 기록]',
@@ -7798,7 +7989,7 @@
         {
           badge: safeSolved ? '[완료]' : '[단서 원문]',
           title: '🔢 퍼즐 1 · 비상 금고 잠금장치 암호 단서 메모',
-          body: `우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>이며, 구역별 비상 암호(<strong>${safeCode}</strong> 또는 긴급 직통번호 <strong>0119</strong>) 입력으로 비상 마스터 열쇠(🔑)를 꺼낼 수 있습니다.`
+          body: customClueBody
         },
         {
           badge: wireSolved ? '[완료]' : '[단서 원문]',
@@ -7831,7 +8022,7 @@
     const nextObj = getNextStepObjective();
     const h1Id = `s${currentStageIdx}_hint_1`;
     const h2Id = `s${currentStageIdx}_hint_2`;
-    const open1 = hintLog.includes(h1Id);
+    const open1 = hintLog.includes(h1Id) || appSettings.gradePreset === 'low';
     const open2 = hintLog.includes(h2Id);
 
     if (hintCurrentObjectiveTitle) {
@@ -8724,6 +8915,72 @@
     });
   }
 
+  // --- Feature 2 & 6: Grade-Level One-Click Preset & TTS Voice Guide in Settings Modal ---
+  const btnGradeLow = document.getElementById('btnGradeLow');
+  const btnGradeStandard = document.getElementById('btnGradeStandard');
+  const btnGradeAdvanced = document.getElementById('btnGradeAdvanced');
+  const gradePresetActiveBadge = document.getElementById('gradePresetBadge') || document.getElementById('gradePresetActiveBadge');
+  const gradePresetDescText = document.getElementById('gradePresetNotice') || document.getElementById('gradePresetDescText');
+  const chkVoiceTts = document.getElementById('chkVoiceTts');
+
+  function updateGradePresetModalUI() {
+    const gp = appSettings.gradePreset || 'standard';
+    const activeCls = 'py-1.5 px-2 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] transition shadow';
+    const idleCls = 'py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[11px] transition';
+    if (btnGradeLow) btnGradeLow.className = gp === 'low' ? activeCls : idleCls;
+    if (btnGradeStandard) btnGradeStandard.className = gp === 'standard' ? activeCls : idleCls;
+    if (btnGradeAdvanced) btnGradeAdvanced.className = gp === 'advanced' ? activeCls : idleCls;
+    if (gradePresetActiveBadge) {
+      gradePresetActiveBadge.textContent = gp === 'low'
+        ? '초등 1~2학년 입문'
+        : (gp === 'advanced' ? '중등·심화 챌린지' : '초등 3~6학년 표준');
+    }
+    if (gradePresetDescText) {
+      if (gp === 'low') {
+        gradePresetDescText.innerHTML = '• <strong>초등 1~2학년(입문)</strong>: 불길·연기 피해 45% 완화 · 연기 확산 속도 완화 · 수첩 1단계 힌트 자동 개방 · 음성 읽어주기 권장.';
+      } else if (gp === 'advanced') {
+        gradePresetDescText.innerHTML = '• <strong>중등·심화(도전)</strong>: 불길·연기 피해 25% 강화 · 연기 확산 가속 · 실전 위기 대응력 극대화.';
+      } else {
+        gradePresetDescText.innerHTML = '• <strong>초등 3~6학년(표준)</strong>: 기본 화염 확산 속도 및 4종 방탈출 퍼즐 표준 난이도가 적용됩니다.';
+      }
+    }
+    if (chkVoiceTts) chkVoiceTts.checked = !!appSettings.voiceTts;
+  }
+
+  function applyGradePreset(presetKey, showNotice = true) {
+    appSettings.gradePreset = presetKey;
+    if (presetKey === 'low') {
+      applyTimePolicyMode('relaxed');
+    } else if (presetKey === 'standard') {
+      applyTimePolicyMode('standard');
+    }
+    persistAppSettings();
+    updateGradePresetModalUI();
+    if (showNotice) {
+      const label = presetKey === 'low' ? '🌱 초등 1~2학년 입문' : (presetKey === 'advanced' ? '🔥 중등·심화' : '🏫 초등 3~6학년 표준');
+      SoundFX.pickup();
+      showToast(`🎓 학년군 맞춤 난이도가 [${label}] 모드로 설정되었습니다!`, 'border-emerald-400');
+    }
+  }
+
+  if (btnGradeLow) btnGradeLow.addEventListener('click', () => applyGradePreset('low', true));
+  if (btnGradeStandard) btnGradeStandard.addEventListener('click', () => applyGradePreset('standard', true));
+  if (btnGradeAdvanced) btnGradeAdvanced.addEventListener('click', () => applyGradePreset('advanced', true));
+
+  if (chkVoiceTts) {
+    chkVoiceTts.addEventListener('change', () => {
+      appSettings.voiceTts = !!chkVoiceTts.checked;
+      persistAppSettings();
+      if (appSettings.voiceTts) {
+        SoundFX.init();
+        speakGuideIfEnabled('음성 내비게이션 자동 읽어주기 기능이 켜졌습니다.');
+        showToast('🔊 [음성 내비게이션 ON] 상단 대피 목표와 안전 퀴즈 지문을 한국어 음성으로 읽어줍니다!', 'border-sky-400');
+      } else {
+        showToast('🔇 음성 내비게이션 자동 읽어주기가 해제되었습니다.');
+      }
+    });
+  }
+
   function openSettingsModalFn() {
     if (!settingsModal) return;
     clearAllInputStates();
@@ -8745,6 +9002,7 @@
     if (lblSensitivity) lblSensitivity.textContent = sRatio.toFixed(1);
     if (chkReduceMotion) chkReduceMotion.checked = !!appSettings.reduceMotion;
     updateTimePolicyModalUI();
+    updateGradePresetModalUI();
     updateSaveStatusUI();
     settingsModal.classList.remove('hidden');
     settingsModal.classList.add('flex');
@@ -8804,6 +9062,217 @@
     chkReduceMotion.addEventListener('change', () => {
       appSettings.reduceMotion = !!chkReduceMotion.checked;
       persistAppSettings();
+    });
+  }
+
+  // --- Features 1, 3, 4, 8: Teacher Modal Classroom Enhancements ---
+  const teacherQrClassInput = document.getElementById('teacherQrClassInput');
+  const teacherQrStageSelect = document.getElementById('teacherQrStageSelect');
+  const teacherQrGradeSelect = document.getElementById('teacherQrGradeSelect');
+  const teacherQrTimeSelect = document.getElementById('teacherQrModeSelect') || document.getElementById('teacherQrTimeSelect');
+  const btnGenerateTeacherQr = document.getElementById('btnGenerateTeacherQr');
+  const btnCopyTeacherPresetUrl = document.getElementById('btnCopyTeacherPresetUrl');
+  const teacherQrBox = document.getElementById('teacherQrBox');
+  const teacherQrCanvas = document.getElementById('teacherQrCanvas');
+  const teacherPresetUrlPreview = document.getElementById('teacherQrUrlText') || document.getElementById('teacherPresetUrlPreview');
+
+  function buildTeacherPresetUrl() {
+    const baseUrl = window.location.origin && window.location.origin !== 'null'
+      ? `${window.location.origin}${window.location.pathname}`
+      : window.location.href.split('?')[0];
+    const p = new URLSearchParams();
+    const cls = (teacherQrClassInput && teacherQrClassInput.value.trim()) || currentClassCode || '서울초 5-2';
+    const stg = (teacherQrStageSelect && teacherQrStageSelect.value) || '0';
+    const grd = (teacherQrGradeSelect && teacherQrGradeSelect.value) || 'standard';
+    const tm = (teacherQrTimeSelect && teacherQrTimeSelect.value) || 'practice';
+    if (cls) p.set('class', cls);
+    p.set('stage', stg);
+    p.set('grade', grd);
+    p.set('timeMode', tm);
+    return `${baseUrl}?${p.toString()}`;
+  }
+
+  function renderTeacherPresetQr() {
+    const url = buildTeacherPresetUrl();
+    if (teacherPresetUrlPreview) teacherPresetUrlPreview.textContent = url;
+    if (teacherQrCanvas && window.FireEscape && typeof window.FireEscape.drawFallbackQrMatrix === 'function') {
+      window.FireEscape.drawFallbackQrMatrix(teacherQrCanvas, url);
+    }
+    return url;
+  }
+
+  if (btnGenerateTeacherQr) {
+    btnGenerateTeacherQr.addEventListener('click', () => {
+      SoundFX.init();
+      if (teacherQrBox) {
+        teacherQrBox.classList.remove('hidden');
+        teacherQrBox.classList.add('flex');
+      }
+      const stgVal = (teacherQrStageSelect && teacherQrStageSelect.value) || '0';
+      const grdVal = (teacherQrGradeSelect && teacherQrGradeSelect.value) || 'standard';
+      const tmVal = (teacherQrTimeSelect && teacherQrTimeSelect.value) || 'practice';
+      applyGradePreset(grdVal, false);
+      applyTimePolicyMode(tmVal);
+      if (stgVal === 'daily') {
+        loadStage(0, false, getDailyChallengeStage());
+      } else {
+        const idx = parseInt(stgVal, 10);
+        if (!isNaN(idx) && idx >= 0 && idx < STAGES.length) {
+          loadStage(idx, false, null);
+        }
+      }
+      renderTeacherPresetQr();
+      SoundFX.pickup();
+      showToast('📱 전자칠판용 수업 프리셋 QR 코드가 표시되고 현재 게임에도 적용되었습니다!', 'border-sky-400');
+    });
+  }
+
+  if (btnCopyTeacherPresetUrl) {
+    btnCopyTeacherPresetUrl.addEventListener('click', () => {
+      SoundFX.init();
+      const url = renderTeacherPresetQr();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).catch(() => {});
+      }
+      SoundFX.pickup();
+      showToast('🔗 학급·단계·난이도가 포함된 수업 프리셋 링크가 복사되었습니다!', 'border-sky-400');
+    });
+  }
+
+  // Feature 3: 4-Slide Pre-Class Briefing Deck
+  const BRIEFING_SLIDES = [
+    {
+      badge: '1 / 4',
+      title: '① 연기 대류 현상과 젖은 수건·낮은 자세',
+      body: '불이 나면 뜨거워진 유독가스와 연기는 밀도가 낮아져 <strong>천장(위쪽)부터 빠르게 차오르고</strong>, 비교적 차갑고 깨끗한 공기는 바닥 30~60cm 부근에 남습니다. 따라서 <strong>젖은 수건이나 방연마스크로 코와 입을 막고 낮은 자세(🧎)</strong>로 벽을 짚으며 이동해야 질식을 막을 수 있습니다.'
+    },
+    {
+      badge: '2 / 4',
+      title: '② 연소의 3요소와 화재 유형별 맞춤 소화 원리',
+      body: '불이 타오르려면 <strong>가연물·산소·발화점 이상의 온도</strong>가 필요합니다. 일반 화재는 물(🪣냉각 소화)로 끄지만, <strong>식용유(K급)·전기 콘센트(C급)·배터리/마그네슘 금속 화재(D급)</strong>에 물을 부으면 폭발·감전 위험이 있으므로 반드시 전용 소화기(🧯질식 소화)나 모래를 사용해야 합니다!'
+    },
+    {
+      badge: '3 / 4',
+      title: '③ 백드래프트(Backdraft) 예방과 방화문 닫기',
+      body: '실내에 뜨거운 가스가 가득 찬 상태에서 문을 갑자기 열면 산소가 유입되며 화염이 폭발하는 <strong>백드래프트</strong>가 일어납니다! 문을 열기 전 <strong>손등으로 문손잡이 온도를 확인(🌡️)</strong>하고, 대피한 뒤에는 <strong>방화문을 닫아(🚪)</strong> 연기 확산을 차단하세요.'
+    },
+    {
+      badge: '4 / 4',
+      title: '④ 현관이 막혔을 때의 생명줄: 경량칸막이 & 완강기',
+      body: '아파트 발코니 벽면의 <strong>9mm 경량칸막이(🧱)</strong>는 발로 차서 부수고 옆집으로 대피할 수 있습니다. 고층 건물에서는 <strong>완강기(🪢)</strong> 속도조절기와 안전벨트를 가슴 높이에 단단히 조이고 벽면을 짚으며 안전하게 하강합니다!'
+    }
+  ];
+  let currentBriefingSlideIdx = 0;
+  const briefingSlideBadge = document.getElementById('briefingSlideBadge');
+  const briefingSlideTitle = document.getElementById('briefingSlideTitle');
+  const briefingSlideDesc = document.getElementById('briefingSlideDesc');
+  const briefingSlideBox = document.getElementById('briefingSlideBox');
+  const btnBriefingPrev = document.getElementById('btnBriefingPrev');
+  const btnBriefingNext = document.getElementById('btnBriefingNext');
+
+  function renderBriefingSlide() {
+    const sl = BRIEFING_SLIDES[currentBriefingSlideIdx] || BRIEFING_SLIDES[0];
+    if (briefingSlideBadge) briefingSlideBadge.textContent = sl.badge;
+    if (briefingSlideTitle) briefingSlideTitle.textContent = sl.title;
+    if (briefingSlideDesc) briefingSlideDesc.innerHTML = sl.body;
+    if (briefingSlideBox) {
+      briefingSlideBox.innerHTML = `<div class="text-sm sm:text-base font-black text-amber-300 mb-1">${sl.title}</div><p class="text-xs sm:text-sm text-slate-200 leading-relaxed">${sl.body}</p>`;
+    }
+  }
+
+  if (btnBriefingPrev) {
+    btnBriefingPrev.addEventListener('click', () => {
+      currentBriefingSlideIdx = (currentBriefingSlideIdx - 1 + BRIEFING_SLIDES.length) % BRIEFING_SLIDES.length;
+      renderBriefingSlide();
+    });
+  }
+  if (btnBriefingNext) {
+    btnBriefingNext.addEventListener('click', () => {
+      currentBriefingSlideIdx = (currentBriefingSlideIdx + 1) % BRIEFING_SLIDES.length;
+      renderBriefingSlide();
+    });
+  }
+
+  // Feature 4: Custom Safe Passcode & Escape Quiz Builder
+  const customSafeCodeInput = document.getElementById('customSafeCodeInput');
+  const customSafeClueInput = document.getElementById('customSafeClueInput');
+  const customQuizTitleInput = document.getElementById('customQuizTitleInput');
+  const customQuizGoodInput = document.getElementById('customQuizGoodInput');
+  const customQuizBadInput = document.getElementById('customQuizBadInput');
+  const btnApplyCustomQuizNow = document.getElementById('btnApplyCustomQuizNow');
+  const btnCopyCustomQuizUrl = document.getElementById('btnCopyCustomQuizUrl');
+
+  function collectCustomQuizFromInputs() {
+    const safeCode = (customSafeCodeInput && customSafeCodeInput.value.trim()) || '';
+    const safeClue = (customSafeClueInput && customSafeClueInput.value.trim()) || '';
+    const quizTitle = (customQuizTitleInput && customQuizTitleInput.value.trim()) || '';
+    const goodChoice = (customQuizGoodInput && customQuizGoodInput.value.trim()) || '';
+    const badChoice = (customQuizBadInput && customQuizBadInput.value.trim()) || '';
+    return { safeCode, safeClue, quizTitle, goodChoice, badChoice };
+  }
+
+  if (btnApplyCustomQuizNow) {
+    btnApplyCustomQuizNow.addEventListener('click', () => {
+      SoundFX.init();
+      customQuizConfig = collectCustomQuizFromInputs();
+      renderNotebookModal();
+      SoundFX.pickup();
+      showToast(`🔐 우리 반 맞춤 금고 암호(${getStageSafePasscode()})와 안전 퀴즈가 현재 게임에 즉시 적용되었습니다!`, 'border-emerald-400');
+    });
+  }
+
+  if (btnCopyCustomQuizUrl) {
+    btnCopyCustomQuizUrl.addEventListener('click', () => {
+      SoundFX.init();
+      customQuizConfig = collectCustomQuizFromInputs();
+      renderNotebookModal();
+      const baseUrl = window.location.origin && window.location.origin !== 'null'
+        ? `${window.location.origin}${window.location.pathname}`
+        : window.location.href.split('?')[0];
+      const encoded = btoa(encodeURIComponent(JSON.stringify(customQuizConfig)));
+      const p = new URLSearchParams();
+      if (currentClassCode) p.set('class', currentClassCode);
+      p.set('customQuiz', encoded);
+      const shareUrl = `${baseUrl}?${p.toString()}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).catch(() => {});
+      }
+      SoundFX.pickup();
+      showToast('🔗 선생님이 출제한 우리 반 맞춤 금고 암호·퀴즈 링크(?customQuiz=...)가 복사되었습니다!', 'border-emerald-400');
+    });
+  }
+
+  // Feature 8: School Record (학교생활기록부) Example Sentence Auto-Generator
+  const selectSchoolRecordType = document.getElementById('selectSchoolRecordType');
+  const schoolRecordStudentInput = document.getElementById('schoolRecordStudentInput');
+  const schoolRecordTextarea = document.getElementById('schoolRecordOutput') || document.getElementById('schoolRecordTextarea');
+  const btnCopySchoolRecord = document.getElementById('btnCopySchoolRecord');
+
+  function updateSchoolRecordText() {
+    if (!schoolRecordTextarea) return;
+    const type = (selectSchoolRecordType && selectSchoolRecordType.value) || 'science';
+    const stName = (schoolRecordStudentInput && schoolRecordStudentInput.value.trim()) || '';
+    const prefix = stName ? `${stName} 학생은 ` : '';
+    const templates = {
+      science: `${prefix}연소와 소화 단원과 연계한 3D 화재 진압 시뮬레이션에서 가연물·산소·발화점의 연소 3요소와 연기 대류 현상을 이해하고, 일반·전기·식용유·금속 화재 등 화재 원인별로 냉각 소화와 질식 소화(분말·K급 소화기, 모래)를 올바르게 구분하여 적용하는 과학적 탐구 역량을 보임.`,
+      facility: `${prefix}다중이용시설 및 아파트 화재 대피 시뮬레이션에서 닫힌 문 개방 전 손등 온도 확인(백드래프트 예방), 방화문 닫기를 통한 연기 확산 차단, 경량칸막이 파괴 및 완강기 하강 절차를 정확히 숙지하고 침착하게 완수함.`,
+      coop: `${prefix}모둠원들과 조작·관찰·기록·설명 역할을 순환하며 협력적으로 방탈출 단서를 해결하고, 가정과 교실의 5대 화재 위험요소를 사전 점검하여 우리 집 맞춤 비상 대피도를 직접 설계·공유하는 등 공동체 안전 의식이 돋보임.`
+    };
+    schoolRecordTextarea.value = templates[type] || templates.science;
+  }
+
+  if (selectSchoolRecordType) selectSchoolRecordType.addEventListener('change', updateSchoolRecordText);
+  if (schoolRecordStudentInput) schoolRecordStudentInput.addEventListener('input', updateSchoolRecordText);
+  if (btnCopySchoolRecord) {
+    btnCopySchoolRecord.addEventListener('click', () => {
+      SoundFX.init();
+      updateSchoolRecordText();
+      const txt = schoolRecordTextarea ? schoolRecordTextarea.value : '';
+      if (txt && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).catch(() => {});
+      }
+      SoundFX.pickup();
+      showToast('📋 학교생활기록부(창체·교과 세특) 예시 문구가 클립보드에 복사되었습니다!', 'border-amber-400');
     });
   }
 
@@ -8996,7 +9465,7 @@
     });
   }
 
-  // --- Bug #3 Fix & Feature 4: Automatically Load ?map= and ?class= URL Parameters ---
+  // --- Bug #3 Fix & Features 1, 2, 4, 10: Automatically Load ?map=, ?class=, ?stage=, ?grade=, ?timeMode=, ?customQuiz= & Register PWA ---
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
@@ -9014,6 +9483,7 @@
     } catch (e) {}
 
     let sharedCustomStage = null;
+    let initialStageIdx = 0;
     try {
       const params = new URLSearchParams(window.location.search);
       const sharedClass = params.get('class');
@@ -9023,6 +9493,35 @@
           localStorage.setItem('fire_escape_class_code', currentClassCode);
         } catch (e) {}
       }
+      const gradeParam = params.get('grade');
+      if (gradeParam === 'low' || gradeParam === 'standard' || gradeParam === 'advanced') {
+        applyGradePreset(gradeParam, false);
+      }
+      const timeParam = params.get('timeMode');
+      if (timeParam === 'standard' || timeParam === 'relaxed' || timeParam === 'practice') {
+        applyTimePolicyMode(timeParam);
+      }
+      const stageParam = params.get('stage');
+      if (stageParam !== null && stageParam !== '') {
+        const parsedStage = parseInt(stageParam, 10);
+        if (!isNaN(parsedStage) && parsedStage >= 0 && parsedStage < STAGES.length) {
+          initialStageIdx = parsedStage;
+        }
+      }
+      const customQuizParam = params.get('customQuiz');
+      if (customQuizParam) {
+        try {
+          const decoded = JSON.parse(decodeURIComponent(atob(customQuizParam)));
+          if (decoded && typeof decoded === 'object') {
+            customQuizConfig = decoded;
+            if (customSafeCodeInput && decoded.safeCode) customSafeCodeInput.value = decoded.safeCode;
+            if (customSafeClueInput && decoded.safeClue) customSafeClueInput.value = decoded.safeClue;
+            if (customQuizTitleInput && decoded.quizTitle) customQuizTitleInput.value = decoded.quizTitle;
+            if (customQuizGoodInput && decoded.goodChoice) customQuizGoodInput.value = decoded.goodChoice;
+            if (customQuizBadInput && decoded.badChoice) customQuizBadInput.value = decoded.badChoice;
+          }
+        } catch (err) {}
+      }
       const sharedMap = params.get('map');
       if (sharedMap && mapEditorInstance) {
         sharedCustomStage = mapEditorInstance.loadFromRawCode(sharedMap, true);
@@ -9030,6 +9529,10 @@
     } catch (e) {}
 
     updateClassBanner();
+    updateGradePresetModalUI();
+    renderBriefingSlide();
+    updateSchoolRecordText();
+    renderTeacherPresetQr();
 
     if (sharedCustomStage) {
       loadStage(0, true, sharedCustomStage);
@@ -9039,13 +9542,19 @@
       overlayDesc.textContent = '링크로 공유받은 커스텀 대피도 스테이지가 로드되었습니다! [게임 시작하기]를 눌러 탈출에 도전해 보세요.';
       btnPrimaryAction.textContent = '공유받은 커스텀 맵 시작하기 ▶';
     } else {
-      loadStage(0, true, null);
+      loadStage(initialStageIdx, true, null);
     }
 
     selectWorldCard('fire');
     syncContinueButtonUI();
     resizeCanvas();
     updateOverlaySelectionUI();
+
+    // Feature 10: Register Offline PWA Service Worker
+    if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = requestAnimationFrame(gameLoop);
   }

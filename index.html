@@ -386,7 +386,21 @@
               </div>
             </div>
 
+            <div id="debriefPrescriptionBox" class="p-2 rounded-lg bg-rose-950/40 border border-rose-500/40 text-[10px] sm:text-[11px] text-rose-200 font-bold leading-snug">
+              🩺 1줄 안전 처방전: 연기 구역에서는 낮은 자세(C)를 유지하고 문 열기 전 온도를 확인하세요!
+            </div>
+
             <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-900 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
+
+            <!-- Feature 8: Serverless Clear Verification Code for Classroom Submission -->
+            <div id="clearVerifyCodeBox" class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5">
+              <div class="text-[10px] sm:text-[11px] text-emerald-200 font-mono font-bold truncate" id="verifyCodeText">
+                🏅 클리어 인증코드: [미지정] 용감한 어린이 · 1단계 · #FS-0000
+              </div>
+              <button id="btnCopyVerifyCode" type="button" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[10px] shrink-0 transition">
+                📋 인증코드 한줄 복사 (학급 제출용)
+              </button>
+            </div>
 
             <!-- PRD Section 11: Post-Activity Reflection & Local Export -->
             <div class="p-2 rounded-lg bg-slate-900/90 border border-indigo-500/30 space-y-1.5">
@@ -513,6 +527,20 @@
 
       <p class="text-xs text-slate-300">아래 팔레트에서 타일·화재·장비를 선택한 뒤 격자를 클릭/드래그해 배치하고, <strong>[내 커스텀 맵 플레이하기]</strong>를 눌러 직접 탈출해 보세요! (시작점 🧍에서 출구까지 경로가 자동으로 검증됩니다)</p>
 
+      <!-- Feature 9: Household / Classroom Floor Plan Templates & Homework PNG Export -->
+      <div class="p-2.5 rounded-xl bg-slate-950 border border-indigo-500/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="font-extrabold text-indigo-300">🏠 밑그림 템플릿:</span>
+          <button id="btnTplApartment" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white font-bold transition">🏢 아파트 3베이형</button>
+          <button id="btnTplHouse" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white font-bold transition">🏡 단독·빌라 주택형</button>
+          <button id="btnTplSchool" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white font-bold transition">🏫 우리 학교 교실형</button>
+        </div>
+        <button id="btnDownloadMapPng" type="button" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold shadow transition flex items-center gap-1">
+          <span>🖼️</span>
+          <span>내가 만든 대피도 이미지(PNG) 저장</span>
+        </button>
+      </div>
+
       <!-- Expanded Palette Buttons -->
       <div id="editorPalette" class="flex flex-wrap gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs">
         <button type="button" data-brush="floor" class="editor-brush px-2 py-1 rounded bg-orange-600 text-white font-bold">⬜ 바닥(지우개)</button>
@@ -604,6 +632,15 @@
           <span id="certTotalScore">최고 점수: 0점</span>
           <span id="certBadgeCount">획득 배지: 0 / 10개</span>
         </div>
+      </div>
+
+      <!-- Feature 7: 8-Stage Completion Stamp Passport -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-amber-500/30 space-y-1.5">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-extrabold text-amber-300">💮 8대 건물 화재 탈출 완주 스탬프 도장판</span>
+          <span id="stageStampCountBadge" class="text-[11px] font-bold text-emerald-300">완주 도장: 0 / 8개</span>
+        </div>
+        <div id="stageStampGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[11px]"></div>
       </div>
 
       <!-- Character Skin Selection Grid (Feature 6) -->
@@ -736,9 +773,109 @@
         </div>
       </div>
 
+      <!-- Feature 1: Smartboard Instant Entry QR Code & Class Preset Link Generator -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-sky-500/40 space-y-2 text-xs">
+        <div class="font-extrabold text-sky-300 flex items-center justify-between">
+          <span>📱 전자칠판용 교실 즉시 입장 QR 코드 & 수업 링크 프리셋</span>
+          <span class="text-[10px] text-slate-400">스캔 시 학급·스테이지·난이도가 1초 만에 자동 세팅됩니다</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+          <select id="teacherQrStageSelect" aria-label="시작 스테이지 선택" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold">
+            <option value="0">1단계: 2층 침실 (입문)</option>
+            <option value="1">2단계: 1층 주방 (초급)</option>
+            <option value="2">3단계: 아파트 베란다 (중급)</option>
+            <option value="3">4단계: 초등학교 과학실 (중상급)</option>
+            <option value="4">5단계: 지하철 정전미로 (상급)</option>
+            <option value="6">6단계: 캠핑장 열폭주 (최상급)</option>
+            <option value="5">예방점검: 우리 집 5대 위험</option>
+            <option value="daily">오늘의 챌린지 (랜덤 구조)</option>
+          </select>
+          <select id="teacherQrGradeSelect" aria-label="학년군 난이도 프리셋 선택" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-amber-200 font-bold">
+            <option value="low">🌱 초등 1~2학년 (입문·음성지원)</option>
+            <option value="standard" selected>🏫 초등 3~6학년 (표준 밸런스)</option>
+            <option value="advanced">🔥 중등·심화 (빠른 확산·긴장감)</option>
+          </select>
+          <select id="teacherQrModeSelect" aria-label="시간 모드 선택" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-emerald-200 font-bold">
+            <option value="practice" selected>🛡️ 수업 연습 (실패없음)</option>
+            <option value="relaxed">⏱️ 긴장 완화 (480초)</option>
+            <option value="standard">🔥 일반 모드 (300초)</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <button id="btnGenerateTeacherQr" type="button" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold transition">📱 전자칠판 QR코드 띄우기 & 현재 게임에도 적용</button>
+          <button id="btnCopyTeacherPresetUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-bold transition">🔗 수업 프리셋 링크 복사</button>
+        </div>
+        <div id="teacherQrBox" class="hidden bg-slate-900 border border-sky-500/40 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div class="bg-white p-2 rounded-lg shadow shrink-0">
+            <canvas id="teacherQrCanvas" width="136" height="136" class="w-32 h-32"></canvas>
+          </div>
+          <div class="space-y-1 text-left">
+            <div class="font-extrabold text-sky-300">📸 태블릿·크롬북 카메라로 스캔하세요!</div>
+            <p id="teacherQrSummaryText" class="text-[11px] text-slate-300">지정된 학급·스테이지·학년 난이도로 즉시 입장합니다.</p>
+            <div id="teacherQrUrlText" class="text-[10px] font-mono text-slate-400 break-all bg-slate-950 px-2 py-1 rounded border border-slate-800"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 3: 3-Minute Intro Safety Principle Briefing Slides (No PPT Needed) -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-amber-500/40 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-extrabold text-amber-300">📽️ 수업 도입 3분용 핵심 과학·안전 원리 브리핑 슬라이드 (PPT 대체용)</span>
+          <span id="briefingSlideBadge" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold text-[11px]">1 / 4</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+          <div id="briefingSlideTitle" class="text-sm sm:text-base font-black text-white">① 연기 대류 현상과 젖은 수건·낮은 자세</div>
+          <p id="briefingSlideDesc" class="text-xs text-slate-200 leading-relaxed">
+            불이 나면 뜨거워진 유독가스와 연기는 밀도가 낮아져 <strong>천장(위쪽)부터 빠르게 차오르고</strong>, 비교적 차갑고 깨끗한 공기는 바닥 30~60cm 부근에 남습니다. 따라서 <strong>젖은 수건이나 방연마스크로 코와 입을 막고 낮은 자세(🧎)</strong>로 벽을 짚으며 이동해야 질식을 막을 수 있습니다.
+          </p>
+        </div>
+        <div class="flex items-center justify-between gap-2">
+          <button id="btnBriefingPrev" type="button" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">◀ 이전 원리</button>
+          <span class="text-[11px] text-slate-400">전자칠판에 띄워 수업 도입 3분 설명용으로 활용하세요</span>
+          <button id="btnBriefingNext" type="button" class="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-slate-950 font-extrabold">다음 원리 ▶</button>
+        </div>
+      </div>
+
+      <!-- Feature 4: Teacher Custom Quiz & Safe Code URL Builder -->
+      <details class="bg-slate-950 border border-cyan-500/40 rounded-xl p-2.5 text-xs">
+        <summary class="cursor-pointer font-extrabold text-cyan-300 select-none">✍️ 우리 반 맞춤 금고 암호 & 방탈출 퀴즈 직접 출제하기 (URL 공유)</summary>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+            <input id="customSafeCodeInput" type="text" maxlength="4" inputmode="numeric" placeholder="금고 정답 (예: 1446)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-200 font-mono font-bold" />
+            <input id="customSafeClueInput" type="text" maxlength="60" placeholder="금고 단서 설명 (예: 훈민정음 창제 연도 4자리)" class="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
+          </div>
+          <input id="customQuizTitleInput" type="text" maxlength="70" placeholder="맞춤 퀴즈 질문 (예: 우리 학교 과학실 소화기가 있는 위치는?)" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            <input id="customQuizGoodInput" type="text" maxlength="60" placeholder="✅ 정답 보기 (예: 복도 앞문 옆 빨간 보관함)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-200" />
+            <input id="customQuizBadInput" type="text" maxlength="60" placeholder="❌ 오답 보기 (예: 교실 사물함 맨 위칸)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-rose-500/40 text-rose-200" />
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button id="btnApplyCustomQuizNow" type="button" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-extrabold">✅ 지금 게임에 즉시 적용</button>
+            <button id="btnCopyCustomQuizUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-cyan-500/40 text-cyan-300 font-bold">🔗 맞춤 문제 링크 복사 (QR 자동 연동)</button>
+          </div>
+          <div id="customQuizFeedback" class="text-[11px] text-slate-400">문제를 입력하고 링크를 복사하면 학생들의 금고 암호와 퀴즈가 선생님 문제로 바뀝니다.</div>
+        </div>
+      </details>
+
+      <!-- Feature 8: School Record (학교생활기록부) Auto-Phrase Generator -->
+      <details class="bg-slate-950 border border-emerald-500/40 rounded-xl p-2.5 text-xs">
+        <summary class="cursor-pointer font-extrabold text-emerald-300 select-none">📝 학교생활기록부(안전교육·자율·창체) 예시 문구 자동 생성기</summary>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <select id="selectSchoolRecordType" aria-label="생기부 영역 선택" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-emerald-200 font-bold">
+              <option value="science">🔬 과학·실과 연계 (연소와 소화·대류 현상·완강기 원리)</option>
+              <option value="facility">🚇 다중이용시설·재난 대피 (방화문·유도등·배터리 열폭주)</option>
+              <option value="coop">👥 모둠 협력·가정 안전점검 (역할 분담·5대 위험요소 예방)</option>
+            </select>
+            <button id="btnCopySchoolRecord" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold">📋 문구 복사</button>
+          </div>
+          <textarea id="schoolRecordOutput" rows="2" readonly class="w-full p-2 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-200 leading-relaxed">화재 대피 3D 시뮬레이션 체험 학습에서 연기 대류 현상에 따른 낮은 자세 유지와 젖은 수건 호흡기 보호 수칙을 정확히 실천하고, 식용유(K급)·전기(C급) 등 화재 유형별 소화 원리를 구분하여 안전하게 문제를 해결함.</textarea>
+        </div>
+      </details>
+
       <!-- PRD Section 16: Teacher Spoiler & Verification Answer Appendix (Hidden by default) -->
       <details class="bg-slate-950 border border-amber-500/40 rounded-xl p-2.5 text-xs">
-        <summary class="cursor-pointer font-extrabold text-amber-300 select-none">🔐 [교사·검증 전용 스포일러] 방탈출 퍼즐 정답 및 해금 조건 부록 열기 (콘텐츠 버전 v2.4)</summary>
+        <summary class="cursor-pointer font-extrabold text-amber-300 select-none">🔐 [교사·검증 전용 스포일러] 방탈출 퍼즐 정답 및 해금 조건 부록 열기 (콘텐츠 버전 v2.5)</summary>
         <div class="mt-2 pt-2 border-t border-slate-800 space-y-1.5 text-[11px] text-slate-300">
           <div>• <strong>금고 / 비상 보관함 숫자 암호:</strong> <code class="text-amber-300 font-mono">614</code> (비상 금고) / <code class="text-amber-300 font-mono">3322</code> (열쇠 보관함) / <code class="text-amber-300 font-mono">0119</code> (비상출입문, 앞자리 0 문자열 비교 유지, 3회 오답 시 활성경과 30초 잠금)</div>
           <div>• <strong>배전판 배선 연결 정답:</strong> <code class="text-sky-300 font-mono">빨강=B단자 / 파랑=D단자 / 노랑=A단자 / 초록=C단자</code> (색상 및 영문 기호 병기)</div>
@@ -997,9 +1134,25 @@
         </p>
       </div>
 
-      <!-- PRD Section 9: Graphics Quality, Brightness (0.8~1.8), Sensitivity (0.5~2.0), Motion Reduction -->
+      <!-- Feature 2: Grade-Level Difficulty Presets (Low / Standard / Advanced) -->
       <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-        <div class="font-extrabold text-sky-300">🖥️ 화면 화질 · 밝기 · 감도 · 흔들림 완화</div>
+        <div class="font-extrabold text-emerald-300 flex items-center justify-between">
+          <span>🎓 학년군별 눈높이 난이도 프리셋 (원클릭 밸런스 조정)</span>
+          <span id="gradePresetBadge" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">초등 3~6학년 표준</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button id="btnGradeLow" type="button" class="py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">🌱 초등 1~2학년 (입문)</button>
+          <button id="btnGradeStandard" type="button" class="py-1.5 px-2 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">🏫 초등 3~6학년 (표준)</button>
+          <button id="btnGradeAdvanced" type="button" class="py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">🔥 중등·심화 (도전)</button>
+        </div>
+        <p id="gradePresetNotice" class="text-[11px] text-slate-300 leading-snug">
+          • <strong>초등 3~6학년(표준)</strong>: 기본 화염 확산 속도 및 4종 방탈출 퍼즐 표준 난이도가 적용됩니다.
+        </p>
+      </div>
+
+      <!-- PRD Section 9 & Feature 6: Graphics Quality, Brightness, Sensitivity, Motion Reduction & Voice TTS -->
+      <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+        <div class="font-extrabold text-sky-300">🖥️ 화면 화질 · 밝기 · 감도 · 음성 읽어주기(TTS)</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div class="flex items-center justify-between gap-2">
             <label for="selectGraphicsQuality" class="text-slate-300 font-bold">3D 렌더링 화질:</label>
@@ -1021,6 +1174,10 @@
           <div class="flex items-center justify-between gap-2">
             <label for="rangeSensitivity" class="text-slate-300 font-bold">회전 감도 (<span id="lblSensitivity">1.0</span>):</label>
             <input id="rangeSensitivity" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-28 accent-sky-400" />
+          </div>
+          <div class="sm:col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <label for="chkVoiceTts" class="text-amber-300 font-extrabold">🗣️ 미션·퀴즈 한국어 음성 읽어주기 (저학년·다문화 학생 지원 TTS):</label>
+            <input id="chkVoiceTts" type="checkbox" class="w-4 h-4 accent-amber-400" />
           </div>
         </div>
       </div>

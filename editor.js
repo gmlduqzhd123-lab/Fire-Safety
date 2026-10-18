@@ -479,6 +479,141 @@
 
     btnResetCustomMap.addEventListener('click', resetEditorGrid);
 
+    // Feature 9: 3 Floor Plan Templates (Apartment 3-Bay / Detached House / School Classroom) + Homework PNG Export
+    const btnTplApartment = document.getElementById('btnTplApartment');
+    const btnTplHouse = document.getElementById('btnTplHouse');
+    const btnTplSchool = document.getElementById('btnTplSchool');
+    const btnDownloadMapPng = document.getElementById('btnDownloadMapPng');
+
+    function applyFloorPlanTemplate(kind) {
+      resetEditorGrid();
+      if (kind === 'apartment') {
+        // 3-Bay Apartment Floor Plan (3 Rooms + Central Living Room + South Balcony with Lifeline & Partition)
+        editorGrid = [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,1,0,5,0,1,0,0,2,0,0,1],
+          [1,0,2,0,3,0,0,0,3,0,0,0,0,0,1],
+          [1,1,3,1,1,1,3,1,1,1,1,3,1,1,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,17,1],
+          [1,0,2,0,0,0,2,0,0,0,0,2,0,7,1],
+          [1,1,3,1,1,1,3,1,1,1,1,3,1,1,1],
+          [1,0,0,0,3,0,0,0,3,0,0,0,0,13,1],
+          [1,0,0,14,1,0,0,0,1,0,0,0,0,14,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        editorFires = [{ c: 7, r: 4, intensity: 1.0, fireType: 'oil' }];
+        editorSmokes = [{ c: 6, r: 4 }, { c: 8, r: 4 }];
+        editorItems = [
+          { c: 2, r: 1, type: 'towel', name: '마른 수건', icon: '🧣' },
+          { c: 4, r: 4, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 },
+          { c: 12, r: 1, type: 'npc', name: '가족', icon: '🧒' }
+        ];
+        callbacks.showToast('🏢 [아파트 3베이형 템플릿] 안방·작은방·거실·베란다(완강기·경량칸막이) 구조가 적용되었습니다!');
+      } else if (kind === 'house') {
+        // Detached / Villa Courtyard House Floor Plan
+        editorGrid = [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,5,1,0,0,0,0,1,0,0,2,0,1],
+          [1,0,2,0,3,0,2,0,0,3,0,0,0,0,1],
+          [1,0,0,0,1,1,3,1,1,1,1,3,1,1,1],
+          [1,1,3,1,1,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,3,0,0,2,0,0,0,2,0,17,1],
+          [1,0,2,0,1,1,3,1,1,1,3,1,1,1,1],
+          [1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+          [1,7,0,0,3,0,2,0,3,0,0,0,0,7,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        editorFires = [{ c: 8, r: 4, intensity: 1.0, fireType: 'normal' }];
+        editorSmokes = [{ c: 7, r: 4 }, { c: 9, r: 4 }];
+        editorItems = [
+          { c: 2, r: 1, type: 'mask', name: '방연마스크', icon: '😷' },
+          { c: 5, r: 4, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 }
+        ];
+        callbacks.showToast('🏡 [단독·빌라 주택형 템플릿] 양방향 현관·뒷문 탈출구 구조가 적용되었습니다!');
+      } else if (kind === 'school') {
+        // Elementary / Middle School Classroom & Corridor Floor Plan
+        editorGrid = [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,5,1,0,0,0,0,1,0,0,0,0,1],
+          [1,0,2,0,1,0,2,2,0,1,0,2,2,0,1],
+          [1,0,0,0,1,0,2,2,0,1,0,2,2,0,1],
+          [1,1,3,1,1,3,1,1,3,1,3,1,1,3,1],
+          [1,17,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+          [1,7,1,1,3,1,1,1,1,3,1,1,1,7,1],
+          [1,0,1,1,0,0,2,0,0,0,0,2,1,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        editorFires = [{ c: 7, r: 5, intensity: 1.0, fireType: 'electric' }];
+        editorSmokes = [{ c: 6, r: 5 }, { c: 8, r: 5 }];
+        editorItems = [
+          { c: 2, r: 1, type: 'towel', name: '마른 수건', icon: '🧣' },
+          { c: 3, r: 5, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 },
+          { c: 12, r: 1, type: 'npc', name: '짝꿍 친구', icon: '🧒' }
+        ];
+        callbacks.showToast('🏫 [우리 학교 교실형 템플릿] 앞문·뒷문 복도와 양쪽 비상계단 구조가 적용되었습니다!');
+      }
+      syncEditorCode();
+      drawEditorCanvas();
+    }
+
+    if (btnTplApartment) btnTplApartment.addEventListener('click', () => applyFloorPlanTemplate('apartment'));
+    if (btnTplHouse) btnTplHouse.addEventListener('click', () => applyFloorPlanTemplate('house'));
+    if (btnTplSchool) btnTplSchool.addEventListener('click', () => applyFloorPlanTemplate('school'));
+
+    if (btnDownloadMapPng) {
+      btnDownloadMapPng.addEventListener('click', () => {
+        drawEditorCanvas();
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = 840;
+        outCanvas.height = 640;
+        const octx = outCanvas.getContext('2d');
+
+        octx.fillStyle = '#0f172a';
+        octx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+        octx.strokeStyle = '#38bdf8';
+        octx.lineWidth = 4;
+        octx.strokeRect(14, 14, outCanvas.width - 28, outCanvas.height - 28);
+
+        octx.fillStyle = '#fbbf24';
+        octx.font = 'bold 15px "Noto Sans KR", sans-serif';
+        octx.textAlign = 'center';
+        octx.fillText('2022 개정 교육과정 연계 · 가정·교실 연계 화재 안전 대피도 설계 과제', 420, 46);
+
+        octx.fillStyle = '#ffffff';
+        octx.font = '900 26px "Noto Sans KR", sans-serif';
+        octx.fillText('🗺️ 내가 직접 만든 우리 집·교실 화재 비상 대피도', 420, 80);
+
+        // Draw Editor Map scaled cleanly in center
+        octx.drawImage(editorCanvas, 60, 100, 720, 440);
+        octx.strokeStyle = '#64748b';
+        octx.lineWidth = 2;
+        octx.strokeRect(60, 100, 720, 440);
+
+        // Legend & Family Safety Pledge Footer
+        octx.fillStyle = '#cbd5e1';
+        octx.font = 'bold 14px "Noto Sans KR", sans-serif';
+        octx.fillText('범례: 🧍시작위치   🏃비상구(EXIT)   🚪방화문   🧯소화기   🚰세면대(젖은수건)   🪢완강기   🧱경량칸막이', 420, 568);
+
+        octx.fillStyle = '#34d399';
+        octx.font = 'bold 14px "Noto Sans KR", sans-serif';
+        octx.fillText('✋ 안전 약속: "불이 나면 젖은 수건으로 코와 입을 막고 낮은 자세로 비상구까지 대피하겠습니다!"', 420, 598);
+
+        try {
+          const url = outCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `우리집_화재대피도_${new Date().toISOString().slice(0, 10)}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          callbacks.showToast('🖼️ 내가 만든 화재 대피도 이미지(PNG)가 저장되었습니다! 학급 게시판에 제출해 보세요!', 'border-amber-400');
+        } catch (e) {
+          callbacks.showToast('⚠️ 대피도 이미지 저장 중 오류가 발생했습니다.', 'border-red-500');
+        }
+      });
+    }
+
     btnPlayCustomMap.addEventListener('click', () => {
       // 1. Ensure at least one exit exists
       let hasExit = false;
@@ -517,6 +652,8 @@
 
     resetEditorGrid();
 
+    window.FireEscape.drawFallbackQrMatrix = drawFallbackQrMatrix;
+
     return {
       open() {
         if (editorGrid.length === 0) resetEditorGrid();
@@ -528,7 +665,8 @@
         mapEditorModal.classList.add('hidden');
         mapEditorModal.classList.remove('flex');
       },
-      loadFromRawCode
+      loadFromRawCode,
+      applyFloorPlanTemplate
     };
   }
 
