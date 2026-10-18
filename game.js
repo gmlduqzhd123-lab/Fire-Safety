@@ -512,7 +512,8 @@
 
   function getVisibleOverlayButtons() {
     const continueBtn = document.getElementById('btnContinueSaved');
-    return [continueBtn, btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].filter(
+    const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
+    return [continueBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].filter(
       (b) => b && !b.classList.contains('hidden') && !b.disabled
     );
   }
@@ -523,7 +524,8 @@
     if (overlaySelectedIndex >= btns.length) overlaySelectedIndex = 0;
     if (overlaySelectedIndex < 0) overlaySelectedIndex = btns.length - 1;
     const continueBtn = document.getElementById('btnContinueSaved');
-    [continueBtn, btnPrimaryAction, btnOpenCertFromOverlay, btnSecondaryAction].forEach((b) => {
+    const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
+    [continueBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, exitOverlayBtn].forEach((b) => {
       if (b) b.classList.remove('kb-selected');
     });
     const targetBtn = btns[overlaySelectedIndex];
@@ -6889,6 +6891,16 @@
       return;
     }
 
+    const exitModalEl = document.getElementById('exitGameModal');
+    if (exitModalEl && !exitModalEl.classList.contains('hidden')) {
+      if (e.code === 'Escape' && !e.repeat) {
+        e.preventDefault();
+        const closeExitBtn = document.getElementById('btnCloseExitModal');
+        if (closeExitBtn) closeExitBtn.click();
+      }
+      return;
+    }
+
     if (!gameOverlay.classList.contains('hidden')) {
       const btns = getVisibleOverlayButtons();
       if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -7217,7 +7229,8 @@
     const nbModal = document.getElementById('notebookModal');
     const pzModal = document.getElementById('puzzleModal');
     const stModal = document.getElementById('settingsModal');
-    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, nbModal, pzModal, stModal, moreToolsDrawer].forEach((m) => {
+    const exModal = document.getElementById('exitGameModal');
+    [eduModal, mapEditorModal, certModal, guideModal, classModal, teacherModal, nbModal, pzModal, stModal, exModal, moreToolsDrawer].forEach((m) => {
       if (m) {
         m.classList.add('hidden');
         m.classList.remove('flex');
@@ -8217,9 +8230,9 @@
       const mins = String(Math.floor((saved.elapsedSeconds || 0) / 60)).padStart(2, '0');
       const secs = String(Math.floor((saved.elapsedSeconds || 0) % 60)).padStart(2, '0');
       const fullStageName = String(saved.stageName || `${(saved.stageIdx || 0) + 1}단계`).split('[')[0].trim();
-      const shortBadge = fullStageName.includes(':') ? fullStageName.split(':')[0].trim() : fullStageName.slice(0, 6).trim();
-      btnContinueSaved.textContent = `⏯️ 이어하기 (${shortBadge} · ${mins}:${secs})`;
-      btnContinueSaved.title = `${fullStageName} (${mins}:${secs}) 이어서 시작하기`;
+      const shortBadge = fullStageName.includes(':') ? fullStageName.split(':')[0].trim() : fullStageName.slice(0, 5).trim();
+      btnContinueSaved.textContent = `⏯️ 이어하기 (${shortBadge})`;
+      btnContinueSaved.title = `${fullStageName} (경과 ${mins}:${secs}) 이어서 시작하기`;
       btnContinueSaved.classList.remove('hidden');
     } else {
       btnContinueSaved.classList.add('hidden');
@@ -9789,6 +9802,125 @@
       closeSettingsModalFn();
       showMainTitleScreen();
       showToast('💾 현재 진행 상태를 안전하게 저장하고 메인 화면으로 돌아왔습니다!', 'border-amber-400');
+    });
+  }
+
+  // --- Game Exit (🚪 게임 종료) Modal & Handlers ---
+  const btnExitGameOverlay = document.getElementById('btnExitGameOverlay');
+  const btnExitGameTop = document.getElementById('btnExitGameTop');
+  const btnExitFromSettings = document.getElementById('btnExitFromSettings');
+  const exitGameModal = document.getElementById('exitGameModal');
+  const exitModalTitle = document.getElementById('exitModalTitle');
+  const exitModalSaveNotice = document.getElementById('exitModalSaveNotice');
+  const exitModalFarewellBox = document.getElementById('exitModalFarewellBox');
+  const btnCloseExitModal = document.getElementById('btnCloseExitModal');
+  const btnConfirmExitClose = document.getElementById('btnConfirmExitClose');
+  const btnExitToMainTitle = document.getElementById('btnExitToMainTitle');
+  const btnCancelExitGame = document.getElementById('btnCancelExitGame');
+  let isExitFarewellState = false;
+
+  function openExitGameModalFn() {
+    if (!exitGameModal) return;
+    SoundFX.init();
+    clearAllInputStates();
+    if (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'STAGE_CLEAR') {
+      saveCampaignState();
+    }
+    if (window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    if (mapEditorInstance) mapEditorInstance.close();
+    [settingsModal, certModal, guideModal, classModal, teacherModal, notebookModal, puzzleModal, moreToolsDrawer].forEach((m) => {
+      if (m) {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      }
+    });
+    if (gameState === 'PLAYING') {
+      gameState = 'PAUSED';
+      pauseIcon.textContent = '▶️';
+      pauseText.textContent = '계속하기';
+    }
+    isExitFarewellState = false;
+    if (exitModalTitle) exitModalTitle.textContent = '🚪 게임을 종료하시겠습니까?';
+    if (exitModalSaveNotice) exitModalSaveNotice.classList.remove('hidden');
+    if (exitModalFarewellBox) exitModalFarewellBox.classList.add('hidden');
+    if (btnConfirmExitClose) btnConfirmExitClose.classList.remove('hidden');
+    if (btnExitToMainTitle) {
+      const isAlreadyMain = gameState === 'START' && !gameOverlay.classList.contains('hidden');
+      btnExitToMainTitle.classList.toggle('hidden', isAlreadyMain);
+    }
+    if (btnCancelExitGame) btnCancelExitGame.textContent = '▶️ 취소 (게임으로 돌아가기)';
+
+    exitGameModal.classList.remove('hidden');
+    exitGameModal.classList.add('flex');
+  }
+
+  function closeExitGameModalFn() {
+    if (!exitGameModal) return;
+    clearAllInputStates();
+    exitGameModal.classList.add('hidden');
+    exitGameModal.classList.remove('flex');
+    if (isExitFarewellState) {
+      isExitFarewellState = false;
+      showMainTitleScreen();
+      return;
+    }
+    if (
+      gameState === 'PAUSED' &&
+      gameOverlay.classList.contains('hidden') &&
+      eduModal.classList.contains('hidden') &&
+      guideModal.classList.contains('hidden') &&
+      mapEditorModal.classList.contains('hidden') &&
+      certModal.classList.contains('hidden') &&
+      (!classModal || classModal.classList.contains('hidden')) &&
+      (!teacherModal || teacherModal.classList.contains('hidden')) &&
+      (!settingsModal || settingsModal.classList.contains('hidden'))
+    ) {
+      gameState = 'PLAYING';
+      pauseIcon.textContent = '⏸️';
+      pauseText.textContent = '일시정지';
+    }
+    updateHUD();
+  }
+
+  if (btnExitGameOverlay) btnExitGameOverlay.addEventListener('click', openExitGameModalFn);
+  if (btnExitGameTop) btnExitGameTop.addEventListener('click', openExitGameModalFn);
+  if (btnExitFromSettings) btnExitFromSettings.addEventListener('click', openExitGameModalFn);
+  if (btnCloseExitModal) btnCloseExitModal.addEventListener('click', closeExitGameModalFn);
+  if (btnCancelExitGame) btnCancelExitGame.addEventListener('click', closeExitGameModalFn);
+
+  if (btnExitToMainTitle) {
+    btnExitToMainTitle.addEventListener('click', () => {
+      SoundFX.init();
+      saveCampaignState();
+      isExitFarewellState = false;
+      if (exitGameModal) {
+        exitGameModal.classList.add('hidden');
+        exitGameModal.classList.remove('flex');
+      }
+      showMainTitleScreen();
+      showToast('💾 현재 진행 상태를 안전하게 저장하고 메인 타이틀 화면으로 이동했습니다!', 'border-amber-400');
+    });
+  }
+
+  if (btnConfirmExitClose) {
+    btnConfirmExitClose.addEventListener('click', () => {
+      SoundFX.init();
+      saveCampaignState();
+      if (window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+      try {
+        window.close();
+      } catch (e) {}
+      isExitFarewellState = true;
+      if (exitModalTitle) exitModalTitle.textContent = '🚒 게임이 안전하게 종료되었습니다';
+      if (exitModalFarewellBox) exitModalFarewellBox.classList.remove('hidden');
+      if (btnConfirmExitClose) btnConfirmExitClose.classList.add('hidden');
+      if (btnExitToMainTitle) btnExitToMainTitle.classList.add('hidden');
+      if (btnCancelExitGame) btnCancelExitGame.textContent = '🔄 다시 게임 시작하기 (타이틀 화면)';
+      showToast('🚒 진행 상태가 자동 저장되었으며 게임이 안전하게 종료되었습니다.', 'border-emerald-400');
     });
   }
 

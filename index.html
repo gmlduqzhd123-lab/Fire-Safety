@@ -124,6 +124,11 @@
             <span>⚙️</span>
             <span class="text-[11px] sm:text-xs">메뉴</span>
           </button>
+
+          <button id="btnExitGameTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 transition flex items-center gap-1" title="자동 저장 후 게임 종료">
+            <span>🚪</span>
+            <span class="text-[11px] sm:text-xs hidden sm:inline">종료</span>
+          </button>
         </div>
       </div>
 
@@ -417,20 +422,23 @@
 
           <div class="flex flex-row flex-wrap items-center gap-2 pt-0.5">
             <!-- PRD F04: Continue Valid Saved Campaign Button -->
-            <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[180px] h-11 sm:h-12 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[135px] h-11 sm:h-12 px-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ⏯️ 이어하기
             </button>
-            <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[160px] h-11 sm:h-12 px-5 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[135px] h-11 sm:h-12 px-4 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-xl shadow-orange-600/30 border border-orange-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
               ▶️ 게임 시작하기
             </button>
-            <button id="btnMainGuide" type="button" class="h-11 sm:h-12 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnMainGuide" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🧯 안전수칙
             </button>
-            <button id="btnOpenCertFromOverlay" type="button" class="h-11 sm:h-12 px-3.5 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnOpenCertFromOverlay" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🏅 수료증·도감
             </button>
-            <button id="btnSecondaryAction" type="button" class="hidden h-11 sm:h-12 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+            <button id="btnSecondaryAction" type="button" class="hidden h-11 sm:h-12 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
               🔄 다시하기
+            </button>
+            <button id="btnExitGameOverlay" type="button" class="h-11 sm:h-12 px-3 rounded-2xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+              🚪 게임 종료
             </button>
           </div>
           <p class="ys-credit">© 2026 엽쌤. All rights reserved. · <a href="https://gmlduqzhd123-lab.github.io/YScode/" target="_blank" rel="noopener">엽쌤의 다른 앱 보기 →</a></p>
@@ -1207,9 +1215,10 @@
       </div>
 
       <!-- PRD F12: Save & Exit to Main Portal or Resume -->
-      <div class="flex gap-2 pt-1">
-        <button id="btnResumeFromSettings" type="button" class="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition">▶️ 계속 플레이 (복귀)</button>
-        <button id="btnSaveAndExitMain" type="button" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition">🏠 저장하고 메인으로 종료</button>
+      <div class="flex flex-wrap gap-2 pt-1">
+        <button id="btnResumeFromSettings" type="button" class="flex-1 min-w-[130px] py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition">▶️ 계속 플레이 (복귀)</button>
+        <button id="btnSaveAndExitMain" type="button" class="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition">🏠 저장 후 메인으로</button>
+        <button id="btnExitFromSettings" type="button" class="py-2.5 px-3.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-bold text-xs sm:text-sm transition">🚪 게임 종료</button>
       </div>
     </div>
   </div>
@@ -1247,6 +1256,44 @@
       <button id="btnConfirmGuide" type="button" class="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm transition">
         확인했습니다
       </button>
+    </div>
+  </div>
+
+  <!-- Game Exit / Farewell Confirmation Modal -->
+  <div id="exitGameModal" class="fixed inset-0 z-[80] hidden bg-slate-950/90 backdrop-blur-md items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-rose-500/40 rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-3.5 text-center">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <h3 id="exitModalTitle" class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🚪 게임을 종료하시겠습니까?</h3>
+        <button id="btnCloseExitModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <div id="exitModalSaveNotice" class="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-xs sm:text-sm text-emerald-200 leading-relaxed text-left">
+        💾 <strong>자동 저장 완료:</strong> 현재까지의 진행 상태와 최고 점수·배지 기록이 이 기기에 안전하게 저장되었습니다. 다음에 접속하면 <strong>[⏯️ 이어하기]</strong>로 바로 이어서 플레이할 수 있습니다.
+      </div>
+
+      <div id="exitModalFarewellBox" class="hidden p-4 rounded-2xl bg-slate-950 border border-amber-500/40 space-y-2 text-center">
+        <div class="text-3xl">🚒👋</div>
+        <div class="text-sm sm:text-base font-black text-amber-300">화재 탈출 넘버원 3D가 안전하게 종료되었습니다</div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          오늘 배운 화재 대피 수칙(젖은 수건·낮은 자세·방화문 닫기)을 꼭 기억해 주세요!<br/>
+          이제 브라우저 탭이나 창을 닫으셔도 됩니다.
+        </p>
+      </div>
+
+      <div id="exitModalActionButtons" class="flex flex-col gap-2 pt-1">
+        <button id="btnConfirmExitClose" type="button" class="w-full h-11 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs sm:text-sm shadow-lg border border-rose-400/40 transition flex items-center justify-center gap-1.5">
+          🚪 게임 완전 종료 (창 닫기)
+        </button>
+        <button id="btnExitToMainTitle" type="button" class="w-full h-11 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5">
+          🏠 메인 타이틀 화면으로 이동
+        </button>
+        <a id="linkExitOtherApps" href="https://gmlduqzhd123-lab.github.io/YScode/" class="w-full h-10 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-sky-300 font-bold text-xs transition flex items-center justify-center gap-1.5">
+          🌐 엽쌤의 다른 교육용 앱 보러가기 →
+        </a>
+        <button id="btnCancelExitGame" type="button" class="w-full h-11 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5">
+          ▶️ 취소 (게임으로 돌아가기)
+        </button>
+      </div>
     </div>
   </div>
 
