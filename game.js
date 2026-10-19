@@ -2707,8 +2707,8 @@
     btnCopyVerifyCode.addEventListener('click', () => {
       const verifyText = document.getElementById('verifyCodeText');
       const code = verifyText ? verifyText.textContent.trim() : '';
-      const st = getCurrentStage();
-      const sName = (playerNameInput && playerNameInput.value.trim()) || currentStudentName || '익명 대원';
+      const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+      const sName = (studentNameInput && studentNameInput.value.trim()) || '익명 대원';
       const clsTag = currentClassCode ? `[${currentClassCode}] ` : '';
       const stageLabel = activeCustomStage
         ? (activeCustomStage.isDailyChallenge ? '오늘의챌린지' : '커스텀맵')
@@ -5159,9 +5159,9 @@
     ctx.restore();
 
     // Bottom-Left 1st-Person 3D Walkthrough Status Badge (Never overlaps top toast banner!)
-    const gearSummary = player.wetTowel
-      ? '🧣젖은수건 착용'
-      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : 'Space:반응 · Shift:숙이기'));
+    const gearSummary = player.hasMask
+      ? '😷방연마스크 착용'
+      : (player.wetTowel ? '🧣젖은수건 착용' : (player.hasTowel ? '🧣수건 보유' : 'Space:반응 · Shift:숙이기'));
     ctx.save();
     const badgeY = height - 34;
     const badgeText = `👁️ 1인칭 3D 뷰 (${player.crouching ? '🧎낮은자세[Shift]' : '🚶서있음[Shift]'} · ${gearSummary})`;
@@ -5928,7 +5928,7 @@
         }
       } else {
         // High-Realism 3D Building Interior Wall Architecture (Multi-Band Vertical Lighting + Recessed Fixtures + 3D Handrail + Floor/Ceiling AO)
-        const wallFeature = (mapX * 7 + mapY * 13) % 7;
+        const wallFeature = (mapX * 5 + mapY * 13) % 7;
         const isPanelJoint = isEdgeSeam || Math.abs(wallX - 0.5) < 0.012;
         const microTex = 0.985 + 0.015 * Math.cos(wallX * 37.7);
         const upperHex = isPanelJoint ? '#334155' : '#64748b';
@@ -6684,7 +6684,7 @@
     }
 
     // 6. Volumetric Flashlight Beam Cone + Compact Ground-Locked 3D Runner Avatar Holding Active Equipment
-    if (flashlightSpotEnabled || player.hasFlashlight) {
+    if (flashlightSpotEnabled && player.hasFlashlight) {
       ctx.save();
       const beamGrad = ctx.createRadialGradient(halfW, horizon, 10, halfW, horizon, width * 0.36);
       beamGrad.addColorStop(0, 'rgba(254, 249, 195, 0.16)');
@@ -7348,7 +7348,7 @@
         const pRad = 0.32 * tileSize;
         const footY = py + tileSize * 0.16;
 
-        if (flashlightSpotEnabled || player.hasFlashlight) {
+        if (flashlightSpotEnabled && player.hasFlashlight) {
           ctx.save();
           const fAngle = Math.atan2(player.dirY || 0, player.dirX || 1);
           const coneLen = tileSize * (player.hasFlashlight ? 2.6 : 1.9);
@@ -9267,7 +9267,7 @@
       );
     } else if (gameState === 'STAGE_CLEAR') {
       let nextIdx = 0;
-      if (activeCustomStage || currentStageIdx === 5) {
+      if (activeCustomStage || currentStageIdx === 5 || currentStageIdx >= STAGES.length - 1) {
         nextIdx = 0;
       } else if (currentStageIdx === 4) {
         nextIdx = 6; // Advance from Stage 5 (idx 4) to Stage 6 (idx 6, Camping & Battery Fire)
@@ -11498,7 +11498,7 @@
       .filter(Boolean);
     const results = [];
     lines.forEach((line, idx) => {
-      const nameMatch = line.match(/\]\s*([^·|]+?)\s*·/) || line.match(/^([^·,:119]+?)\s*[·,:]/);
+      const nameMatch = line.match(/\]\s*([^·|]+?)\s*·/) || line.match(/^(?!119\b)([^·,:]+?)\s*[·,:]/);
       const extractedName = nameMatch ? nameMatch[1].trim() : `학생_${idx + 1}`;
       const stageMatch = line.match(/(\d+단계|커스텀맵|커스텀|예방점검|오늘의챌린지|챌린지)/);
 

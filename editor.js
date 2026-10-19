@@ -17,8 +17,13 @@
 
   function decodeMapData(rawInput) {
     let clean = (rawInput || '').trim();
-    if (clean.includes('?map=')) {
-      clean = clean.split('?map=')[1].split('&')[0];
+    if (clean.includes('map=')) {
+      const mapMatch = clean.match(/[?&]map=([^&#]+)/);
+      if (mapMatch) {
+        clean = mapMatch[1];
+      } else if (clean.includes('?map=')) {
+        clean = clean.split('?map=')[1].split(/[&#]/)[0];
+      }
     }
     clean = decodeURIComponent(clean);
     const binStr = atob(clean);
@@ -117,11 +122,11 @@
 
         if (availableKeys > 0 && frontierLockedDoors.length > 0) {
           for (const dk of frontierLockedDoors) {
-            if (!unlockedDoors.has(dk)) {
+            if (!unlockedDoors.has(dk) && availableKeys > 0) {
               unlockedDoors.add(dk);
+              availableKeys--;
             }
           }
-          availableKeys--;
           continue;
         }
 
@@ -135,6 +140,13 @@
       return { ok: true };
     }
     if (canReachExit(true)) {
+      const hasLockedDoor = gridData.some(row => row.includes(TILE.LOCKED_DOOR));
+      const hasDebris = gridData.some(row => row.includes(TILE.DEBRIS));
+      const hasKey = itemsData.some(it => it.type === 'key');
+      const hasAxeItem = itemsData.some(it => it.type === 'axe');
+      if (hasDebris && !hasAxeItem && (!hasLockedDoor || hasKey)) {
+        return { ok: false, reason: 'missing_axe' };
+      }
       return { ok: false, reason: 'missing_key' };
     }
     return { ok: false, reason: 'blocked' };
@@ -148,8 +160,11 @@
       name: '커스텀: 나만의 우리 집·교실 대피도',
       mission: '직접 설계한 커스텀 대피도에서 안전하게 비상구(EXIT·경량칸막이·완강기)로 탈출하세요!',
       curriculumFocus: '창작·설계 기반 재난 대피 동선 실습',
+      difficultyStars: '★★★☆☆',
+      difficultyLabel: '커스텀 대피도',
       requireGasClosed: hasGasValve,
       requireBreakerClosed: hasBreaker,
+      requireWetTowelOrMask: Array.isArray(smokesData) && smokesData.length > 0,
       requireRescueNpc: Array.isArray(itemsData) && itemsData.some(it => it.type === 'npc'),
       map: gridData.map(row => [...row]),
       playerStart: { x: 1.5, y: 1.5 },

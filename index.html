@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=12" />
+  <link rel="stylesheet" href="./style.css?v=13" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -488,8 +488,8 @@
                     <button id="btnExportReflection" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]">💾 성찰·결과 내보내기(.txt)</button>
                   </div>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
-                    <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                    <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" aria-label="사용한 핵심 단서와 해결 근거 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                    <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" aria-label="바꾼 대피 전략 또는 질문 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
                   </div>
                 </div>
               </div>
@@ -698,7 +698,7 @@
 
       <!-- Export / Import Code -->
       <div class="flex flex-wrap sm:flex-nowrap items-center gap-1.5">
-        <input id="editorMapCodeInput" type="text" placeholder="맵 공유 코드 또는 공유 URL이 여기에 표시됩니다" class="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono" />
+        <input id="editorMapCodeInput" type="text" placeholder="맵 공유 코드 또는 공유 URL이 여기에 표시됩니다" aria-label="맵 공유 코드 입력" class="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-slate-200 font-mono" />
         <button id="btnCopyMapCode" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200">📋 코드복사</button>
         <button id="btnCopyMapUrl" type="button" class="px-2.5 py-1.5 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/40 text-xs font-bold text-indigo-300">🔗 링크복사</button>
         <button id="btnShowMapQr" type="button" class="px-2.5 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/40 text-xs font-bold text-emerald-300">📱 QR생성</button>
@@ -833,7 +833,7 @@
       </p>
 
       <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
-        <input id="classCodeInput" type="text" placeholder="예: 서울초 5학년 2반" maxlength="24" class="flex-1 min-w-[150px] px-3 py-1.5 rounded-lg bg-slate-950 border border-sky-500/50 text-xs text-sky-200 font-bold" />
+        <input id="classCodeInput" type="text" placeholder="예: 서울초 5학년 2반" maxlength="24" aria-label="학급 코드 입력" class="flex-1 min-w-[150px] px-3 py-1.5 rounded-lg bg-slate-950 border border-sky-500/50 text-xs text-sky-200 font-bold" />
         <button id="btnApplyClassCode" type="button" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-extrabold text-white">🏫 학급 적용</button>
         <button id="btnCopyClassUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">🔗 학급링크 복사</button>
       </div>
@@ -1043,13 +1043,13 @@
         <summary class="cursor-pointer font-extrabold text-cyan-300 select-none">✍️ 우리 반 맞춤 금고 암호 & 방탈출 퀴즈 직접 출제하기 (URL 공유)</summary>
         <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
-            <input id="customSafeCodeInput" type="text" maxlength="4" inputmode="numeric" placeholder="금고 정답 (예: 1446)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-200 font-mono font-bold" />
-            <input id="customSafeClueInput" type="text" maxlength="60" placeholder="금고 단서 설명 (예: 훈민정음 창제 연도 4자리)" class="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
+            <input id="customSafeCodeInput" type="text" maxlength="4" inputmode="numeric" placeholder="금고 정답 (예: 1446)" aria-label="금고 비밀번호 입력" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-200 font-mono font-bold" />
+            <input id="customSafeClueInput" type="text" maxlength="60" placeholder="금고 단서 설명 (예: 훈민정음 창제 연도 4자리)" aria-label="금고 단서 설명 입력" class="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
           </div>
-          <input id="customQuizTitleInput" type="text" maxlength="70" placeholder="맞춤 퀴즈 질문 (예: 우리 학교 과학실 소화기가 있는 위치는?)" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
+          <input id="customQuizTitleInput" type="text" maxlength="70" placeholder="맞춤 퀴즈 질문 (예: 우리 학교 과학실 소화기가 있는 위치는?)" aria-label="맞춤 퀴즈 질문 입력" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200" />
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            <input id="customQuizGoodInput" type="text" maxlength="60" placeholder="✅ 정답 보기 (예: 복도 앞문 옆 빨간 보관함)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-200" />
-            <input id="customQuizBadInput" type="text" maxlength="60" placeholder="❌ 오답 보기 (예: 교실 사물함 맨 위칸)" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-rose-500/40 text-rose-200" />
+            <input id="customQuizGoodInput" type="text" maxlength="60" placeholder="✅ 정답 보기 (예: 복도 앞문 옆 빨간 보관함)" aria-label="퀴즈 정답 보기 입력" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-emerald-500/40 text-emerald-200" />
+            <input id="customQuizBadInput" type="text" maxlength="60" placeholder="❌ 오답 보기 (예: 교실 사물함 맨 위칸)" aria-label="퀴즈 오답 보기 입력" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-rose-500/40 text-rose-200" />
           </div>
           <div class="flex flex-wrap gap-1.5">
             <button id="btnApplyCustomQuizNow" type="button" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-extrabold">✅ 지금 게임에 즉시 적용</button>
@@ -1066,7 +1066,7 @@
           <p class="text-[11px] text-slate-300 leading-relaxed">
             학생들이 제출한 클리어 인증코드(예: <code class="text-emerald-300 font-mono">[서울초 5-2] 김안전 · 1단계 · 1450점 · 등급:안전 박사 (S) · #FS-1234</code> 또는 <code class="text-emerald-300 font-mono">119-S1-S1850-42</code>)를 여러 줄 붙여넣으면 1초 만에 통계를 집계하고 엑셀(CSV)로 저장합니다.
           </p>
-          <textarea id="teacherBatchCodeInput" rows="3" placeholder="여기에 학생들이 복사해 제출한 인증코드 여러 줄을 붙여넣으세요..." class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono"></textarea>
+          <textarea id="teacherBatchCodeInput" rows="3" placeholder="여기에 학생들이 복사해 제출한 인증코드 여러 줄을 붙여넣으세요..." aria-label="학생 인증코드 일괄 입력" class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono"></textarea>
           <div class="flex flex-wrap gap-1.5">
             <button id="btnAnalyzeBatchCodes" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold">📊 1초 일괄 분석하기</button>
             <button id="btnSampleBatchCodes" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold">🧪 예시 데이터 넣기</button>
@@ -1230,7 +1230,7 @@
           <span class="text-slate-400">※ 빈 입력이나 자릿수 부족은 오답 횟수에 포함되지 않으며, 3회 오답 시 활성 플레이 시간 30초 동안 잠깁니다.</span>
         </p>
         <div class="flex items-center gap-2">
-          <input id="safeCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="암호 숫자 입력 (예: 614)" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-base text-center tracking-widest" />
+          <input id="safeCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="암호 숫자 입력 (예: 614)" aria-label="금고 암호 입력" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-base text-center tracking-widest" />
           <button id="btnSubmitSafeCode" type="button" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs sm:text-sm transition">잠금 해제</button>
         </div>
         <!-- Quick Keypad Buttons for Touch/Keyboard Accessibility -->
@@ -1557,10 +1557,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=12"></script>
-  <script src="./stages.js?v=12"></script>
-  <script src="./editor.js?v=12"></script>
-  <script src="./tactical-3d.js?v=12"></script>
-  <script src="./game.js?v=12"></script>
+  <script src="./sound.js?v=13"></script>
+  <script src="./stages.js?v=13"></script>
+  <script src="./editor.js?v=13"></script>
+  <script src="./tactical-3d.js?v=13"></script>
+  <script src="./game.js?v=13"></script>
 </body>
 </html>

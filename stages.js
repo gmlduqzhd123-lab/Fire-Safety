@@ -442,7 +442,7 @@
       guideSigns: [
         { c: 10, r: 2, dir: '←' },
         { c: 5, r: 2, dir: '←' },
-        { c: 6, r: 5, dir: '↓' },
+        { c: 7, r: 5, dir: '↓' },
         { c: 5, r: 7, dir: '←' }
       ],
       fires: [
