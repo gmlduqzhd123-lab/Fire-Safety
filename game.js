@@ -906,24 +906,8 @@
     if (st.isPreventionMode && player.hazardsFixed < player.totalHazards) {
       return `🔍 아직 점검하지 않은 화재 위험요소(⚠️)가 ${player.totalHazards - player.hazardsFixed}곳 남아 있습니다!`;
     }
-    if (st.requireWetTowelOrMask && !player.wetTowel && !player.hasMask) {
-      return '🧣 호흡기 보호 필수! 수건을 세면대(🚰) 물에 적시거나 방연마스크(😷)를 먼저 착용해야 탈출할 수 있습니다!';
-    }
-    if (st.requireGasClosed && !player.gasClosed) {
-      return '🔴 주방의 가스밸브(🔴)를 먼저 잠가야 폭발을 막고 탈출할 수 있습니다!';
-    }
-    if (st.requireRescueNpc) {
-      const unrescuedNpc = items.find(it => it.type === 'npc');
-      if (unrescuedNpc) {
-        return `🧒 잠긴 방에 갇힌 [${unrescuedNpc.name}]을(를) 두고 탈출할 수 없습니다! 열쇠(🔑)로 방문을 열고 구출하세요!`;
-      }
-    }
-    if (st.requireRescueDog) {
-      const unrescuedDog = items.find(it => it.type === 'dog');
-      if (unrescuedDog) {
-        return `🐶 다용도실에 갇힌 반려견 [${unrescuedDog.name}]을(를) 먼저 구출해야 함께 탈출할 수 있습니다!`;
-      }
-    }
+    // Equipment, utility controls and rescue interactions must never block evacuation.
+    // Retain the hazard checklist only for the separate, non-fire prevention lesson.
     return null;
   }
 
@@ -961,163 +945,8 @@
       }
     }
 
-    // Step 1: Respiratory protection (Mask or Wet Towel)
-    if (!player.wetTowel && !player.hasMask) {
-      if (player.hasTowel) {
-        const sink = findNearestTileOfTypes([TILE.SINK]);
-        if (sink) {
-          return {
-            c: sink.c,
-            r: sink.r,
-            label: '🎯 수건 적시기',
-            bannerText: '🎯 방탈출 1단계: 🚰 세면대로 가서 [✋ 수건 적시기]를 누르세요!'
-          };
-        }
-      } else {
-        const maskOrTowel = items.find(it => it.type === 'mask' || it.type === 'towel');
-        if (maskOrTowel) {
-          return {
-            c: maskOrTowel.c,
-            r: maskOrTowel.r,
-            label: `🎯 ${maskOrTowel.name} 줍기`,
-            bannerText: `🎯 방탈출 1단계: 노란 화살표의 ${maskOrTowel.icon} ${maskOrTowel.name}을(를) 먼저 챙기세요!`
-          };
-        }
-      }
-    }
-
-    // Step 2: Flashlight in dark stage
-    if (st.isDarkStage && !player.hasFlashlight) {
-      const fl = items.find(it => it.type === 'flashlight');
-      if (fl) {
-        return {
-          c: fl.c,
-          r: fl.r,
-          label: '🎯 손전등 줍기',
-          bannerText: '🎯 방탈출 미션: 어두운 시야를 밝히기 위해 🔦 손전등을 먼저 챙기세요!'
-        };
-      }
-    }
-
-    // Step 3: Nearby Extinguisher if player has 0 charges
-    if (player.extinguisherCharges === 0) {
-      const ext = items.find(it => it.type === 'extinguisher');
-      if (ext) {
-        return {
-          c: ext.c,
-          r: ext.r,
-          label: '🎯 소화기 챙기기',
-          bannerText: '🎯 방탈출 미션: 불길을 제압할 수 있도록 🧯 소화기를 챙기세요!'
-        };
-      }
-    }
-
-    // Step 4: Gas Valve (if required by stage)
-    if (st.requireGasClosed && !player.gasClosed) {
-      const gv = findNearestTileOfTypes([TILE.GAS_VALVE]);
-      if (gv) {
-        return {
-          c: gv.c,
-          r: gv.r,
-          label: '🎯 가스밸브 잠그기',
-          bannerText: '🎯 방탈출 미션: 주방의 🔴 가스밸브를 잠가 2차 폭발을 막으세요!'
-        };
-      }
-    }
-
-    // Step 5: Escape-Room Key & Locked Door & Debris Barricade Puzzle
-    const lockedDoor = findNearestTileOfTypes([TILE.LOCKED_DOOR]);
-    const debrisTile = findNearestTileOfTypes([TILE.DEBRIS]);
-
-    // In Stage 3, the debris blocks the corridor to the veranda key, so check Axe -> Debris before Key if key is behind debris
-    if (currentStageIdx === 2 && !activeCustomStage && debrisTile) {
-      if (!player.hasAxe) {
-        const axeItem = items.find(it => it.type === 'axe');
-        if (axeItem) {
-          return {
-            c: axeItem.c,
-            r: axeItem.r,
-            label: '🎯 소방 도끼 찾기',
-            bannerText: '🎯 방탈출 퍼즐: 나무 장애물(🪵)을 부수기 위해 창고에서 🪓 소방 도끼를 찾으세요!'
-          };
-        }
-      } else {
-        return {
-          c: debrisTile.c,
-          r: debrisTile.r,
-          label: '🎯 장애물 부수기',
-          bannerText: '🎯 방탈출 퍼즐: 🪓 소방 도끼로 복도 입구의 🪵 나무 장애물을 부수세요!'
-        };
-      }
-    }
-
-    if (lockedDoor) {
-      if (player.keys === 0) {
-        const keyItem = items.find(it => it.type === 'key');
-        if (keyItem) {
-          return {
-            c: keyItem.c,
-            r: keyItem.r,
-            label: `🎯 ${keyItem.name} 찾기`,
-            bannerText: `🎯 방탈출 퍼즐: 잠긴 문(🔒)을 열기 위해 🔑 ${keyItem.name}을(를) 찾으세요!`
-          };
-        }
-      } else {
-        return {
-          c: lockedDoor.c,
-          r: lockedDoor.r,
-          label: '🎯 잠긴 문(🔒) 열기',
-          bannerText: '🎯 방탈출 퍼즐: 획득한 🔑 열쇠로 🔒 잠긴 방문을 여세요!'
-        };
-      }
-    }
-
-    // Step 6: Rescue trapped family / friend / dog inside the unlocked room
-    const rescueTarget = items.find(it => it.type === 'npc' || it.type === 'dog');
-    if (rescueTarget) {
-      return {
-        c: rescueTarget.c,
-        r: rescueTarget.r,
-        label: `🎯 ${rescueTarget.name} 구출`,
-        bannerText: `🎯 방탈출 미션: 방 안에 고립된 ${rescueTarget.icon} ${rescueTarget.name}을(를) 구출하세요!`
-      };
-    }
-
-    // Step 7: Break any remaining wooden barricade (TILE.DEBRIS) blocking the exit
-    if (debrisTile) {
-      if (!player.hasAxe) {
-        const axeItem = items.find(it => it.type === 'axe');
-        if (axeItem) {
-          return {
-            c: axeItem.c,
-            r: axeItem.r,
-            label: '🎯 소방 도끼 줍기',
-            bannerText: '🎯 방탈출 퍼즐: 탈출로를 막은 장애물(🪵)을 부수기 위해 🪓 소방 도끼를 챙기세요!'
-          };
-        }
-      } else {
-        return {
-          c: debrisTile.c,
-          r: debrisTile.r,
-          label: '🎯 장애물(🪵) 파괴',
-          bannerText: '🎯 방탈출 퍼즐: 🪓 소방 도끼로 탈출로를 막은 🪵 장애물을 부수세요!'
-        };
-      }
-    }
-
-    // Step 8: Stage 3 Veranda Lifeline / Partition
-    if (currentStageIdx === 2 && !activeCustomStage) {
-      const verandaEscape = findNearestTileOfTypes([TILE.LIFELINE, TILE.PARTITION]);
-      if (verandaEscape) {
-        return {
-          c: verandaEscape.c,
-          r: verandaEscape.r,
-          label: verandaEscape.tile === TILE.LIFELINE ? '🎯 완강기 탈출!' : '🎯 경량칸막이 탈출!',
-          bannerText: '🎯 최종 탈출: 베란다 대피실의 🪢 완강기 또는 🧱 경량칸막이로 탈출하세요!'
-        };
-      }
-    }
-
+    // Evacuation comes first. Optional equipment/rescue puzzles must not send
+    // learners away from the exit or imply that searching rooms is a prerequisite.
     // Step 9: Final Escape Goal (EXIT)
     const exitTile =
       findNearestTileOfTypes([TILE.EXIT]) || findNearestTileOfTypes([TILE.LIFELINE, TILE.PARTITION]);
@@ -1127,8 +956,8 @@
         r: exitTile.r,
         label: '🎯 비상구(EXIT) 탈출!',
         bannerText: player.crouching
-          ? '🎯 모든 방탈출 퍼즐 완료! 초록색 [EXIT 비상구]로 탈출하세요!'
-          : '🎯 모든 퍼즐 완료! 연기 구역에선 [🧎 낮은 자세]로 초록색 [EXIT 비상구]까지 탈출하세요!'
+          ? '🎯 안전한 대피로로 신속히 탈출하세요! 장비·구조 미션은 탈출 조건이 아닙니다.'
+          : '🎯 연기가 있으면 [🧎 낮은 자세]로 안전한 출구로 대피하세요. 장비를 찾느라 지체하지 마세요!'
       };
     }
     return null;
@@ -1403,7 +1232,7 @@
       } else if (player.wetTowel) {
         badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/25 border border-sky-400/50 text-sky-200 text-[11px] font-bold shrink-0">💧 젖은수건 착용</span>`);
       } else if (player.hasTowel) {
-        badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[11px] font-bold shrink-0">🧣 마른수건(적시기 필요)</span>`);
+        badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[11px] font-bold shrink-0">🧣 마른수건(대피 우선)</span>`);
       }
       if (player.hasFlashlight) {
         badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-[11px] font-bold shrink-0">🔦 손전등</span>`);
@@ -2195,14 +2024,14 @@
         player.hasTowel = true;
         score += 100;
         addFloatText(it.c + 0.5, it.r + 0.5, '수건 획득! +100', '#fcd34d');
-        showToast('🧣 마른 수건을 획득했습니다! 세면대(🚰)에서 물에 적시세요!');
+        showToast('🧣 수건을 획득했습니다. 코와 입을 가리되, 물을 찾거나 적시느라 대피를 늦추지 마세요!');
       } else if (it.type === 'mask') {
         player.hasMask = true;
         player.wetTowel = true;
         unlockBadge('mask_light');
         score += 300;
         addFloatText(it.c + 0.5, it.r + 0.5, '습식 방연마스크 착용! +300', '#2dd4bf');
-        showToast('😷 [습식 방연마스크 착용!] 7중 필터가 유독가스를 85% 차단해 호흡기를 강력하게 보호합니다! (+300점)', 'border-teal-400');
+        showToast('😷 방연마스크는 종류·제품별 성능이 다릅니다. 초기 대피 보조용이며 안전을 보장하지 않습니다. 신속히 대피하세요! (+300점)', 'border-teal-400');
       } else if (it.type === 'flashlight') {
         player.hasFlashlight = true;
         unlockBadge('mask_light');
@@ -2300,7 +2129,7 @@
           SoundFX.water();
           score += 250;
           addFloatText(c + 0.5, r + 0.5, '젖은 수건 + 물보충! +250', '#38bdf8');
-          showToast('💧 수건을 물에 적시고 물양동이도 채웠습니다! 연기 속 산소 피해가 대폭 감소합니다!', 'border-sky-400');
+          showToast('💧 게임 속 수건·물 보충 완료! 수건은 유독가스를 막거나 산소를 공급하지 않습니다. 대피를 늦추지 마세요!', 'border-sky-400');
         } else {
           SoundFX.water();
           player.o2 = Math.min(100, player.o2 + 15);
@@ -2728,7 +2557,7 @@
     clearAllInputStates();
     closeOtherModalsExcept(null, true);
     SoundFX.win();
-    SoundFX.speak('안전하게 탈출에 성공했습니다! 참 잘했어요!');
+    SoundFX.speak('대피했습니다. 다시 들어가지 말고, 남은 사람과 반려동물의 위치를 119에 알리세요.');
     markCurrentStageCleared();
 
     // Bug #4 Fix: Push exact exit coordinate so replay trajectory connects to the exit
@@ -3543,6 +3372,7 @@
 
       let drainRate = 18.0 * (activeSkin.o2DrainMult || 1.0) * (st.smokeO2DrainMult || 1.0) * gradeMults.smokeMult;
       if (player.crouching) drainRate *= 0.35;
+      // Fictional game balance only: these multipliers are NOT filtration ratings.
       if (player.hasMask) drainRate *= 0.15;
       else if (player.wetTowel) drainRate *= 0.4;
       player.o2 -= drainRate * dt;
@@ -8435,7 +8265,7 @@
     overlayIcon.textContent = '🔥';
     overlaySubtitle.textContent = '2022 개정 교육과정 · 3D 화재 대피 방탈출 웹앱';
     overlayTitle.textContent = '화재 탈출 넘버원 3D';
-    overlayDesc.innerHTML = '불타는 건물에서 <strong>젖은 수건·단서 퍼즐</strong>로 문을 열고 <strong>낮은 자세</strong>로 <strong>비상구(EXIT)</strong>까지 탈출하는 3D 안전 체험 웹앱입니다.';
+    overlayDesc.innerHTML = '<strong>안전한 대피로로 신속히 대피</strong>하는 3D 체험 게임입니다. 장비·퍼즐·구조는 게임 속 체험이며 실제 대피 순서가 아닙니다. <strong>물건을 찾느라 지체하거나 사람·반려동물을 구하러 재진입하지 마세요.</strong>';
     overlayTipsBox.classList.remove('hidden');
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
@@ -9259,11 +9089,11 @@
       gameState = 'PLAYING';
       if (typeof saveCampaignState === 'function') saveCampaignState();
       SoundFX.siren();
-      SoundFX.speak('화재 경보 발생! 젖은 수건으로 코와 입을 막고 낮은 자세로 비상구까지 대피하세요.');
+      SoundFX.speak('화재 경보 발생! 안전한 출구로 신속히 대피하세요. 연기가 있으면 낮은 자세로 이동하고 장비를 찾느라 지체하지 마세요.');
       showToast(
         activeCustomStage
           ? '🛠️ 공유된 커스텀 대피도 플레이를 시작합니다! 안전하게 비상구로 탈출하세요!'
-          : '🚨 화재 경보 발생! 수건을 적시고 비상벨(🔔)을 울려 유도등(🟩→)을 따라 대피하세요!'
+          : '🚨 화재 경보 발생! 안전한 대피로로 신속히 이동하세요. 장비·물건을 찾느라 지체하지 마세요!'
       );
     } else if (gameState === 'STAGE_CLEAR') {
       let nextIdx = 0;
@@ -9651,13 +9481,13 @@
         tasks.push({
           status: hasResp ? '[완료]' : '[미완료]',
           done: hasResp,
-          text: '호흡기 보호: 수건을 세면대(🚰) 물에 적시거나 방연마스크(😷) 착용하기'
+          text: '선택 체험: 가까이 있는 수건·마스크 사용 (찾거나 적시느라 대피 지연 금지)'
         });
         if (st.requireGasClosed) {
           tasks.push({
             status: player.gasClosed ? '[완료]' : '[미완료]',
             done: player.gasClosed,
-            text: '2차 폭발 방지: 주방 가스밸브(🔴) 잠그기'
+            text: '선택 게임 장치: 가스밸브(🔴) 조작 (대피 선행 조건 아님)'
           });
         }
         const hasLockedDoor = findNearestTileOfTypes([TILE.LOCKED_DOOR]) !== null;
@@ -9672,14 +9502,14 @@
           tasks.push({
             status: !remainingRescue ? '[완료]' : '[미완료]',
             done: !remainingRescue,
-            text: '고립된 가족·친구·반려견 구출하여 함께 이동하기'
+            text: '선택 게임 체험: 동행하기 (위험한 곳을 수색하지 말고 남은 위치는 119에 알리기)'
           });
         }
       }
       tasks.push({
         status: '[진행중]',
         done: false,
-        text: '최종 탈출: 낮은 자세(Shift)를 유지하며 비상구(EXIT) 또는 완강기(🪢)로 탈출하기'
+        text: '대피 우선: 안전한 출구로 신속히 이동 · 탈출 후 재진입 금지 · 119에 위치 알리기'
       });
 
       const sizeCls = isClueZoomed ? 'text-sm leading-snug' : 'text-xs leading-snug';
@@ -9748,7 +9578,7 @@
     }
     if (hintStep1Text) {
       hintStep1Text.innerHTML = open1
-        ? `<strong>[열람됨]</strong> 세면대(🚰)에서 수건을 적시거나 방향자물쇠(<strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong>)로 마스크를 챙기세요.`
+        ? `<strong>[열람됨]</strong> 안전한 출구로 신속히 대피하세요. 장비를 찾거나 사람·반려동물을 수색하느라 지체하지 말고, 밖에서 119에 위치를 알리세요.`
         : '힌트 열기를 누르면 현재 목표의 위치와 안전 수칙을 한 줄로 안내합니다.';
     }
     if (btnUnlockHint1) {
@@ -9862,7 +9692,7 @@
             if (player.hasMask || player.wetTowel) {
               return '✅ 이미 호흡기 보호구(젖은 수건/방연마스크)를 착용하고 있습니다!';
             }
-            return '💧 마른 수건 상태입니다. 세면대(🚰) 앞으로 이동해 물에 적셔 주세요!';
+            return '🧣 수건으로 코와 입을 가리되, 적시느라 대피를 늦추지 마세요. 유독가스 차단을 보장하지 않습니다.';
           }
         },
         {
@@ -10858,7 +10688,7 @@
     {
       badge: '1 / 4',
       title: '① 연기 대류 현상과 젖은 수건·낮은 자세',
-      body: '불이 나면 뜨거워진 유독가스와 연기는 밀도가 낮아져 <strong>천장(위쪽)부터 빠르게 차오르고</strong>, 비교적 차갑고 깨끗한 공기는 바닥 30~60cm 부근에 남습니다. 따라서 <strong>젖은 수건이나 방연마스크로 코와 입을 막고 낮은 자세(🧎)</strong>로 벽을 짚으며 이동해야 질식을 막을 수 있습니다.'
+      body: '화재 연기는 유독하며 낮은 곳도 안전을 보장하지 않습니다. <strong>안전한 대피로로 신속히 이동</strong>하고, 연기를 지나야 한다면 <strong>낮은 자세(🧎)</strong>를 유지하세요. 가까이 있는 수건·옷으로 코와 입을 가릴 수 있지만 <strong>장비를 찾거나 수건을 적시느라 대피를 늦추지 마세요.</strong> 수건과 마스크가 모든 유독가스를 막거나 산소 부족을 해결하지는 못합니다.'
     },
     {
       badge: '2 / 4',
