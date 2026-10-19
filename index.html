@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=11" />
+  <link rel="stylesheet" href="./style.css?v=12" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -275,6 +275,7 @@
           <div id="timerDisplay">00:00</div>
           <span id="bestScoreDisplay">0</span>
           <span id="missionShort"></span>
+          <span id="hudItemBadge"></span>
         </div>
       </div>
 
@@ -670,6 +671,9 @@
         <button type="button" data-brush="partition" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔨 경량칸막이</button>
         <button type="button" data-brush="lifeline" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪢 완강기</button>
         <button type="button" data-brush="sink" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🚰 세면대</button>
+        <button type="button" data-brush="gas_valve" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔴 가스밸브</button>
+        <button type="button" data-brush="breaker" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">⚡ 차단기</button>
+        <button type="button" data-brush="debris" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪵 장애물</button>
         <button type="button" data-brush="bell" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔔 비상벨</button>
         <button type="button" data-brush="phone_119" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">📞 119전화</button>
         <button type="button" data-brush="exit" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🏃 비상구(EXIT)</button>
@@ -678,9 +682,11 @@
         <button type="button" data-brush="elec_fire" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">⚡ 전기화재</button>
         <button type="button" data-brush="smoke" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">💨 유독연기</button>
         <button type="button" data-brush="extinguisher" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧯 소화기</button>
+        <button type="button" data-brush="bucket" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪣 물양동이</button>
         <button type="button" data-brush="towel" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧣 수건</button>
         <button type="button" data-brush="mask" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">😷 방연마스크</button>
         <button type="button" data-brush="flashlight" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔦 손전등</button>
+        <button type="button" data-brush="axe" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪓 소방도끼</button>
         <button type="button" data-brush="key" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🔑 열쇠</button>
         <button type="button" data-brush="npc" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧒 구조대상</button>
       </div>
@@ -973,7 +979,8 @@
           <span>📱 전자칠판용 교실 즉시 입장 QR 코드 & 수업 링크 프리셋</span>
           <span class="text-[10px] text-slate-400">스캔 시 학급·스테이지·난이도가 1초 만에 자동 세팅됩니다</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-1.5">
+          <input id="teacherQrClassInput" type="text" maxlength="20" placeholder="학급명 (예: 서울초 5-2)" value="서울초 5-2" aria-label="학급명 입력" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-sky-200 font-bold" />
           <select id="teacherQrStageSelect" aria-label="시작 스테이지 선택" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold">
             <option value="0">1단계: 2층 침실 (입문)</option>
             <option value="1">2단계: 1층 주방 (초급)</option>
@@ -1000,7 +1007,8 @@
           <button id="btnCopyTeacherPresetUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-300 font-bold transition">🔗 수업 프리셋 링크 복사</button>
         </div>
         <div id="teacherQrBox" class="hidden bg-slate-900 border border-sky-500/40 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <div class="bg-white p-2 rounded-lg shadow shrink-0">
+          <div class="bg-white p-2 rounded-lg shadow shrink-0 flex items-center justify-center">
+            <img id="teacherQrImg" alt="수업 프리셋 QR 코드" class="w-32 h-32 hidden" />
             <canvas id="teacherQrCanvas" width="136" height="136" class="w-32 h-32"></canvas>
           </div>
           <div class="space-y-1 text-left">
@@ -1075,7 +1083,8 @@
         <summary class="cursor-pointer font-extrabold text-emerald-300 select-none">📝 학교생활기록부(안전교육·자율·창체) 예시 문구 자동 생성기</summary>
         <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
           <div class="flex flex-wrap items-center gap-1.5">
-            <select id="selectSchoolRecordType" aria-label="생기부 영역 선택" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-emerald-200 font-bold">
+            <input id="schoolRecordStudentInput" type="text" maxlength="16" placeholder="학생 이름 (선택, 예: 김안전)" aria-label="생기부 대상 학생 이름 입력" class="w-40 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold" />
+            <select id="selectSchoolRecordType" aria-label="생기부 영역 선택" class="flex-1 min-w-[180px] px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-emerald-200 font-bold">
               <option value="science">🔬 과학·실과 연계 (연소와 소화·대류 현상·완강기 원리)</option>
               <option value="facility">🚇 다중이용시설·재난 대피 (방화문·유도등·배터리 열폭주)</option>
               <option value="coop">👥 모둠 협력·가정 안전점검 (역할 분담·5대 위험요소 예방)</option>
@@ -1548,10 +1557,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=11"></script>
-  <script src="./stages.js?v=11"></script>
-  <script src="./editor.js?v=11"></script>
-  <script src="./tactical-3d.js?v=11"></script>
-  <script src="./game.js?v=11"></script>
+  <script src="./sound.js?v=12"></script>
+  <script src="./stages.js?v=12"></script>
+  <script src="./editor.js?v=12"></script>
+  <script src="./tactical-3d.js?v=12"></script>
+  <script src="./game.js?v=12"></script>
 </body>
 </html>

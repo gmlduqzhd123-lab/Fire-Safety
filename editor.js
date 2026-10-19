@@ -41,15 +41,18 @@
 
     function canReachExit(ignoreLocks) {
       const unlockedDoors = new Set();
+      const clearedDebris = new Set();
       const collectedKeys = new Set();
       let availableKeys = 0;
+      let hasAxe = false;
 
       while (true) {
         const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
         const queue = [{ c: 1, r: 1 }];
         visited[1][1] = true;
         const frontierLockedDoors = [];
-        let foundNewKey = false;
+        const frontierDebris = [];
+        let foundNewTool = false;
 
         while (queue.length > 0) {
           const { c, r } = queue.shift();
@@ -58,12 +61,18 @@
             return true;
           }
 
-          // Check for keys on this reachable tile
+          // Check for keys or axe on this reachable tile
           itemsData.forEach((it, idx) => {
-            if (it.type === 'key' && it.c === c && it.r === r && !collectedKeys.has(idx)) {
-              collectedKeys.add(idx);
-              availableKeys++;
-              foundNewKey = true;
+            if (it.c === c && it.r === r && !collectedKeys.has(idx)) {
+              if (it.type === 'key') {
+                collectedKeys.add(idx);
+                availableKeys++;
+                foundNewTool = true;
+              } else if (it.type === 'axe') {
+                collectedKeys.add(idx);
+                hasAxe = true;
+                foundNewTool = true;
+              }
             }
           });
 
@@ -79,6 +88,10 @@
               frontierLockedDoors.push(doorKey);
               continue;
             }
+            if (nt === TILE.DEBRIS && !ignoreLocks && !hasAxe && !clearedDebris.has(doorKey)) {
+              frontierDebris.push(doorKey);
+              continue;
+            }
 
             const isPassable = (
               nt === TILE.FLOOR ||
@@ -87,13 +100,19 @@
               nt === TILE.EXIT ||
               nt === TILE.PARTITION ||
               nt === TILE.LIFELINE ||
-              (nt === TILE.LOCKED_DOOR && (ignoreLocks || unlockedDoors.has(doorKey)))
+              (nt === TILE.LOCKED_DOOR && (ignoreLocks || unlockedDoors.has(doorKey))) ||
+              (nt === TILE.DEBRIS && (ignoreLocks || hasAxe || clearedDebris.has(doorKey)))
             );
             if (isPassable) {
               visited[nr][nc] = true;
               queue.push({ c: nc, r: nr });
             }
           }
+        }
+
+        if (hasAxe && frontierDebris.length > 0) {
+          for (const dk of frontierDebris) clearedDebris.add(dk);
+          continue;
         }
 
         if (availableKeys > 0 && frontierLockedDoors.length > 0) {
@@ -106,7 +125,7 @@
           continue;
         }
 
-        if (!foundNewKey) break;
+        if (!foundNewTool) break;
       }
 
       return false;
@@ -122,11 +141,15 @@
   }
 
   function createCustomStageObject(gridData, firesData, smokesData, itemsData) {
+    const hasGasValve = Array.isArray(gridData) && gridData.some(row => Array.isArray(row) && row.includes(TILE.GAS_VALVE));
+    const hasBreaker = Array.isArray(gridData) && gridData.some(row => Array.isArray(row) && row.includes(TILE.BREAKER));
     return {
       id: 99,
       name: '커스텀: 나만의 우리 집·교실 대피도',
       mission: '직접 설계한 커스텀 대피도에서 안전하게 비상구(EXIT·경량칸막이·완강기)로 탈출하세요!',
       curriculumFocus: '창작·설계 기반 재난 대피 동선 실습',
+      requireGasClosed: hasGasValve,
+      requireBreakerClosed: hasBreaker,
       requireRescueNpc: Array.isArray(itemsData) && itemsData.some(it => it.type === 'npc'),
       map: gridData.map(row => [...row]),
       playerStart: { x: 1.5, y: 1.5 },
@@ -212,6 +235,13 @@
       editorCtx.fillStyle = '#0f172a';
       editorCtx.fillRect(0, 0, ew, eh);
 
+      if (editorBgImg) {
+        editorCtx.save();
+        editorCtx.globalAlpha = editorBgOpacity;
+        editorCtx.drawImage(editorBgImg, 0, 0, ew, eh);
+        editorCtx.restore();
+      }
+
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const t = editorGrid[r][c];
@@ -244,12 +274,6 @@
           else if (t === TILE.HAZARD) editorCtx.fillText('⚠️', x + tw / 2, y + th / 2);
           else if (t === TILE.EXIT) editorCtx.fillText('🏃', x + tw / 2, y + th / 2);
         }
-      }
-      if (editorBgImg) {
-        editorCtx.save();
-        editorCtx.globalAlpha = editorBgOpacity;
-        editorCtx.drawImage(editorBgImg, 0, 0, ew, eh);
-        editorCtx.restore();
       }
       for (const s of editorSmokes) {
         editorCtx.fillText('💨', (s.c + 0.5) * tw, (s.r + 0.5) * th);
@@ -334,6 +358,9 @@
       else if (editorBrush === 'partition') editorGrid[r][c] = TILE.PARTITION;
       else if (editorBrush === 'lifeline') editorGrid[r][c] = TILE.LIFELINE;
       else if (editorBrush === 'sink') editorGrid[r][c] = TILE.SINK;
+      else if (editorBrush === 'gas_valve') editorGrid[r][c] = TILE.GAS_VALVE;
+      else if (editorBrush === 'breaker') editorGrid[r][c] = TILE.BREAKER;
+      else if (editorBrush === 'debris') editorGrid[r][c] = TILE.DEBRIS;
       else if (editorBrush === 'bell') editorGrid[r][c] = TILE.ALARM_BELL;
       else if (editorBrush === 'phone_119') editorGrid[r][c] = TILE.PHONE_119;
       else if (editorBrush === 'exit') editorGrid[r][c] = TILE.EXIT;
@@ -342,9 +369,11 @@
       else if (editorBrush === 'elec_fire') editorFires.push({ c, r, intensity: 1.0, fireType: 'electric' });
       else if (editorBrush === 'smoke') editorSmokes.push({ c, r });
       else if (editorBrush === 'extinguisher') editorItems.push({ c, r, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 6 });
+      else if (editorBrush === 'bucket') editorItems.push({ c, r, type: 'bucket', name: '물양동이', icon: '🪣', charges: 3 });
       else if (editorBrush === 'towel') editorItems.push({ c, r, type: 'towel', name: '마른 수건', icon: '🧣' });
       else if (editorBrush === 'mask') editorItems.push({ c, r, type: 'mask', name: '방연마스크', icon: '😷' });
       else if (editorBrush === 'flashlight') editorItems.push({ c, r, type: 'flashlight', name: '비상 손전등', icon: '🔦' });
+      else if (editorBrush === 'axe') editorItems.push({ c, r, type: 'axe', name: '소방 도끼', icon: '🪓' });
       else if (editorBrush === 'key') editorItems.push({ c, r, type: 'key', name: '비상열쇠', icon: '🔑' });
       else if (editorBrush === 'npc') editorItems.push({ c, r, type: 'npc', name: '이웃/친구(구조)', icon: '🧒' });
 

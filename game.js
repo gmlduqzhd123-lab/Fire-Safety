@@ -778,6 +778,7 @@
     player.carryingToy = false;
     player.hurtCooldown = 0;
     player.usedReviveChance = false;
+    player.customQuizSolved = false;
     rescuedCompanions = [];
     autoGuideTimer = 0;
     autoGuidePath = [];
@@ -2071,6 +2072,41 @@
     );
   }
 
+  function triggerTeacherCustomQuizIfPending(c, r) {
+    if (!customQuizConfig || !customQuizConfig.quizTitle || player.customQuizSolved) return false;
+    const goodText = customQuizConfig.goodChoice || '✅ 안전 수칙을 준수하여 침착하게 대피한다';
+    const badText = customQuizConfig.badChoice || '❌ 위험을 무시하고 성급하게 행동한다';
+    openEduModal(
+      '✍️ 선생님 출제 · 우리 반 맞춤 안전 퀴즈',
+      `🎯 ${customQuizConfig.quizTitle}`,
+      '선생님이 출제한 우리 학교·우리 반 맞춤 화재 안전 퀴즈입니다! 올바른 행동을 선택하세요.',
+      [
+        {
+          label: goodText.startsWith('✅') ? goodText : `✅ ${goodText}`,
+          primary: true,
+          onSelect: () => {
+            player.customQuizSolved = true;
+            score += 250;
+            SoundFX.pickup();
+            addFloatText(c + 0.5, r + 0.5, '우리 반 맞춤 퀴즈 정답! +250', '#4ade80');
+            closeEduModal();
+            showToast('🎯 [우리 반 맞춤 퀴즈 정답!] 선생님이 출제한 안전 문제를 정확히 해결했습니다! (+250점)', 'border-emerald-400');
+            updateHUD();
+          }
+        },
+        {
+          label: badText.startsWith('❌') ? badText : `❌ ${badText}`,
+          primary: false,
+          onSelect: () => {
+            SoundFX.warning();
+            showToast('💡 선생님이 알려주신 안전 수칙을 다시 떠올려 올바른 보기를 선택해 보세요!', 'border-amber-400');
+          }
+        }
+      ]
+    );
+    return true;
+  }
+
   function nudgePlayerOutOfSolidTile(tc, tr) {
     const minX = tc - player.radius - 0.03;
     const maxX = tc + 1 + player.radius + 0.03;
@@ -2282,6 +2318,10 @@
           score += 50;
           addFloatText(c + 0.5, r + 0.5, '손등 온도확인 후 개방! +50', '#a7f3d0');
           showToast('🤚🚪 문을 열었습니다! 통과한 뒤 문을 다시 닫으면 연기 확산을 물리적으로 막을 수 있습니다!');
+          if (!findNearestTileOfTypes([TILE.ALARM_BELL]) && triggerTeacherCustomQuizIfPending(c, r)) {
+            updateHUD();
+            return;
+          }
         } else {
           addFloatText(c + 0.5, r + 0.5, '문 열기', '#cbd5e1');
           showToast('🚪 문을 다시 열었습니다. (온도 확인 보너스는 문당 최초 1회만 부여됩니다)');
@@ -2431,6 +2471,10 @@
           score += 250;
           addFloatText(c + 0.5, r + 0.5, '🔔 비상벨 발신! "불이야!" +250', '#facc15');
           showToast('🔔 [화재 비상벨 발신!] "불이야!" 큰 소리로 외치고 비상벨을 눌러 이웃과 친구들에게 대피를 알렸습니다! (+250점)', 'border-yellow-400');
+          if (triggerTeacherCustomQuizIfPending(c, r)) {
+            updateHUD();
+            return;
+          }
         } else {
           SoundFX.bell();
           showToast('🔔 이미 화재 비상벨이 울리고 있습니다! 이웃과 함께 신속히 대피하세요!');
@@ -2642,9 +2686,12 @@
         verifyBox.classList.add('hidden');
         verifyBox.classList.remove('flex');
       } else {
-        const stCode = activeCustomStage ? 'CUS' : `S${currentStageIdx + 1}`;
+        const stCode = activeCustomStage
+          ? (activeCustomStage.isDailyChallenge ? 'DAY' : 'CUS')
+          : `S${typeof st.id === 'number' ? st.id : currentStageIdx + 1}`;
         const gTag = debriefGrade.textContent.includes('S등급') ? 'S' : (debriefGrade.textContent.includes('A등급') ? 'A' : 'B');
-        const checksum = ((currentStageIdx + 1) * 17 + (score % 97) + (crouchPct % 31)) % 90 + 10;
+        const stNum = typeof st.id === 'number' ? st.id : currentStageIdx + 1;
+        const checksum = ((stNum + 1) * 17 + (score % 97) + (crouchPct % 31)) % 90 + 10;
         const codeStr = `119-${stCode}-${gTag}${score}-${checksum}`;
         verifyText.textContent = codeStr;
         verifyBox.classList.remove('hidden');
@@ -2660,11 +2707,19 @@
     btnCopyVerifyCode.addEventListener('click', () => {
       const verifyText = document.getElementById('verifyCodeText');
       const code = verifyText ? verifyText.textContent.trim() : '';
+      const st = getCurrentStage();
+      const sName = (playerNameInput && playerNameInput.value.trim()) || currentStudentName || '익명 대원';
+      const clsTag = currentClassCode ? `[${currentClassCode}] ` : '';
+      const stageLabel = activeCustomStage
+        ? (activeCustomStage.isDailyChallenge ? '오늘의챌린지' : '커스텀맵')
+        : (st.id === 0 ? '예방점검' : `${st.id}단계`);
+      const gradeLabel = debriefGrade ? debriefGrade.textContent.trim() : 'S등급';
+      const fullCopyLine = `${clsTag}${sName} · ${stageLabel} · ${score}점 · 등급:${gradeLabel} · ${code}`;
       if (code && navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).catch(() => {});
+        navigator.clipboard.writeText(fullCopyLine).catch(() => {});
       }
       SoundFX.pickup();
-      showToast(`🔐 클리어 인증코드 [${code}]가 복사되었습니다! 학급 게시판이나 과제 제출란에 붙여넣으세요.`, 'border-emerald-400');
+      showToast(`🔐 클리어 인증 기록 [${fullCopyLine}]이 복사되었습니다! 학급 게시판이나 과제 제출란에 붙여넣으세요.`, 'border-emerald-400');
     });
   }
 
@@ -10686,7 +10741,21 @@
   const btnCopyTeacherPresetUrl = document.getElementById('btnCopyTeacherPresetUrl');
   const teacherQrBox = document.getElementById('teacherQrBox');
   const teacherQrCanvas = document.getElementById('teacherQrCanvas');
+  const teacherQrImg = document.getElementById('teacherQrImg');
+  const teacherQrSummaryText = document.getElementById('teacherQrSummaryText');
   const teacherPresetUrlPreview = document.getElementById('teacherQrUrlText') || document.getElementById('teacherPresetUrlPreview');
+
+  if (teacherQrClassInput) {
+    if (currentClassCode) teacherQrClassInput.value = currentClassCode;
+    teacherQrClassInput.addEventListener('change', () => {
+      const val = teacherQrClassInput.value.trim();
+      if (val) {
+        currentClassCode = val;
+        if (classCodeInput) classCodeInput.value = val;
+        persistAppSettings();
+      }
+    });
+  }
 
   function buildTeacherPresetUrl() {
     const baseUrl = window.location.origin && window.location.origin !== 'null'
@@ -10715,8 +10784,33 @@
   function renderTeacherPresetQr() {
     const url = buildTeacherPresetUrl();
     if (teacherPresetUrlPreview) teacherPresetUrlPreview.textContent = url;
+    if (teacherQrSummaryText) {
+      const cls = (teacherQrClassInput && teacherQrClassInput.value.trim()) || currentClassCode || '서울초 5-2';
+      const stgText = teacherQrStageSelect && teacherQrStageSelect.options[teacherQrStageSelect.selectedIndex]
+        ? teacherQrStageSelect.options[teacherQrStageSelect.selectedIndex].textContent
+        : '1단계';
+      const grdText = teacherQrGradeSelect && teacherQrGradeSelect.options[teacherQrGradeSelect.selectedIndex]
+        ? teacherQrGradeSelect.options[teacherQrGradeSelect.selectedIndex].textContent
+        : '3~4학년 표준';
+      const tmText = teacherQrTimeSelect && teacherQrTimeSelect.options[teacherQrTimeSelect.selectedIndex]
+        ? teacherQrTimeSelect.options[teacherQrTimeSelect.selectedIndex].textContent
+        : '수업 연습 모드';
+      teacherQrSummaryText.textContent = `🏫 [${cls}] · ${stgText} · ${grdText} · ${tmText}`;
+    }
     if (teacherQrCanvas && window.FireEscape && typeof window.FireEscape.drawFallbackQrMatrix === 'function') {
       window.FireEscape.drawFallbackQrMatrix(teacherQrCanvas, url);
+    }
+    if (teacherQrImg) {
+      const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=' + encodeURIComponent(url);
+      teacherQrImg.onload = () => {
+        teacherQrImg.classList.remove('hidden');
+        if (teacherQrCanvas) teacherQrCanvas.classList.add('hidden');
+      };
+      teacherQrImg.onerror = () => {
+        teacherQrImg.classList.add('hidden');
+        if (teacherQrCanvas) teacherQrCanvas.classList.remove('hidden');
+      };
+      teacherQrImg.src = qrApiUrl;
     }
     return url;
   }
@@ -11404,29 +11498,35 @@
       .filter(Boolean);
     const results = [];
     lines.forEach((line, idx) => {
-      // Format A: 119-S1-S1850-42
-      const shortMatch = line.match(/119-(CUS|S\d+)-([SAB])(\d+)-(\d+)/i);
+      const nameMatch = line.match(/\]\s*([^·|]+?)\s*·/) || line.match(/^([^·,:119]+?)\s*[·,:]/);
+      const extractedName = nameMatch ? nameMatch[1].trim() : `학생_${idx + 1}`;
+      const stageMatch = line.match(/(\d+단계|커스텀맵|커스텀|예방점검|오늘의챌린지|챌린지)/);
+
+      // Format A: 119-S1-S1850-42 (with or without preceding student name / class info)
+      const shortMatch = line.match(/119-(CUS|DAY|S\d+)-([SAB])(\d+)-(\d+)/i);
       if (shortMatch) {
+        const rawStg = shortMatch[1].toUpperCase();
+        const stgLabel = stageMatch
+          ? stageMatch[1]
+          : (rawStg === 'CUS' ? '커스텀맵' : (rawStg === 'DAY' ? '오늘의챌린지' : (rawStg === 'S0' ? '예방점검' : `${rawStg.replace('S', '')}단계`)));
         results.push({
           index: idx + 1,
-          student: `학생_${idx + 1}`,
-          stage: shortMatch[1].toUpperCase(),
+          student: extractedName,
+          stage: stgLabel,
           grade: `${shortMatch[2].toUpperCase()}등급`,
           score: parseInt(shortMatch[3], 10) || 0,
           raw: line
         });
         return;
       }
-      // Format B: Descriptive line containing stage / score / grade
+      // Format B: Descriptive line containing stage / score / grade without 119-... code
       const scoreMatch = line.match(/(\d{2,6})\s*점/) || line.match(/#FS-(\d+)/i);
       const gradeMatch = line.match(/([SAB])\s*등급|\(([SAB])\)/i);
-      const stageMatch = line.match(/(\d+단계|커스텀|예방점검|챌린지)/);
-      const nameMatch = line.match(/\]\s*([^·|]+?)\s*·/) || line.match(/^([^·,:]+?)\s*[·,:]/);
       if (scoreMatch || gradeMatch || stageMatch) {
         const gLetter = gradeMatch ? (gradeMatch[1] || gradeMatch[2] || 'A').toUpperCase() : 'A';
         results.push({
           index: idx + 1,
-          student: nameMatch ? nameMatch[1].trim() : `학생_${idx + 1}`,
+          student: extractedName,
           stage: stageMatch ? stageMatch[1] : '1단계',
           grade: `${gLetter}등급`,
           score: scoreMatch ? (parseInt(scoreMatch[1], 10) || 1000) : 1200,
