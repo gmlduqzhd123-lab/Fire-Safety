@@ -25,3 +25,11 @@
 1. 저장소 루트(Root) 경로에 프로젝트 파일 전체를 업로드합니다.
 2. 저장소의 **Settings > Pages > Build and deployment**에서 Branch를 `main`, 폴더를 `/ (root)`로 설정하고 **Save**를 누릅니다.
 3. 배포된 주소(`https://<계정명>.github.io/<저장소명>/`)로 접속해 플레이합니다.
+
+## 안전 안내 및 검증
+- 실제 화재에서는 안전한 대피로로 신속히 대피하고, 사람·반려동물·물건을 찾으러 다시 들어가지 않습니다. 남은 위치는 밖에서 119에 알립니다.
+- 장비 수집, 수건 적시기, 가스밸브 조작, 구조 체험은 탈출의 선행 조건이 아닙니다. 게임의 산소·피해 감소 수치는 실제 보호 성능이나 생존 시간을 나타내지 않습니다.
+- 방연마스크는 종류·제품별로 성능이 다릅니다. 수건형 제품은 초기 대피를 돕는 보조용이며 모든 유독가스 차단이나 산소 공급을 보장하지 않습니다.
+- 참고: [행정안전부 방연마스크 설명](https://www.korea.kr/briefing/actuallyView.do?newsId=148947269), [USFA Fire Safety for Older Adults, 본문 16쪽](https://www.usfa.fema.gov/downloads/pdf/publications/fa_221.pdf)
+- 회귀 테스트(별도 의존성 없음): `node --test tests/safety.test.cjs`
+- JavaScript 구문 검사: `for file in *.js; do node --check "$file" || exit; done`
