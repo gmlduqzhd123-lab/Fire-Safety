@@ -543,10 +543,20 @@
     const continueBtn = document.getElementById('btnContinueSaved');
     const reviveBtn = document.getElementById('btnReviveWithQuiz');
     const homeOverlayBtn = document.getElementById('btnHomeFromOverlay');
+    const exitOverlayBottomBtn = document.getElementById('btnExitOverlayBottom');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    return [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, homeOverlayBtn, exitOverlayBtn].filter(
-      (b) => b && !b.classList.contains('hidden') && !b.disabled
-    );
+    const isMainTipsVisible = overlayTipsBox && !overlayTipsBox.classList.contains('hidden');
+    return [
+      continueBtn,
+      reviveBtn,
+      btnPrimaryAction,
+      btnMainGuide,
+      btnOpenCertFromOverlay,
+      btnSecondaryAction,
+      homeOverlayBtn,
+      exitOverlayBottomBtn,
+      isMainTipsVisible ? exitOverlayBtn : null
+    ].filter((b) => b && !b.classList.contains('hidden') && !b.disabled);
   }
 
   function updateOverlaySelectionUI() {
@@ -557,8 +567,9 @@
     const continueBtn = document.getElementById('btnContinueSaved');
     const reviveBtn = document.getElementById('btnReviveWithQuiz');
     const homeOverlayBtn = document.getElementById('btnHomeFromOverlay');
+    const exitOverlayBottomBtn = document.getElementById('btnExitOverlayBottom');
     const exitOverlayBtn = document.getElementById('btnExitGameOverlay');
-    [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, homeOverlayBtn, exitOverlayBtn].forEach((b) => {
+    [continueBtn, reviveBtn, btnPrimaryAction, btnMainGuide, btnOpenCertFromOverlay, btnSecondaryAction, homeOverlayBtn, exitOverlayBottomBtn, exitOverlayBtn].forEach((b) => {
       if (b) b.classList.remove('kb-selected');
     });
     const targetBtn = btns[overlaySelectedIndex];
@@ -863,18 +874,31 @@
         : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0';
     }
 
-    // Improvement #1: Sync Main Screen Quick Stage Selector Pills
+    // Improvement #1: Sync Main Screen Illustrated Escape Zone Cards
     const activeMainStageKey = (customStageObj && customStageObj.isDailyChallenge) ? 'daily' : String(currentStageIdx);
     document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
       const key = pill.getAttribute('data-main-stage');
+      const badgeEl = pill.querySelector('[data-stage-badge]');
       if (key === activeMainStageKey) {
-        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-orange-500 text-slate-950 font-black text-[11px] transition shadow-sm whitespace-nowrap ring-2 ring-yellow-300';
-      } else if (key === '5') {
-        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap';
-      } else if (key === 'daily') {
-        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold text-[11px] transition whitespace-nowrap';
+        pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border-2 border-orange-400 bg-gradient-to-b from-orange-500/20 to-slate-950/95 ring-2 ring-yellow-300/60 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+        if (badgeEl) {
+          badgeEl.textContent = '선택됨';
+          badgeEl.className = 'absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-orange-400 text-slate-950';
+        }
       } else {
-        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap';
+        if (key === '5') {
+          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-emerald-500/60 bg-emerald-950/35 hover:border-emerald-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+        } else if (key === 'daily') {
+          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-amber-500/60 bg-amber-950/35 hover:border-amber-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+        } else {
+          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-orange-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+        }
+        if (badgeEl) {
+          const defBadge = badgeEl.getAttribute('data-default-badge') || '';
+          const defClass = badgeEl.getAttribute('data-default-badge-class') || 'bg-slate-900/90 text-orange-200 border border-orange-400/40';
+          badgeEl.textContent = defBadge;
+          badgeEl.className = `absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow ${defClass}`;
+        }
       }
     });
 
@@ -2595,6 +2619,8 @@
     if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
     const homeFromOverlayClear = document.getElementById('btnHomeFromOverlay');
     if (homeFromOverlayClear) homeFromOverlayClear.classList.remove('hidden');
+    const exitBottomClear = document.getElementById('btnExitOverlayBottom');
+    if (exitBottomClear) exitBottomClear.classList.remove('hidden');
     const resultTopBarClear = document.getElementById('overlayResultTopBar');
     if (resultTopBarClear) {
       resultTopBarClear.classList.remove('hidden');
@@ -2691,6 +2717,8 @@
     if (document.getElementById('btnMainGuide')) document.getElementById('btnMainGuide').classList.add('hidden');
     const homeFromOverlayOver = document.getElementById('btnHomeFromOverlay');
     if (homeFromOverlayOver) homeFromOverlayOver.classList.remove('hidden');
+    const exitBottomOver = document.getElementById('btnExitOverlayBottom');
+    if (exitBottomOver) exitBottomOver.classList.remove('hidden');
     const resultTopBarOver = document.getElementById('overlayResultTopBar');
     if (resultTopBarOver) {
       resultTopBarOver.classList.remove('hidden');
@@ -8262,10 +8290,10 @@
     clearAllInputStates();
     closeOtherModalsExcept(null, true);
     gameState = 'START';
-    overlayIcon.textContent = '🔥';
-    overlaySubtitle.textContent = '2022 개정 교육과정 · 3D 화재 대피 방탈출 웹앱';
-    overlayTitle.textContent = '화재 탈출 넘버원 3D';
-    overlayDesc.innerHTML = '<strong>안전한 대피로로 신속히 대피</strong>하는 3D 체험 게임입니다. 장비·퍼즐·구조는 게임 속 체험이며 실제 대피 순서가 아닙니다. <strong>물건을 찾느라 지체하거나 사람·반려동물을 구하러 재진입하지 마세요.</strong>';
+    overlayIcon.textContent = '🚨';
+    overlaySubtitle.textContent = '생명 최우선 · 즉시 대피 훈련';
+    overlayTitle.innerHTML = '화재 탈출<br class="hidden lg:inline"/> 넘버원 3D';
+    overlayDesc.innerHTML = '연기 속 <span class="text-emerald-300 underline underline-offset-4">낮은 자세</span>로 <span class="text-amber-300">비상구(EXIT)</span>까지 신속히 탈출하세요!';
     overlayTipsBox.classList.remove('hidden');
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
@@ -8276,6 +8304,8 @@
     if (reviveBtnMain) reviveBtnMain.classList.add('hidden');
     const homeFromOverlayMain = document.getElementById('btnHomeFromOverlay');
     if (homeFromOverlayMain) homeFromOverlayMain.classList.add('hidden');
+    const exitBottomMain = document.getElementById('btnExitOverlayBottom');
+    if (exitBottomMain) exitBottomMain.classList.add('hidden');
     const resultTopBarMain = document.getElementById('overlayResultTopBar');
     if (resultTopBarMain) {
       resultTopBarMain.classList.add('hidden');
@@ -10996,9 +11026,11 @@
   }
 
   const btnExitOverlayTop = document.getElementById('btnExitOverlayTop');
+  const btnExitOverlayBottom = document.getElementById('btnExitOverlayBottom');
   const btnExitGameDrawer = document.getElementById('btnExitGameDrawer');
   if (btnExitGameOverlay) btnExitGameOverlay.addEventListener('click', openExitGameModalFn);
   if (btnExitOverlayTop) btnExitOverlayTop.addEventListener('click', openExitGameModalFn);
+  if (btnExitOverlayBottom) btnExitOverlayBottom.addEventListener('click', openExitGameModalFn);
   if (btnExitGameTop) btnExitGameTop.addEventListener('click', openExitGameModalFn);
   if (btnExitGameDrawer) btnExitGameDrawer.addEventListener('click', openExitGameModalFn);
   if (btnExitFromSettings) btnExitFromSettings.addEventListener('click', openExitGameModalFn);

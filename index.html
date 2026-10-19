@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=13" />
+  <link rel="stylesheet" href="./style.css?v=14" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -308,16 +308,19 @@
       </div>
 
       <!-- Sleek Full-Screen Main Title Screen / Stage Clear / Game Over Overlay -->
-      <div id="gameOverlay" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-0 overflow-y-auto no-scrollbar">
+      <div id="gameOverlay" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-0 overflow-y-auto no-scrollbar">
         <!-- Decorative Ambient Glows -->
         <div class="pointer-events-none fixed top-0 left-1/4 w-96 h-96 bg-orange-600/15 rounded-full blur-3xl"></div>
         <div class="pointer-events-none fixed bottom-0 right-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl"></div>
 
-        <div id="overlayCard" class="main-draft-1 relative bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-700/80 w-full h-full p-4 sm:p-8 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-center flex flex-col justify-between gap-3 overflow-y-auto no-scrollbar break-keep">
-          <!-- Top Bar: Fullscreen / Install / QR (Right, Main Screen Only) -->
-          <div id="mainIntroTopBar" class="w-full flex items-center justify-end gap-2 shrink-0">
+        <div id="overlayCard" class="main-draft-1 relative bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-700/80 w-full h-full px-4 sm:px-6 py-3 sm:py-4 shadow-[0_24px_64px_rgba(0,0,0,0.85)] text-center flex flex-col justify-between gap-2.5 overflow-y-auto no-scrollbar break-keep">
+          <!-- Top Bar: Curriculum Badge (Left) + Fullscreen / Install / QR (Right, Main Screen Only) -->
+          <div id="mainIntroTopBar" class="w-full flex items-center justify-between gap-2 shrink-0">
+            <div class="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1 rounded-full bg-orange-500/20 border border-orange-400/50 text-orange-300 text-[11px] sm:text-xs font-extrabold truncate">
+              🔥 2022 개정 교육과정 · 3D 화재 대피 방탈출 웹앱
+            </div>
             <!-- ⛶ 전체화면 · 📲 앱 설치 · 📱 QR (엽쌤 앱 공통, 메인 화면에서만 보임) -->
-            <div class="ys-top ys-top-card"><button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
+            <div class="ys-top ys-top-card shrink-0"><button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button><button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button><button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button></div>
           </div>
 
           <!-- Top Quick Navigation Bar on Game End (Stage Clear / Game Over / All Clear) -->
@@ -330,202 +333,461 @@
             </button>
           </div>
 
-          <!-- Center Main Content Area (Draft 1: Center Hero Minimal) -->
-          <div id="mainIntroBody" class="w-full max-w-4xl mx-auto my-auto flex flex-col items-center gap-3.5">
-            <!-- Hero Title & Concise Web App Introduction -->
-            <div id="mainHeroCol" class="flex flex-col items-center gap-2.5">
-              <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/40 shadow-sm">
-                <span id="overlayIcon" class="text-sm sm:text-base">🔥</span>
-                <span id="overlaySubtitle" class="text-xs sm:text-sm font-extrabold tracking-wide text-orange-300 whitespace-nowrap">2022 개정 교육과정 · 3D 화재 대피 방탈출 웹앱</span>
-              </div>
+          <!-- Main Split Dashboard Body (Left 4 Cols: Hero & Start / Right 8 Cols: 8 Illustrated Escape Zones) -->
+          <div id="mainIntroBody" class="w-full flex-1 grid grid-cols-12 gap-3 sm:gap-4 items-stretch min-h-0">
+            <!-- Left 4 Cols: Hero Title, 3 Core Control Icons & Immediate Start Actions -->
+            <div id="mainHeroCol" class="col-span-12 lg:col-span-4 bg-slate-900/95 border border-slate-700/80 rounded-3xl p-4 sm:p-5 flex flex-col justify-between text-left shadow-2xl relative overflow-hidden">
+              <div class="pointer-events-none absolute -top-16 -left-16 w-56 h-56 bg-orange-500/20 rounded-full blur-3xl"></div>
 
-              <h2 id="overlayTitle" class="text-3xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-400 bg-clip-text text-transparent mt-0.5 whitespace-nowrap">
-                화재 탈출 넘버원 3D
-              </h2>
-
-              <p id="overlayDesc" class="text-xs sm:text-base text-slate-300 max-w-2xl leading-relaxed">
-                <strong>안전한 대피로로 신속히 대피</strong>하는 3D 체험 게임입니다. 장비·퍼즐·구조는 게임 속 체험이며 실제 대피 순서가 아닙니다. <strong>물건을 찾느라 지체하거나 사람·반려동물을 구하러 재진입하지 마세요.</strong>
-              </p>
-
-              <!-- Concise 1-Line 3 Core Pills -->
-              <div id="draft1CorePills" class="flex flex-wrap items-center justify-center gap-2 mt-1">
-                <span class="px-3.5 py-1.5 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-200 text-xs sm:text-sm font-extrabold whitespace-nowrap">🏃 1. 안전한 대피로 확인</span>
-                <span class="px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-200 text-xs sm:text-sm font-extrabold whitespace-nowrap">📢 2. 화재 알리기·대피 우선 <kbd class="ml-1 px-1.5 py-0.5 rounded bg-slate-900 border border-amber-400/50 text-amber-200 font-mono text-xs">Space</kbd></span>
-                <span class="px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm font-extrabold whitespace-nowrap">🧎 3. 낮은 자세 비상구 탈출 <kbd class="ml-1 px-1.5 py-0.5 rounded bg-slate-900 border border-emerald-400/50 text-emerald-200 font-mono text-xs">Shift</kbd></span>
-              </div>
-            </div>
-
-            <!-- Main Screen Game Guide Container -->
-            <div id="overlayTipsBox" class="w-full max-w-2xl flex flex-col gap-2">
-              <!-- PRD F01 & F02: Kept hidden in DOM for compatibility -->
-              <div id="worldSelectBar" class="hidden grid-cols-3 gap-1.5 text-left">
-                <button id="btnWorldFire" type="button" data-world="fire-safety" class="world-select-btn p-1.5 sm:p-2 rounded-xl bg-orange-500/20 border-2 border-orange-400 text-left transition flex flex-col justify-between">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950">입장 가능</span>
-                    <span class="text-[9px] text-amber-200 font-bold">예상 15~25분</span>
-                  </div>
-                  <div class="font-extrabold text-white text-[11px] sm:text-xs mt-0.5 truncate">🔥 화재 탈출 넘버원</div>
-                  <div class="text-[9.5px] text-slate-300 truncate">다중건물·학교·지하철 7구역 캠페인</div>
-                </button>
-
-                <button id="btnWorldAbyss" type="button" data-world="the-abyss" class="world-select-btn p-1.5 sm:p-2 rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-left transition flex flex-col justify-between opacity-85">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-cyan-500/30">콘셉트 미리보기</span>
-                    <span class="text-[9px] text-slate-400">일정 미정</span>
-                  </div>
-                  <div class="font-extrabold text-cyan-200 text-[11px] sm:text-xs mt-0.5 truncate">🌊 심해 관측소 (ABYSS)</div>
-                  <div class="text-[9.5px] text-slate-400 truncate">SF·해저기지 비상통신·환경교육</div>
-                </button>
-
-                <button id="btnWorldTrain" type="button" data-world="last-train" class="world-select-btn p-1.5 sm:p-2 rounded-xl bg-slate-950/90 hover:bg-slate-900 border border-slate-800 text-left transition flex flex-col justify-between opacity-85">
-                  <div class="flex items-center justify-between gap-1">
-                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-purple-300 border border-purple-500/30">콘셉트 미리보기</span>
-                    <span class="text-[9px] text-slate-400">일정 미정</span>
-                  </div>
-                  <div class="font-extrabold text-purple-200 text-[11px] sm:text-xs mt-0.5 truncate">🚂 마지막 열차 (TRAIN)</div>
-                  <div class="text-[9.5px] text-slate-400 truncate">서스펜스·야간열차 행선지·제동퍼즐</div>
-                </button>
-              </div>
-
-              <!-- World Preview Notice Box -->
-              <div id="worldPreviewNotice" class="hidden p-2.5 rounded-xl bg-slate-950 border border-cyan-500/40 text-left text-xs space-y-1">
-                <div class="flex items-center justify-between">
-                  <span id="worldPreviewTitle" class="font-extrabold text-cyan-300">🌊 심해 관측소 (THE ABYSS) — 콘셉트 미리보기</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">공개 일정 미정 · 난이도 미정</span>
+              <div id="mainHeroTopBox" class="space-y-2.5 relative z-10">
+                <div id="overlaySubtitlePill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-300 text-xs font-black w-fit">
+                  <span id="overlayIcon" class="text-xs sm:text-sm">🚨</span>
+                  <span id="overlaySubtitle" class="text-[11px] sm:text-xs font-black tracking-wide whitespace-nowrap">생명 최우선 · 즉시 대피 훈련</span>
                 </div>
-                <p id="worldPreviewDesc" class="text-[11px] text-slate-300 leading-relaxed">
-                  해저 기지의 수압 격벽과 비상 통신 신호를 복구해 탈출하는 차기 확장 세계관입니다. 현재 콘셉트 미리보기 상태이며, 입장 가능한 [🔥 화재 탈출 넘버원] 캠페인을 선택해 플레이해 주세요.
+
+                <h2 id="overlayTitle" class="text-2xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-amber-100 to-orange-400 bg-clip-text text-transparent leading-tight">
+                  화재 탈출<br class="hidden lg:inline"/> 넘버원 3D
+                </h2>
+
+                <p id="overlayDesc" class="text-xs sm:text-sm text-slate-200 font-bold leading-snug">
+                  연기 속 <span class="text-emerald-300 underline underline-offset-4">낮은 자세</span>로 <span class="text-amber-300">비상구(EXIT)</span>까지 신속히 탈출하세요!
                 </p>
-              </div>
 
-              <!-- Improvement #1: Main Screen 1-Click Quick Stage Selector Bar -->
-              <div id="mainStageSelectBar" class="px-2.5 py-1.5 rounded-xl bg-slate-900/95 border border-slate-700/80 flex items-center justify-center gap-1.5 flex-wrap">
-                <span class="text-[11px] font-black text-orange-300 shrink-0 mr-0.5">🎯 구역 선택:</span>
-                <button type="button" data-main-stage="0" class="main-stage-pill px-2 py-1 rounded-lg bg-orange-500 text-slate-950 font-black text-[11px] transition shadow-sm whitespace-nowrap">🏠 1단계(아파트)</button>
-                <button type="button" data-main-stage="1" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🍳 2단계(주방·전기)</button>
-                <button type="button" data-main-stage="2" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🪢 3단계(완강기)</button>
-                <button type="button" data-main-stage="3" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🧪 4단계(과학실)</button>
-                <button type="button" data-main-stage="4" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🔦 5단계(지하철)</button>
-                <button type="button" data-main-stage="6" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">⛺ 6단계(캠핑장)</button>
-                <button type="button" data-main-stage="5" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap">🔍 예방탐정</button>
-                <button type="button" data-main-stage="daily" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold text-[11px] transition whitespace-nowrap">🎲 일일챌린지</button>
-              </div>
-
-              <div id="mainShortcutStrip" class="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-200 flex items-center justify-center gap-3 flex-wrap whitespace-nowrap">
-                <span class="text-amber-300 font-extrabold">🕹️ 핵심 조작키</span>
-                <span>이동: <strong>방향키 / WASD</strong></span>
-                <span>·</span>
-                <span>✋ 반응하기: <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-orange-400/60 text-yellow-200 font-mono text-xs">Space</kbd></span>
-                <span>·</span>
-                <span>🧎 숙이기: <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-amber-400/60 text-amber-200 font-mono text-xs">Shift</kbd></span>
-                <span>·</span>
-                <span>🗺️ 지도: <kbd class="px-1.5 py-0.5 rounded bg-slate-800 border border-sky-400/60 text-sky-200 font-mono text-xs">M</kbd></span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stats Summary (Shown on Clear/GameOver - PRD F11: Elapsed Time & Hint Count Match Saved State) -->
-          <div id="overlayStats" class="hidden grid-cols-4 gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2 max-w-3xl w-full mx-auto">
-            <div>
-              <div class="text-[10px] text-slate-400">활성 경과시간</div>
-              <div id="statTime" class="text-xs sm:text-sm font-bold text-white">00:24</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-400">힌트 사용 수</div>
-              <div id="statHints" class="text-xs sm:text-sm font-bold text-sky-400">0회</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-400">남은 체력/산소</div>
-              <div id="statVitals" class="text-xs sm:text-sm font-bold text-emerald-400">85%</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-400">획득 점수</div>
-              <div id="statScore" class="text-xs sm:text-sm font-bold text-amber-400">1,250</div>
-            </div>
-          </div>
-
-          <!-- Debriefing Safety Report Card + Path Replay Minimap -->
-          <div id="debriefReportBox" class="hidden bg-slate-950/95 border border-slate-800 rounded-xl p-2.5 text-left text-xs space-y-2 max-w-3xl w-full mx-auto">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-1">
-              <span class="font-extrabold text-emerald-400 flex items-center gap-1 text-[11px] sm:text-xs">📋 나의 화재 대피 안전 진단표 & 동선 리플레이</span>
-              <span id="debriefGrade" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]">안전 박사 (S)</span>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-              <div id="debriefChecklist" class="sm:col-span-7 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
-              <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
-                <span class="text-[9px] text-slate-400">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
-                <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
-                <button id="btnReplayAnim" type="button" class="w-full py-1 px-2 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition">▶️ 3초 타임랩스 애니메이션 재생</button>
-              </div>
-            </div>
-
-            <div id="debriefPrescriptionBox" class="p-2 rounded-lg bg-rose-950/40 border border-rose-500/40 text-[10px] sm:text-[11px] text-rose-200 font-bold leading-snug">
-              🩺 1줄 안전 처방전: 연기 구역에서는 낮은 자세(Shift)를 유지하고 문 열기 전 온도를 확인하세요!
-            </div>
-
-            <!-- Non-essential Classroom Submission & Reflection Tools tucked inside collapsible details -->
-            <details class="group rounded-lg bg-slate-900/80 border border-slate-800 p-2">
-              <summary class="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-300 hover:text-white">
-                <span>📂 수업 제출용 인증코드 · 성찰 기록 · 교과 정리 더보기</span>
-                <span class="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <div class="mt-2 space-y-2 pt-2 border-t border-slate-800">
-                <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-950 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
-
-                <div id="clearVerifyCodeBox" class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5">
-                  <div class="text-[10px] sm:text-[11px] text-emerald-200 font-mono font-bold truncate" id="verifyCodeText">
-                    🏅 클리어 인증코드: [미지정] 용감한 어린이 · 1단계 · #FS-0000
+                <!-- 3 Visual Core Action Cards -->
+                <div id="draft1CorePills" class="grid grid-cols-3 gap-1.5 pt-1">
+                  <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 border border-sky-500/40 text-center">
+                    <div class="text-base sm:text-lg">🏃</div>
+                    <div class="text-[10.5px] sm:text-[11px] font-black text-sky-300 mt-0.5 whitespace-nowrap">대피로 이동</div>
+                    <div class="text-[9.5px] sm:text-[10px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">방향키/WASD</div>
                   </div>
-                  <button id="btnCopyVerifyCode" type="button" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[10px] shrink-0 transition">
-                    📋 인증코드 한줄 복사 (학급 제출용)
+                  <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 border border-amber-500/40 text-center">
+                    <div class="text-base sm:text-lg">📢</div>
+                    <div class="text-[10.5px] sm:text-[11px] font-black text-amber-300 mt-0.5 whitespace-nowrap">비상벨·문열기</div>
+                    <div class="text-[9.5px] sm:text-[10px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">Space</div>
+                  </div>
+                  <div class="p-2 sm:p-2.5 rounded-2xl bg-slate-950/90 border border-emerald-500/40 text-center">
+                    <div class="text-base sm:text-lg">🧎</div>
+                    <div class="text-[10.5px] sm:text-[11px] font-black text-emerald-300 mt-0.5 whitespace-nowrap">낮은 자세</div>
+                    <div class="text-[9.5px] sm:text-[10px] text-slate-400 font-mono mt-0.5 whitespace-nowrap">Shift</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stats Summary (Shown on Clear/GameOver - PRD F11: Elapsed Time & Hint Count Match Saved State) -->
+              <div id="overlayStats" class="hidden grid-cols-4 gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-2 max-w-3xl w-full mx-auto">
+                <div>
+                  <div class="text-[10px] text-slate-400">활성 경과시간</div>
+                  <div id="statTime" class="text-xs sm:text-sm font-bold text-white">00:24</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">힌트 사용 수</div>
+                  <div id="statHints" class="text-xs sm:text-sm font-bold text-sky-400">0회</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">남은 체력/산소</div>
+                  <div id="statVitals" class="text-xs sm:text-sm font-bold text-emerald-400">85%</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-400">획득 점수</div>
+                  <div id="statScore" class="text-xs sm:text-sm font-bold text-amber-400">1,250</div>
+                </div>
+              </div>
+
+              <!-- Debriefing Safety Report Card + Path Replay Minimap -->
+              <div id="debriefReportBox" class="hidden bg-slate-950/95 border border-slate-800 rounded-xl p-2.5 text-left text-xs space-y-2 max-w-3xl w-full mx-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-1">
+                  <span class="font-extrabold text-emerald-400 flex items-center gap-1 text-[11px] sm:text-xs">📋 나의 화재 대피 안전 진단표 & 동선 리플레이</span>
+                  <span id="debriefGrade" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]">안전 박사 (S)</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                  <div id="debriefChecklist" class="sm:col-span-7 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
+                  <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
+                    <span class="text-[9px] text-slate-400">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
+                    <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
+                    <button id="btnReplayAnim" type="button" class="w-full py-1 px-2 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition">▶️ 3초 타임랩스 애니메이션 재생</button>
+                  </div>
+                </div>
+
+                <div id="debriefPrescriptionBox" class="p-2 rounded-lg bg-rose-950/40 border border-rose-500/40 text-[10px] sm:text-[11px] text-rose-200 font-bold leading-snug">
+                  🩺 1줄 안전 처방전: 연기 구역에서는 낮은 자세(Shift)를 유지하고 문 열기 전 온도를 확인하세요!
+                </div>
+
+                <!-- Non-essential Classroom Submission & Reflection Tools tucked inside collapsible details -->
+                <details class="group rounded-lg bg-slate-900/80 border border-slate-800 p-2">
+                  <summary class="cursor-pointer list-none flex items-center justify-between text-[11px] font-bold text-slate-300 hover:text-white">
+                    <span>📂 수업 제출용 인증코드 · 성찰 기록 · 교과 정리 더보기</span>
+                    <span class="text-[10px] text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <div class="mt-2 space-y-2 pt-2 border-t border-slate-800">
+                    <div id="debriefCurriculumNote" class="p-2 rounded-lg bg-slate-950 border border-slate-800 text-[10px] sm:text-[11px] text-amber-200 leading-snug"></div>
+
+                    <div id="clearVerifyCodeBox" class="p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5">
+                      <div class="text-[10px] sm:text-[11px] text-emerald-200 font-mono font-bold truncate" id="verifyCodeText">
+                        🏅 클리어 인증코드: [미지정] 용감한 어린이 · 1단계 · #FS-0000
+                      </div>
+                      <button id="btnCopyVerifyCode" type="button" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[10px] shrink-0 transition">
+                        📋 인증코드 한줄 복사 (학급 제출용)
+                      </button>
+                    </div>
+
+                    <div class="p-2 rounded-lg bg-slate-950 border border-indigo-500/30 space-y-1.5">
+                      <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-indigo-300 text-[11px]">✍️ 활동 후 성찰 기록 (수업 과정 평가 및 로컬 저장)</span>
+                        <button id="btnExportReflection" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]">💾 성찰·결과 내보내기(.txt)</button>
+                      </div>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" aria-label="사용한 핵심 단서와 해결 근거 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                        <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" aria-label="바꾼 대피 전략 또는 질문 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </div>
+
+              <!-- Action Buttons inside Hero Panel (Stacks on Main Screen, Horizontal Row on Result Screen) -->
+              <div id="overlayActionsRow" class="space-y-2 relative z-10 pt-2 w-full">
+                <button id="btnPrimaryAction" type="button" class="w-full h-12 sm:h-14 px-5 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-base sm:text-lg shadow-xl shadow-orange-600/30 border border-orange-300/60 transition whitespace-nowrap inline-flex items-center justify-center gap-2">
+                  ▶️ 전체화면으로 게임 시작
+                </button>
+                <div id="mainHeroSubActions" class="flex items-center gap-1.5 w-full">
+                  <!-- PRD F04: Continue Valid Saved Campaign Button -->
+                  <button id="btnContinueSaved" type="button" class="hidden flex-1 h-10 px-2.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 border border-sky-300/40 text-white font-extrabold text-xs shadow transition whitespace-nowrap inline-flex items-center justify-center">
+                    ⏯️ 이어하기
+                  </button>
+                  <button id="btnReviveWithQuiz" type="button" class="hidden flex-1 h-11 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl border border-emerald-300/60 transition whitespace-nowrap inline-flex items-center justify-center animate-pulse">
+                    🛡️ 안전 퀴즈 풀고 부활!
+                  </button>
+                  <button id="btnMainGuide" type="button" class="flex-1 h-10 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 font-extrabold text-xs transition whitespace-nowrap inline-flex items-center justify-center">
+                    🧯 안전수칙
+                  </button>
+                  <button id="btnOpenCertFromOverlay" type="button" class="flex-1 h-10 px-2.5 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-extrabold text-xs transition whitespace-nowrap inline-flex items-center justify-center">
+                    🏅 수료증·도감
+                  </button>
+                  <button id="btnSecondaryAction" type="button" class="hidden h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+                    🔄 다시하기
+                  </button>
+                  <button id="btnHomeFromOverlay" type="button" class="hidden h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+                    🏠 메인화면
+                  </button>
+                  <button id="btnExitOverlayBottom" type="button" class="hidden h-11 px-4 rounded-xl bg-rose-950/85 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
+                    🚪 게임 종료
                   </button>
                 </div>
-
-                <div class="p-2 rounded-lg bg-slate-950 border border-indigo-500/30 space-y-1.5">
-                  <div class="flex items-center justify-between">
-                    <span class="font-extrabold text-indigo-300 text-[11px]">✍️ 활동 후 성찰 기록 (수업 과정 평가 및 로컬 저장)</span>
-                    <button id="btnExportReflection" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px]">💾 성찰·결과 내보내기(.txt)</button>
-                  </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    <input id="reflectClueInput" type="text" placeholder="1. 사용한 핵심 단서·도구와 해결 근거" aria-label="사용한 핵심 단서와 해결 근거 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
-                    <input id="reflectStrategyInput" type="text" placeholder="2. 바꾼 대피 전략 또는 더 알고 싶은 질문" aria-label="바꾼 대피 전략 또는 질문 입력" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] text-slate-200" />
-                  </div>
-                </div>
               </div>
-            </details>
-          </div>
-
-          <!-- Bottom Action Buttons & Credit Footer -->
-          <div class="w-full max-w-4xl mx-auto shrink-0 flex flex-col gap-1.5">
-            <div id="overlayActionsRow" class="sticky bottom-0 z-10 bg-slate-950/90 flex flex-row flex-wrap items-center justify-center gap-2 pt-2 pb-1 border-t border-slate-800/80">
-              <!-- PRD F04: Continue Valid Saved Campaign Button -->
-              <button id="btnContinueSaved" type="button" class="hidden flex-1 min-w-[140px] max-w-xs h-12 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black text-xs sm:text-sm shadow-xl border border-sky-300/40 transition whitespace-nowrap inline-flex items-center justify-center">
-                ⏯️ 이어하기
-              </button>
-              <button id="btnReviveWithQuiz" type="button" class="hidden flex-1 min-w-[155px] max-w-xs h-12 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl border border-emerald-300/60 transition whitespace-nowrap inline-flex items-center justify-center animate-pulse">
-                🛡️ 안전 퀴즈 풀고 부활!
-              </button>
-              <button id="btnPrimaryAction" type="button" class="flex-1 min-w-[180px] max-w-sm h-12 sm:h-14 px-6 rounded-2xl bg-gradient-to-r from-orange-500 via-red-500 to-rose-600 hover:from-orange-400 hover:to-rose-500 text-white font-black text-base sm:text-lg shadow-xl shadow-orange-600/30 border border-orange-300/50 transition whitespace-nowrap inline-flex items-center justify-center">
-                ▶️ 전체화면으로 게임 시작
-              </button>
-              <button id="btnMainGuide" type="button" class="h-12 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
-                🧯 안전수칙
-              </button>
-              <button id="btnOpenCertFromOverlay" type="button" class="h-12 px-4 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
-                🏅 수료증·도감
-              </button>
-              <button id="btnSecondaryAction" type="button" class="hidden h-12 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
-                🔄 다시하기
-              </button>
-              <button id="btnHomeFromOverlay" type="button" class="hidden h-12 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
-                🏠 메인화면
-              </button>
-              <button id="btnExitGameOverlay" type="button" class="h-12 px-4 rounded-2xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-extrabold text-xs sm:text-sm transition shrink-0 whitespace-nowrap inline-flex items-center justify-center">
-                🚪 게임 종료
-              </button>
             </div>
-            <p class="ys-credit text-center">© 2026 엽쌤. All rights reserved. · <a href="https://gmlduqzhd123-lab.github.io/YScode/" target="_blank" rel="noopener">엽쌤의 다른 앱 보기 →</a></p>
+
+            <!-- Right 8 Cols: 8 Escape Zone Cards with Custom Space Illustrations -->
+            <div id="overlayTipsBox" class="col-span-12 lg:col-span-8 bg-slate-900/95 border border-slate-700/80 rounded-3xl p-3.5 sm:p-4 flex flex-col justify-between shadow-2xl min-h-0">
+              <!-- PRD F01 & F02: Kept hidden in DOM for compatibility -->
+              <div id="worldSelectBar" class="hidden grid-cols-3 gap-1.5 text-left">
+                <button id="btnWorldFire" type="button" data-world="fire-safety" class="world-select-btn"></button>
+                <button id="btnWorldAbyss" type="button" data-world="the-abyss" class="world-select-btn"></button>
+                <button id="btnWorldTrain" type="button" data-world="last-train" class="world-select-btn"></button>
+              </div>
+              <div id="worldPreviewNotice" class="hidden">
+                <span id="worldPreviewTitle"></span>
+                <p id="worldPreviewDesc"></p>
+              </div>
+
+              <!-- Right Panel Header: 🎯 탈출 구역 선택 + 🚪 게임 종료 -->
+              <div class="flex items-center justify-between gap-2 px-1 shrink-0">
+                <div class="text-left flex items-center gap-2 flex-wrap">
+                  <h3 class="text-base sm:text-lg font-black text-white flex items-center gap-1.5">🎯 탈출 구역 선택</h3>
+                  <span class="text-[11px] sm:text-xs font-bold text-orange-300 bg-orange-500/15 px-2.5 py-0.5 rounded-full border border-orange-400/30">구역 카드를 누르면 즉시 시작!</span>
+                </div>
+                <button id="btnExitGameOverlay" type="button" class="px-3 sm:px-3.5 py-1.5 rounded-xl bg-rose-950/90 hover:bg-rose-900 border border-rose-500/40 text-rose-200 font-extrabold text-xs transition shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1">
+                  🚪 게임 종료
+                </button>
+              </div>
+
+              <!-- 4x2 Grid of 8 Escape Zone Cards with Space Illustrations -->
+              <div id="mainStageSelectBar" class="grid grid-cols-2 sm:grid-cols-4 sm:grid-rows-2 gap-2 sm:gap-2.5 my-auto py-1.5 flex-1 min-h-0">
+                <!-- Card 0: 1단계 아파트 -->
+                <button type="button" data-main-stage="0" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border-2 border-orange-400 bg-gradient-to-b from-orange-500/20 to-slate-950/95 ring-2 ring-yellow-300/60 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🏠 1단계 · 아파트</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg0" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e293b"/><stop offset="68%" stop-color="#334155"/><stop offset="69%" stop-color="#78350f"/><stop offset="100%" stop-color="#451a03"/></linearGradient>
+                        <radialGradient id="fireGlow0" cx="0.78" cy="0.65" r="0.5"><stop offset="0%" stop-color="#fb923c" stop-opacity="0.5"/><stop offset="100%" stop-color="#fb923c" stop-opacity="0"/></radialGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg0)"/>
+                      <rect width="180" height="180" fill="url(#fireGlow0)"/>
+                      <ellipse cx="50" cy="18" rx="52" ry="15" fill="#0f172a" opacity="0.6"/>
+                      <ellipse cx="128" cy="20" rx="58" ry="17" fill="#0f172a" opacity="0.65"/>
+                      <rect x="16" y="38" width="42" height="38" rx="3" fill="#0f172a" stroke="#64748b" stroke-width="2.5"/>
+                      <line x1="37" y1="38" x2="37" y2="76" stroke="#64748b" stroke-width="2"/>
+                      <line x1="16" y1="57" x2="58" y2="57" stroke="#64748b" stroke-width="2"/>
+                      <circle cx="27" cy="48" r="4.5" fill="#fde047" opacity="0.9"/>
+                      <rect x="14" y="96" width="68" height="34" rx="5" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5"/>
+                      <rect x="14" y="84" width="11" height="46" rx="3" fill="#92400e"/>
+                      <rect x="27" y="91" width="19" height="10" rx="3" fill="#f8fafc"/>
+                      <rect x="42" y="99" width="38" height="26" rx="4" fill="#3b82f6"/>
+                      <circle cx="96" cy="112" r="16" fill="#0f172a" stroke="#38bdf8" stroke-width="2.2"/>
+                      <text x="96" y="118" text-anchor="middle" font-size="17">🧣</text>
+                      <rect x="124" y="48" width="42" height="78" rx="3" fill="#065f46" stroke="#34d399" stroke-width="2.5"/>
+                      <rect x="130" y="34" width="30" height="11" rx="2" fill="#10b981"/>
+                      <text x="145" y="42" text-anchor="middle" font-size="7" font-weight="900" fill="#022c22">EXIT</text>
+                      <rect x="132" y="58" width="26" height="22" rx="2" fill="#6ee7b7" opacity="0.85"/>
+                      <circle cx="160" cy="89" r="2.2" fill="#fde047"/>
+                      <text x="145" y="74" text-anchor="middle" font-size="14">🏃</text>
+                      <path d="M46,152 L128,152" stroke="#34d399" stroke-width="3" stroke-dasharray="6 4"/>
+                      <polygon points="134,152 124,147 124,157" fill="#34d399"/>
+                    </svg>
+                    <span data-stage-badge data-default-badge="1단계" data-default-badge-class="bg-slate-900/90 text-orange-200 border border-orange-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-orange-400 text-slate-950">선택됨</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">2층 침실 · L자 복도 탈출</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 1: 2단계 주방·전기 -->
+                <button type="button" data-main-stage="1" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-orange-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🍳 2단계 · 주방·전기</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e1b2e"/><stop offset="68%" stop-color="#312e43"/><stop offset="69%" stop-color="#5b2121"/><stop offset="100%" stop-color="#3b1212"/></linearGradient>
+                        <radialGradient id="fireGlow1" cx="0.46" cy="0.54" r="0.5"><stop offset="0%" stop-color="#f97316" stop-opacity="0.65"/><stop offset="100%" stop-color="#ef4444" stop-opacity="0"/></radialGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg1)"/>
+                      <rect width="180" height="180" fill="url(#fireGlow1)"/>
+                      <rect x="70" y="12" width="18" height="16" fill="#475569"/>
+                      <polygon points="52,28 106,28 116,46 42,46" fill="#64748b" stroke="#94a3b8" stroke-width="1.5"/>
+                      <rect x="34" y="90" width="92" height="44" rx="4" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+                      <rect x="30" y="83" width="100" height="8" rx="2" fill="#e2e8f0"/>
+                      <ellipse cx="79" cy="82" rx="18" ry="4" fill="#0f172a"/>
+                      <path d="M64,81 Q79,42 94,81 Z" fill="#f97316"/>
+                      <path d="M71,81 Q79,52 87,81 Z" fill="#fde047"/>
+                      <text x="79" y="75" text-anchor="middle" font-size="18">🔥</text>
+                      <line x1="25" y1="26" x2="25" y2="122" stroke="#eab308" stroke-width="5"/>
+                      <circle cx="25" cy="68" r="8" fill="#ef4444" stroke="#fef08a" stroke-width="2"/>
+                      <rect x="134" y="44" width="34" height="50" rx="4" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+                      <polygon points="151,52 145,65 152,65 147,78 159,62 151,62" fill="#fde047"/>
+                      <circle cx="130" cy="122" r="17" fill="#0f172a" stroke="#f87171" stroke-width="2.2"/>
+                      <text x="130" y="128" text-anchor="middle" font-size="18">🧯</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="2단계" data-default-badge-class="bg-slate-900/90 text-orange-200 border border-orange-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-slate-900/90 text-orange-200 border border-orange-400/40">2단계</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">중앙 아일랜드 순환 회랑</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 2: 3단계 완강기 -->
+                <button type="button" data-main-stage="2" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-sky-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🪢 3단계 · 완강기</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#09152b"/><stop offset="100%" stop-color="#1e3a5f"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg2)"/>
+                      <circle cx="132" cy="38" r="1.5" fill="#fef08a"/><circle cx="160" cy="50" r="1.5" fill="#fef08a"/><circle cx="114" cy="56" r="1.3" fill="#e0f2fe"/>
+                      <rect x="112" y="102" width="22" height="78" fill="#0f172a" opacity="0.7"/>
+                      <rect x="138" y="86" width="24" height="94" fill="#0f172a" opacity="0.7"/>
+                      <rect x="164" y="110" width="16" height="70" fill="#0f172a" opacity="0.7"/>
+                      <rect x="0" y="0" width="88" height="180" fill="#334155" stroke="#64748b" stroke-width="2"/>
+                      <rect x="12" y="74" width="76" height="42" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+                      <line x1="27" y1="74" x2="27" y2="116" stroke="#94a3b8" stroke-width="2"/>
+                      <line x1="43" y1="74" x2="43" y2="116" stroke="#94a3b8" stroke-width="2"/>
+                      <line x1="59" y1="74" x2="59" y2="116" stroke="#94a3b8" stroke-width="2"/>
+                      <line x1="75" y1="74" x2="75" y2="116" stroke="#94a3b8" stroke-width="2"/>
+                      <path d="M78,42 L108,42 L108,56" fill="none" stroke="#facc15" stroke-width="5" stroke-linecap="round"/>
+                      <circle cx="108" cy="58" r="9" fill="#eab308" stroke="#fef08a" stroke-width="2"/>
+                      <line x1="108" y1="67" x2="108" y2="152" stroke="#fde047" stroke-width="2.5" stroke-dasharray="5 3"/>
+                      <circle cx="108" cy="106" r="16" fill="#0284c7" stroke="#7dd3fc" stroke-width="2.2"/>
+                      <text x="108" y="112" text-anchor="middle" font-size="17">🪢</text>
+                      <path d="M108,136 L101,126 L115,126 Z" fill="#4ade80"/>
+                      <rect x="88" y="142" width="40" height="16" rx="4" fill="#10b981"/>
+                      <text x="108" y="153" text-anchor="middle" font-size="8" font-weight="900" fill="#022c22">안전하강</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="3단계" data-default-badge-class="bg-slate-900/90 text-sky-200 border border-sky-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-slate-900/90 text-sky-200 border border-sky-400/40">3단계</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">3층 고층 베란다 완강기</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 3: 4단계 과학실 -->
+                <button type="button" data-main-stage="3" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-cyan-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🧪 4단계 · 과학실</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0f293a"/><stop offset="68%" stop-color="#163e52"/><stop offset="69%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg3)"/>
+                      <rect x="14" y="28" width="96" height="44" rx="3" fill="#064e3b" stroke="#b45309" stroke-width="3"/>
+                      <text x="62" y="47" text-anchor="middle" font-size="8.5" font-weight="900" fill="#a7f3d0">과학실 안전 수칙</text>
+                      <text x="62" y="61" text-anchor="middle" font-size="7" fill="#fde68a">비상벨 ➔ 손수건·낮은자세</text>
+                      <rect x="16" y="102" width="96" height="40" rx="3" fill="#475569" stroke="#94a3b8" stroke-width="1.5"/>
+                      <rect x="12" y="96" width="104" height="7" rx="2" fill="#cbd5e1"/>
+                      <polygon points="38,77 30,96 46,96" fill="#38bdf8" stroke="#e0f2fe" stroke-width="1.5"/>
+                      <polygon points="62,74 53,96 71,96" fill="#34d399" stroke="#ecfdf5" stroke-width="1.5"/>
+                      <circle cx="92" cy="89" r="14" fill="#0f172a" stroke="#67e8f9" stroke-width="2"/>
+                      <text x="92" y="95" text-anchor="middle" font-size="15">🧪</text>
+                      <rect x="124" y="48" width="42" height="82" rx="3" fill="#065f46" stroke="#34d399" stroke-width="2.5"/>
+                      <rect x="129" y="34" width="32" height="11" rx="2" fill="#10b981"/>
+                      <text x="145" y="42" text-anchor="middle" font-size="7" font-weight="900" fill="#022c22">비상계단</text>
+                      <text x="145" y="94" text-anchor="middle" font-size="21">🏃</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="4단계" data-default-badge-class="bg-slate-900/90 text-cyan-200 border border-cyan-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-slate-900/90 text-cyan-200 border border-cyan-400/40">4단계</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">학교 과학실 · 양방향 계단</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 4: 5단계 지하철 -->
+                <button type="button" data-main-stage="4" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-indigo-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🔦 5단계 · 지하철</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#050811"/><stop offset="100%" stop-color="#111827"/></linearGradient>
+                        <linearGradient id="beam4" x1="0" y1="0.5" x2="1" y2="0.5"><stop offset="0%" stop-color="#fef08a" stop-opacity="0.65"/><stop offset="100%" stop-color="#fef08a" stop-opacity="0"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg4)"/>
+                      <path d="M12,148 L12,62 Q12,26 56,26 L124,26 Q168,26 168,62 L168,148" fill="none" stroke="#334155" stroke-width="3.5"/>
+                      <rect x="20" y="52" width="84" height="64" rx="8" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                      <rect x="28" y="64" width="20" height="20" rx="2" fill="#0ea5e9" opacity="0.45"/>
+                      <rect x="54" y="64" width="20" height="20" rx="2" fill="#0ea5e9" opacity="0.45"/>
+                      <rect x="80" y="64" width="16" height="42" rx="2" fill="#334155" stroke="#94a3b8" stroke-width="1.5"/>
+                      <line x1="10" y1="136" x2="170" y2="136" stroke="#eab308" stroke-width="5" stroke-dasharray="8 4"/>
+                      <polygon points="42,114 168,58 168,146" fill="url(#beam4)"/>
+                      <circle cx="38" cy="114" r="15" fill="#0f172a" stroke="#facc15" stroke-width="2.2"/>
+                      <text x="38" y="120" text-anchor="middle" font-size="16">🔦</text>
+                      <rect x="114" y="76" width="50" height="32" rx="4" fill="#064e3b" stroke="#10b981" stroke-width="2.5"/>
+                      <text x="139" y="90" text-anchor="middle" font-size="8.5" font-weight="900" fill="#6ee7b7">유도등 ▶</text>
+                      <text x="139" y="102" text-anchor="middle" font-size="8" font-weight="900" fill="#ecfdf5">EXIT</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="5단계" data-default-badge-class="bg-slate-900/90 text-indigo-200 border border-indigo-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-slate-900/90 text-indigo-200 border border-indigo-400/40">5단계</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">정전 지하철역 유도등 탈출</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 6: 6단계 캠핑장 -->
+                <button type="button" data-main-stage="6" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-lime-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">⛺ 6단계 · 캠핑장</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#06141f"/><stop offset="68%" stop-color="#0f291e"/><stop offset="69%" stop-color="#143322"/><stop offset="100%" stop-color="#0a1f14"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg6)"/>
+                      <circle cx="30" cy="32" r="10" fill="#fef08a"/>
+                      <circle cx="34" cy="29" r="9" fill="#06141f"/>
+                      <circle cx="70" cy="26" r="1.5" fill="#fef08a"/><circle cx="110" cy="34" r="1.5" fill="#fef08a"/>
+                      <polygon points="22,56 8,120 36,120" fill="#064e3b"/>
+                      <polygon points="42,64 28,120 56,120" fill="#047857"/>
+                      <polygon points="156,54 140,120 172,120" fill="#064e3b"/>
+                      <polygon points="68,56 32,124 104,124" fill="#d97706" stroke="#fde047" stroke-width="2.2"/>
+                      <polygon points="68,76 53,124 83,124" fill="#451a03"/>
+                      <circle cx="68" cy="106" r="11" fill="#fb923c" opacity="0.55"/>
+                      <circle cx="110" cy="114" r="16" fill="#7c2d12" opacity="0.88" stroke="#f97316" stroke-width="2"/>
+                      <text x="110" y="120" text-anchor="middle" font-size="17">🔥</text>
+                      <rect x="130" y="96" width="38" height="24" rx="4" fill="#10b981" stroke="#a7f3d0" stroke-width="1.8"/>
+                      <text x="149" y="111" text-anchor="middle" font-size="7.5" font-weight="900" fill="#022c22">대피소▶</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="6단계" data-default-badge-class="bg-slate-900/90 text-lime-200 border border-lime-400/40" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-slate-900/90 text-lime-200 border border-lime-400/40">6단계</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">야간 글램핑 · 배터리 화재</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card 5: 예방 탐정 모드 -->
+                <button type="button" data-main-stage="5" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-emerald-500/60 bg-emerald-950/35 hover:border-emerald-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🔍 예방 탐정 모드</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bg5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#042f2e"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bg5)"/>
+                      <circle cx="90" cy="96" r="54" fill="none" stroke="#14b8a6" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.45"/>
+                      <circle cx="90" cy="96" r="34" fill="#0d9488" opacity="0.2" stroke="#2dd4bf" stroke-width="2"/>
+                      <rect x="14" y="46" width="42" height="34" rx="7" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                      <text x="35" y="69" text-anchor="middle" font-size="17">🔌</text>
+                      <rect x="124" y="46" width="42" height="34" rx="7" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+                      <text x="145" y="69" text-anchor="middle" font-size="17">🔥</text>
+                      <rect x="14" y="108" width="42" height="34" rx="7" fill="#0f172a" stroke="#10b981" stroke-width="2"/>
+                      <text x="35" y="131" text-anchor="middle" font-size="17">🧯</text>
+                      <rect x="124" y="108" width="42" height="34" rx="7" fill="#0f172a" stroke="#10b981" stroke-width="2"/>
+                      <text x="145" y="131" text-anchor="middle" font-size="16">✅</text>
+                      <line x1="107" y1="113" x2="125" y2="131" stroke="#34d399" stroke-width="6" stroke-linecap="round"/>
+                      <circle cx="90" cy="94" r="24" fill="#064e3b" stroke="#6ee7b7" stroke-width="3"/>
+                      <text x="90" y="102" text-anchor="middle" font-size="21">🔍</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="사전예방" data-default-badge-class="bg-emerald-500 text-slate-950" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-emerald-500 text-slate-950">사전예방</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">가정 내 위험요소 5곳 점검</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+
+                <!-- Card Daily: 일일 119 챌린지 -->
+                <button type="button" data-main-stage="daily" class="main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-amber-500/60 bg-amber-950/35 hover:border-amber-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]">
+                  <div class="flex items-center justify-between gap-1 mb-1 w-full">
+                    <span class="text-[11.5px] sm:text-[12.5px] font-black text-white whitespace-nowrap truncate">🎲 일일 119 챌린지</span>
+                  </div>
+                  <div class="relative w-full flex-1 min-h-[68px] rounded-xl overflow-hidden border border-slate-700/90 bg-slate-950 shadow-inner flex items-center justify-center">
+                    <svg viewBox="0 0 180 180" preserveAspectRatio="xMidYMid slice" class="w-full h-full block">
+                      <defs>
+                        <linearGradient id="bgD" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2e1065"/><stop offset="55%" stop-color="#4c1d95"/><stop offset="100%" stop-color="#7c2d12"/></linearGradient>
+                      </defs>
+                      <rect width="180" height="180" fill="url(#bgD)"/>
+                      <circle cx="90" cy="92" r="54" fill="#f59e0b" opacity="0.14"/>
+                      <circle cx="90" cy="92" r="36" fill="#f97316" opacity="0.24" stroke="#fde047" stroke-width="1.5" stroke-dasharray="5 3"/>
+                      <circle cx="32" cy="94" r="18" fill="#0f172a" stroke="#f87171" stroke-width="2.2"/>
+                      <text x="32" y="100" text-anchor="middle" font-size="17">🚨</text>
+                      <circle cx="148" cy="94" r="18" fill="#0f172a" stroke="#34d399" stroke-width="2.2"/>
+                      <text x="148" y="100" text-anchor="middle" font-size="17">🏆</text>
+                      <rect x="63" y="62" width="54" height="54" rx="13" fill="#0f172a" stroke="#facc15" stroke-width="3"/>
+                      <text x="90" y="98" text-anchor="middle" font-size="27">🎲</text>
+                      <rect x="54" y="128" width="72" height="17" rx="8" fill="#f59e0b"/>
+                      <text x="90" y="139" text-anchor="middle" font-size="8.5" font-weight="900" fill="#0f172a">DAILY 119 MISSION</text>
+                    </svg>
+                    <span data-stage-badge data-default-badge="매일갱신" data-default-badge-class="bg-amber-400 text-slate-950" class="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-amber-400 text-slate-950">매일갱신</span>
+                  </div>
+                  <div class="text-[10px] sm:text-[10.5px] text-slate-300 font-semibold whitespace-nowrap mt-1.5 flex items-center justify-between w-full">
+                    <span class="truncate">오늘의 랜덤 복합 재난맵</span>
+                    <span class="text-[9.5px] text-emerald-300 font-black shrink-0 ml-1">입장▶</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Concise Safety Disclaimer & Credit Bar -->
+              <div class="px-3.5 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[10.5px] sm:text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <span>⚠️ 장비·구조는 게임 속 체험이며, 실제 화재 시에는 물건을 찾거나 재진입하지 말고 즉시 대피하세요.</span>
+                <p class="ys-credit m-0 shrink-0">© 2026 엽쌤 · <a href="https://gmlduqzhd123-lab.github.io/YScode/" target="_blank" rel="noopener">다른 앱 보기 →</a></p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -345,7 +345,7 @@ body.landscape-console #eduModal {
   padding: 0 !important;
 }
 
-/* Full-screen main intro card from startup */
+/* Full-screen 2-column split dashboard from startup */
 body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) {
   width: 100% !important;
   height: 100% !important;
@@ -353,7 +353,21 @@ body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) {
   max-height: none !important;
   border-radius: 0 !important;
   border: none !important;
-  padding: 16px 28px !important;
+  padding: 12px 24px !important;
+  overflow: hidden !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainIntroBody {
+  display: grid !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroCol {
+  grid-column: span 4 / span 4 !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #overlayTipsBox {
+  grid-column: span 8 / span 8 !important;
 }
 
 /* Result/Debriefing card keeps compact centered modal style */
@@ -363,11 +377,117 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
   height: auto !important;
   border-radius: 1.5rem !important;
   margin: auto !important;
+  padding: 16px 24px !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #mainIntroBody {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #mainHeroCol {
+  grid-column: span 12 / span 12 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 8px !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #mainHeroTopBox {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #overlayActionsRow {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(30, 41, 59, 0.8) !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #overlayActionsRow > * + * {
+  margin-top: 0 !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #btnPrimaryAction {
+  width: auto !important;
+  flex: 1 1 180px !important;
+  max-width: 280px !important;
+  height: 46px !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #mainHeroSubActions {
+  display: contents !important;
 }
 
 /* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) so Start & End-of-Game buttons are always visible */
 @media (max-height: 540px) {
-  body.landscape-console #overlayCard {
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) {
+    padding: 6px 12px !important;
+    gap: 4px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainIntroBody {
+    gap: 8px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroCol,
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #overlayTipsBox {
+    padding: 8px 10px !important;
+    border-radius: 1rem !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroTopBox {
+    gap: 4px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroTopBox > * + * {
+    margin-top: 4px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #draft1CorePills > div {
+    padding: 4px !important;
+    border-radius: 0.65rem !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #btnPrimaryAction {
+    height: 38px !important;
+    font-size: 0.85rem !important;
+    border-radius: 0.75rem !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroSubActions > button {
+    height: 30px !important;
+    font-size: 0.7rem !important;
+    border-radius: 0.6rem !important;
+    padding: 0 6px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainStageSelectBar {
+    gap: 5px !important;
+    padding: 3px 0 !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) .main-stage-pill {
+    padding: 4px 5px !important;
+    border-radius: 0.75rem !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) .main-stage-pill > div:first-child span {
+    font-size: 10px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) .main-stage-pill > div:nth-child(2) {
+    min-height: 40px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) .main-stage-pill > div:last-child {
+    font-size: 8px !important;
+    margin-top: 2px !important;
+  }
+  body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) .main-stage-pill > div:last-child > span:last-child {
+    font-size: 7.5px !important;
+  }
+  body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
     padding: 8px 16px !important;
     gap: 4px !important;
   }
@@ -378,9 +498,6 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
   body.landscape-console #overlayDesc {
     font-size: 0.75rem !important;
     line-height: 1.05rem !important;
-  }
-  body.landscape-console #worldSelectBar > button {
-    padding: 4px 6px !important;
   }
   body.landscape-console #overlayStats {
     padding: 3px 6px !important;
@@ -404,12 +521,12 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
   body.landscape-console #debriefReportBox details {
     padding: 3px 6px !important;
   }
-  body.landscape-console #overlayActionsRow {
+  body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) #overlayActionsRow {
     padding-top: 5px !important;
     padding-bottom: 5px !important;
     gap: 6px !important;
   }
-  body.landscape-console #overlayActionsRow > button {
+  body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) #overlayActionsRow button {
     height: 36px !important;
     padding: 0 12px !important;
     font-size: 0.76rem !important;
@@ -447,6 +564,6 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
 #overlayCard:has(#overlayTipsBox.hidden) #mainStageSelectBar,
 #overlayCard:has(#overlayTipsBox.hidden) .ys-top-card,
 #overlayCard:has(#overlayTipsBox.hidden) .ys-credit { display: none !important; }
-.ys-credit { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
+.ys-credit { margin: 0; font-size: 11px; color: #94a3b8; }
 .ys-credit a { color: #fdba74; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 520px) { .ys-wide { display: none; } }
