@@ -1,5 +1,5 @@
 // 화재 탈출 넘버원 오프라인 캐시 — 같은 주소의 다른 엽쌤 앱과 캐시 저장소를 같이 쓰므로 내 접두어 캐시만 지운다
-const CACHE = 'fire-safety-v10';
+const CACHE = 'fire-safety-v11';
 const CACHE_PREFIX = 'fire-safety-v';
 const CORE = ['./', './index.html', './style.css', './sound.js', './stages.js', './editor.js', './tactical-3d.js', './game.js',
   './manifest.webmanifest', './ys-install.js', './ys-qr.js', './qr.svg', './icons/icon-192.png'];

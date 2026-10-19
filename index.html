@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=10" />
+  <link rel="stylesheet" href="./style.css?v=11" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -61,42 +61,42 @@
   <header id="appHeader" class="w-full bg-slate-900 border-b border-slate-800 px-2 sm:px-3 py-1 sticky top-0 z-30">
     <div id="headerInner" class="max-w-5xl mx-auto flex flex-col gap-1">
       <!-- Single Clean Top Bar: [Title + Stage] | [Live Next-Step Guide] | [Essential Buttons] -->
-      <div id="headerTopRow" class="flex items-center justify-between gap-1.5">
-        <div class="flex items-center gap-1 shrink-0">
+      <div id="headerTopRow" class="flex items-center justify-between gap-1 sm:gap-1.5 min-w-0">
+        <div class="flex items-center gap-1 shrink-0 min-w-0">
           <div class="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow text-xs shrink-0">
             🔥
           </div>
-          <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white flex items-center gap-1">
+          <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white flex items-center gap-1 min-w-0">
             <span class="hidden lg:inline shrink-0">화재 탈출</span>
-            <span id="stageBadge" class="text-[10.5px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold truncate max-w-[135px] lg:max-w-[260px]">1단계: 2층 침실</span>
+            <span id="stageBadge" class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold truncate max-w-[90px] sm:max-w-[135px] lg:max-w-[260px]">1단계: 2층 침실</span>
             <span id="classBanner" class="hidden text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold shrink-0">🏫 학급 미지정</span>
           </h1>
         </div>
 
         <!-- Center: At-a-Glance Live Objective Guide Pill -->
-        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10.5px] sm:text-xs font-extrabold text-center truncate shadow-sm">
+        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10px] sm:text-xs font-extrabold text-center truncate shadow-sm">
           🎯 지금 할 일: 🧣 수건을 챙기세요!
         </div>
 
-        <!-- Right: Core Gameplay Buttons Only (Fullscreen, 3D View, Hints/Notebook, Restart, Menu, Exit) -->
-        <div class="flex items-center gap-1 shrink-0">
-          <button id="btnFullscreenTop" type="button" data-fullscreen-btn class="px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-emerald-600/35 hover:bg-emerald-600/55 border border-emerald-400/60 text-emerald-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="전체화면 전환 (단축키 F11)">
+        <!-- Right: Core Gameplay Buttons Only (Fullscreen, 3D View, Map, Hints/Notebook, Restart, Menu, Exit) -->
+        <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <button id="btnFullscreenTop" type="button" data-fullscreen-btn class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-emerald-600/35 hover:bg-emerald-600/55 border border-emerald-400/60 text-emerald-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="전체화면 전환 (단축키 F11)">
             <span id="fullscreenTopIcon">⛶</span>
-            <span id="fullscreenTopText" class="text-[10.5px] sm:text-xs">전체화면</span>
+            <span id="fullscreenTopText" class="hidden md:inline text-[10.5px] sm:text-xs">전체화면</span>
           </button>
 
-          <button id="btnCamera3D" type="button" class="px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-indigo-600/35 hover:bg-indigo-600/55 border border-indigo-400/60 text-indigo-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="3D 입체뷰 / 1인칭 3D 시점 전환 (단축키 V)">
+          <button id="btnCamera3D" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-indigo-600/35 hover:bg-indigo-600/55 border border-indigo-400/60 text-indigo-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="3D 입체뷰 / 1인칭 3D 시점 전환 (단축키 V)">
             <span id="camera3DIcon">🧊</span>
-            <span id="camera3DText" class="text-[10.5px] sm:text-xs">3D입체뷰</span>
+            <span id="camera3DText" class="text-[10px] sm:text-xs">3D입체뷰</span>
           </button>
 
-          <button id="btnTacticalMapTop" type="button" class="px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="전술 피난안내도 전체 지도 열기/닫기 (단축키 M)">
+          <button id="btnTacticalMapTop" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-0.5 sm:gap-1 shadow-sm whitespace-nowrap" title="전술 피난안내도 전체 지도 열기/닫기 (단축키 M)">
             <span>🗺️</span>
-            <span class="text-[10.5px] sm:text-xs">지도(M)</span>
+            <span class="text-[10px] sm:text-xs">지도<span class="hidden md:inline">(M)</span></span>
           </button>
 
           <!-- Shown automatically only when player holds the flashlight -->
-          <button id="btnFlashlightTop" type="button" class="hidden px-2 py-1 text-xs font-extrabold rounded-lg bg-yellow-500/20 hover:bg-yellow-500/35 border border-yellow-400/60 text-yellow-200 transition items-center gap-1 shadow-sm whitespace-nowrap" title="3D 손전등 켜기/끄기 (단축키 F)">
+          <button id="btnFlashlightTop" type="button" class="hidden px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-yellow-500/20 hover:bg-yellow-500/35 border border-yellow-400/60 text-yellow-200 transition items-center gap-1 shadow-sm whitespace-nowrap" title="3D 손전등 켜기/끄기 (단축키 F)">
             <span id="flashlightTopIcon">🔦</span>
             <span id="flashlightTopText" class="text-[11px] sm:text-xs hidden lg:inline">손전등</span>
           </button>
@@ -106,9 +106,9 @@
             <span>🔐</span>
           </button>
 
-          <button id="btnNotebookTop" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap" title="단서 수첩 · 힌트 · 가방 (단축키 H)">
+          <button id="btnNotebookTop" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-100 transition flex items-center gap-0.5 sm:gap-1 shadow-sm whitespace-nowrap" title="단서 수첩 · 힌트 · 가방 (단축키 H)">
             <span>📓</span>
-            <span class="text-[11px] sm:text-xs">힌트·수첩</span>
+            <span class="text-[10px] sm:text-xs"><span class="hidden md:inline">힌트·</span>수첩</span>
             <span id="hintCountBadgeTop" class="hidden px-1 rounded bg-amber-500 text-slate-950 text-[9px] font-black">0</span>
           </button>
 
@@ -116,19 +116,19 @@
             <span id="landscapeToggleText">가로전용</span>
           </button>
 
-          <button id="btnRestartTop" type="button" class="flex px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 transition items-center gap-1 whitespace-nowrap" title="현재 단계 처음부터 다시 시작 (단축키 R)">
+          <button id="btnRestartTop" type="button" class="flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 transition items-center gap-0.5 sm:gap-1 whitespace-nowrap" title="현재 단계 처음부터 다시 시작 (단축키 R)">
             <span>🔄</span>
-            <span id="pauseRestartText" class="text-[11px] sm:text-xs">다시하기</span>
+            <span id="pauseRestartText" class="hidden md:inline text-[11px] sm:text-xs">다시하기</span>
           </button>
 
-          <button id="btnMoreMenu" type="button" class="px-2 py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 transition flex items-center gap-1 whitespace-nowrap" title="메뉴 · 스테이지 선택 · 설정">
+          <button id="btnMoreMenu" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 transition flex items-center gap-0.5 sm:gap-1 whitespace-nowrap" title="메뉴 · 스테이지 선택 · 설정">
             <span>⚙️</span>
-            <span class="text-[11px] sm:text-xs">메뉴</span>
+            <span class="text-[10px] sm:text-xs">메뉴</span>
           </button>
 
-          <button id="btnExitGameTop" type="button" class="px-2.5 py-0.5 sm:py-1 text-xs font-black rounded-lg bg-rose-600 hover:bg-rose-500 border-2 border-rose-300 text-white transition flex items-center gap-1 shadow-md whitespace-nowrap shrink-0" title="게임 저장 및 종료">
+          <button id="btnExitGameTop" type="button" class="px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs font-black rounded-lg bg-rose-600 hover:bg-rose-500 border-2 border-rose-300 text-white transition flex items-center gap-1 shadow-md whitespace-nowrap shrink-0" title="게임 저장 및 종료">
             <span>🚪</span>
-            <span class="text-[11px] sm:text-xs">게임종료</span>
+            <span class="text-[10.5px] sm:text-xs">게임종료</span>
           </button>
         </div>
       </div>
@@ -405,8 +405,8 @@
                 <button type="button" data-main-stage="2" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🪢 3단계(완강기)</button>
                 <button type="button" data-main-stage="3" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🧪 4단계(과학실)</button>
                 <button type="button" data-main-stage="4" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">🔦 5단계(지하철)</button>
-                <button type="button" data-main-stage="5" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">⛺ 6단계(캠핑장)</button>
-                <button type="button" data-main-stage="6" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap">🔍 예방탐정</button>
+                <button type="button" data-main-stage="6" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap">⛺ 6단계(캠핑장)</button>
+                <button type="button" data-main-stage="5" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap">🔍 예방탐정</button>
                 <button type="button" data-main-stage="daily" class="main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold text-[11px] transition whitespace-nowrap">🎲 일일챌린지</button>
               </div>
 
@@ -1548,10 +1548,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=10"></script>
-  <script src="./stages.js?v=10"></script>
-  <script src="./editor.js?v=10"></script>
-  <script src="./tactical-3d.js?v=10"></script>
-  <script src="./game.js?v=10"></script>
+  <script src="./sound.js?v=11"></script>
+  <script src="./stages.js?v=11"></script>
+  <script src="./editor.js?v=11"></script>
+  <script src="./tactical-3d.js?v=11"></script>
+  <script src="./game.js?v=11"></script>
 </body>
 </html>

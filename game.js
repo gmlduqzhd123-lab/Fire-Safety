@@ -868,7 +868,7 @@
       const key = pill.getAttribute('data-main-stage');
       if (key === activeMainStageKey) {
         pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-orange-500 text-slate-950 font-black text-[11px] transition shadow-sm whitespace-nowrap ring-2 ring-yellow-300';
-      } else if (key === '6') {
+      } else if (key === '5') {
         pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap';
       } else if (key === 'daily') {
         pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold text-[11px] transition whitespace-nowrap';
@@ -8409,26 +8409,25 @@
     setTimeout(updateOverlaySelectionUI, 20);
   }
 
-  // Improvement #1: Main Screen Quick Stage Selector Bar (#mainStageSelectBar) Click Handlers
+  // Improvement #1: Main Screen Quick Stage Selector Bar (#mainStageSelectBar) 1-Click Stage Launch
   document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
     pill.addEventListener('click', () => {
       SoundFX.init();
-      SoundFX.pickup();
+      if (!navigator.webdriver) {
+        requestGameFullscreen(true);
+      }
       const stageAttr = pill.getAttribute('data-main-stage');
       if (stageAttr === 'daily' && typeof generateDailyChallengeStage === 'function') {
         const dailySt = generateDailyChallengeStage();
         loadStage(0, true, dailySt);
-        overlaySubtitle.textContent = `선택된 구역: 🎲 ${dailySt.name}`;
-        btnPrimaryAction.textContent = '▶️ 오늘의 119 챌린지 시작';
-        showToast(`🎲 [${dailySt.name}] 구역이 선택되었습니다!`, 'border-amber-400');
+        hideAllModalsAndResume();
+        SoundFX.siren();
+        SoundFX.speak('오늘의 일일구 돌발 재난 챌린지를 시작합니다. 침착하게 탈출하세요!');
+        showToast(`🎲 ${dailySt.name} 시작! 매일 자정 새로운 구조로 바뀝니다!`, 'border-amber-400');
       } else {
         const idx = parseInt(stageAttr || '0', 10);
         if (!isNaN(idx) && idx >= 0 && idx < STAGES.length) {
-          loadStage(idx, true, null);
-          const stObj = STAGES[idx];
-          overlaySubtitle.textContent = `선택된 구역: ${stObj.name}`;
-          btnPrimaryAction.textContent = `▶️ ${stObj.name.split(':')[0]} 전체화면 시작`;
-          showToast(`🎯 [${stObj.name}] 구역이 선택되었습니다!`, 'border-orange-400');
+          selectStageManual(idx);
         }
       }
     });
