@@ -180,7 +180,7 @@ body.landscape-console #gameMain {
   min-height: 0 !important;
   padding: 2px 4px 3px 4px !important;
   display: grid !important;
-  grid-template-columns: 128px minmax(0, 1fr) 96px !important;
+  grid-template-columns: 128px minmax(0, 1fr) 104px !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   gap: 4px !important;
   align-items: stretch !important;
@@ -302,10 +302,16 @@ body.landscape-console #actionButtonsWrapper {
 }
 
 body.landscape-console #actionButtonsWrapper > button:not(.hidden) {
-  flex: 1 1 0% !important;
+  flex: 0.9 1 0% !important;
   width: 100% !important;
   min-height: 0 !important;
   padding: 3px 4px !important;
+}
+
+/* Improvement #9: Make core [Space] Action & [Shift] Crouch buttons prominently larger in right touch dock */
+body.landscape-console #actionButtonsWrapper > #btnAction:not(.hidden),
+body.landscape-console #actionButtonsWrapper > #btnCrouch:not(.hidden) {
+  flex: 1.55 1 0% !important;
 }
 
 body.landscape-console #btnAction {
@@ -336,30 +342,42 @@ body.landscape-console #eduModal {
   position: fixed !important;
   inset: 0 !important;
   z-index: 50 !important;
-  padding: 8px 14px !important;
+  padding: 0 !important;
 }
 
-body.landscape-console #overlayCard {
-  max-width: 720px !important;
-  max-height: 97% !important;
+/* Full-screen main intro card from startup */
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  padding: 16px 28px !important;
+}
+
+/* Result/Debriefing card keeps compact centered modal style */
+body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
+  max-width: 760px !important;
+  max-height: 96% !important;
+  height: auto !important;
+  border-radius: 1.5rem !important;
+  margin: auto !important;
 }
 
 /* Compact vertical spacing on short smartphone landscape screens (e.g. 844x390) so Start & End-of-Game buttons are always visible */
 @media (max-height: 540px) {
   body.landscape-console #overlayCard {
-    padding: 6px 12px !important;
-    gap: 3px !important;
+    padding: 8px 16px !important;
+    gap: 4px !important;
   }
   body.landscape-console #overlayTitle {
-    font-size: 1.05rem !important;
-    line-height: 1.25rem !important;
+    font-size: 1.35rem !important;
+    line-height: 1.6rem !important;
   }
   body.landscape-console #overlayDesc {
-    font-size: 0.68rem !important;
-    line-height: 0.92rem !important;
-  }
-  body.landscape-console #fireStepCardsGrid {
-    display: none !important;
+    font-size: 0.75rem !important;
+    line-height: 1.05rem !important;
   }
   body.landscape-console #worldSelectBar > button {
     padding: 4px 6px !important;
@@ -387,17 +405,14 @@ body.landscape-console #overlayCard {
     padding: 3px 6px !important;
   }
   body.landscape-console #overlayActionsRow {
-    bottom: -6px !important;
-    margin-bottom: -6px !important;
     padding-top: 5px !important;
-    padding-bottom: 6px !important;
-    background: #020617 !important;
-    gap: 4px !important;
+    padding-bottom: 5px !important;
+    gap: 6px !important;
   }
   body.landscape-console #overlayActionsRow > button {
-    height: 34px !important;
-    padding: 0 9px !important;
-    font-size: 0.72rem !important;
+    height: 36px !important;
+    padding: 0 12px !important;
+    font-size: 0.76rem !important;
     border-radius: 10px !important;
     min-width: auto !important;
   }
@@ -422,13 +437,16 @@ body.landscape-console #overlayCard {
 
 /* 📲 앱 설치 · 📱 QR — 엽쌤 앱 공통 상단 버튼 */
 .ys-top { display: flex; justify-content: flex-end; gap: 6px; }
-.ys-top-card { margin: -2px -2px 0 0; }
+.ys-top-card { margin: 0; }
 .ys-top-fixed { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; }
 .ys-chip { display: inline-block; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(251, 146, 60, .55); background: rgba(249, 115, 22, .16); color: #fed7aa; font: inherit; font-size: 12.5px; font-weight: 800; line-height: 1.3; white-space: nowrap; cursor: pointer; }
 .ys-chip:hover { background: rgba(249, 115, 22, .3); }
 /* 게임 결과·실패 화면에서는 숨기고 메인 화면에서만 보인다 */
+#overlayCard:has(#overlayTipsBox.hidden) #mainIntroTopBar,
+#overlayCard:has(#overlayTipsBox.hidden) #draft1CorePills,
+#overlayCard:has(#overlayTipsBox.hidden) #mainStageSelectBar,
 #overlayCard:has(#overlayTipsBox.hidden) .ys-top-card,
-#overlayCard:has(#overlayTipsBox.hidden) .ys-credit { display: none; }
+#overlayCard:has(#overlayTipsBox.hidden) .ys-credit { display: none !important; }
 .ys-credit { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
 .ys-credit a { color: #fdba74; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 520px) { .ys-wide { display: none; } }

@@ -109,6 +109,34 @@
       this.playTone(580, 'sawtooth', 0.22, 0.1, 860);
       setTimeout(() => this.playTone(860, 'sawtooth', 0.25, 0.1, 580), 220);
     },
+    coughWarning() {
+      if (this.muted) return;
+      this.playNoise(0.11, 0.16);
+      this.playTone(230, 'sawtooth', 0.12, 0.11, 145);
+      setTimeout(() => {
+        this.playNoise(0.13, 0.15);
+        this.playTone(210, 'sawtooth', 0.14, 0.10, 125);
+      }, 150);
+    },
+    heartbeat() {
+      if (this.muted) return;
+      this.playTone(62, 'sine', 0.11, 0.22, 42);
+      setTimeout(() => this.playTone(54, 'sine', 0.14, 0.18, 36), 165);
+    },
+    guidePing() {
+      if (this.muted) return;
+      this.playTone(980, 'sine', 0.09, 0.08, 1320);
+    },
+    doorShut() {
+      if (this.muted) return;
+      this.playTone(155, 'triangle', 0.12, 0.18, 62);
+      this.playNoise(0.08, 0.12);
+    },
+    oilExplosion() {
+      if (this.muted) return;
+      this.playNoise(0.38, 0.26);
+      this.playTone(140, 'sawtooth', 0.28, 0.18, 52);
+    },
     speak(text, rate = 1.08, pitch = 1.0) {
       if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
       try {

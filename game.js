@@ -390,6 +390,11 @@
   let autoGuidePath = [];
   let lastGameOverReason = 'hp';
   let rescuedCompanions = [];
+  let pendingHazards = [];
+  let isFullMapOverlayOpen = false;
+  let screenShakeTimer = 0;
+  let heartbeatTimer = 0;
+  let guidePingTimer = 0;
   let customGear = {
     helmetColor: '#ef4444',
     honorTitle: '용감한 대피 대장'
@@ -722,6 +727,11 @@
     items = st.items.map(it => ({ ...it }));
     particles = [];
     floatTexts = [];
+    pendingHazards = [];
+    isFullMapOverlayOpen = false;
+    screenShakeTimer = 0;
+    heartbeatTimer = 0;
+    guidePingTimer = 0;
     pathHistory = [{ x: st.playerStart.x, y: st.playerStart.y, state: 'safe' }];
     pathRecordTimer = 0;
     burnBeepTimer = 0;
@@ -851,6 +861,21 @@
         ? 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md bg-amber-600 text-white transition shrink-0'
         : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0';
     }
+
+    // Improvement #1: Sync Main Screen Quick Stage Selector Pills
+    const activeMainStageKey = (customStageObj && customStageObj.isDailyChallenge) ? 'daily' : String(currentStageIdx);
+    document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
+      const key = pill.getAttribute('data-main-stage');
+      if (key === activeMainStageKey) {
+        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-orange-500 text-slate-950 font-black text-[11px] transition shadow-sm whitespace-nowrap ring-2 ring-yellow-300';
+      } else if (key === '6') {
+        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] transition whitespace-nowrap';
+      } else if (key === 'daily') {
+        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold text-[11px] transition whitespace-nowrap';
+      } else {
+        pill.className = 'main-stage-pill px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px] transition whitespace-nowrap';
+      }
+    });
 
     orientCameraToOpenSpace();
     updateHUD();
@@ -1226,7 +1251,7 @@
     // Update Context-Sensitive Primary Action Button (#btnAction)
     const target = getInteractTarget();
     let actIcon = '✋';
-    let actLabel = '행동하기';
+    let actLabel = '반응하기';
     let actHighlight = false;
 
     if (player.onFire) {
@@ -1277,6 +1302,9 @@
       } else if (target.tile === TILE.DEBRIS) {
         actIcon = '🪓';
         actLabel = '장애물 파괴';
+      } else if (target.tile === TILE.FURNITURE) {
+        actIcon = '🔐';
+        actLabel = '금고·서가 조사';
       } else if (target.tile === TILE.ELEVATOR) {
         actIcon = '⚠️';
         actLabel = '탑승 금지!';
@@ -1298,8 +1326,8 @@
     if (hudCache.actHighlight !== actHighlight) {
       hudCache.actHighlight = actHighlight;
       btnAction.className = actHighlight
-        ? 'btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 border-2 border-yellow-200 text-xs sm:text-sm font-black text-slate-950 flex flex-col items-center justify-center gap-1 shadow-xl'
-        : 'btn-control px-3 py-2 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg';
+        ? 'btn-control px-3 py-1.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 border-2 border-yellow-200 text-xs sm:text-sm font-black text-slate-950 flex flex-col items-center justify-center gap-0.5 shadow-xl'
+        : 'btn-control px-3 py-1.5 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg';
     }
 
     const postureKey = `${st.isPreventionMode ? 1 : 0}:${player.crouching ? 1 : 0}`;
@@ -1326,10 +1354,10 @@
     if (hudCache.crouchState !== player.crouching) {
       hudCache.crouchState = player.crouching;
       if (crouchBtnIcon) crouchBtnIcon.textContent = player.crouching ? '🧎' : '🚶';
-      if (crouchBtnText) crouchBtnText.textContent = player.crouching ? '낮은자세 켜짐' : '자세 낮추기';
+      if (crouchBtnText) crouchBtnText.textContent = player.crouching ? '숙이기 켜짐' : '숙이기';
       btnCrouch.className = player.crouching
-        ? 'btn-control px-3 py-2 rounded-2xl bg-emerald-600 border-2 border-emerald-300 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-1 shadow-lg'
-        : 'btn-control px-3 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-1 shadow';
+        ? 'btn-control px-3 py-1.5 rounded-2xl bg-emerald-600 border-2 border-emerald-300 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg'
+        : 'btn-control px-3 py-1.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-0.5 shadow';
     }
 
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
@@ -1447,40 +1475,72 @@
     return true;
   }
 
-  // --- Nearby Interactive Target Detection ---
+  // --- Nearby Interactive Target Detection (Enhanced with 3D Gaze Ray & Furniture Puzzle Stations) ---
   function getInteractTargetForActor(actor) {
     const pc = Math.floor(actor.x);
     const pr = Math.floor(actor.y);
+    const isFps = typeof cameraMode3D !== 'undefined' && cameraMode3D === 'FPS_3D';
 
+    let bestItem = null;
+    let bestItemDist = Infinity;
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      const dist = Math.hypot(actor.x - (it.c + 0.5), actor.y - (it.r + 0.5));
-      if (dist < 1.15) {
-        return { kind: 'item', index: i, item: it };
+      const dx = (it.c + 0.5) - actor.x;
+      const dy = (it.r + 0.5) - actor.y;
+      const dist = Math.hypot(dx, dy);
+      const dot = dist > 0.01 ? (dx * (actor.dirX || 0) + dy * (actor.dirY || 0)) / dist : 1;
+      const maxItemDist = (isFps && dot > 0.65) ? 1.82 : 1.22;
+      if (dist < maxItemDist && dist < bestItemDist) {
+        bestItemDist = dist;
+        bestItem = { kind: 'item', index: i, item: it };
       }
     }
+    if (bestItem) return bestItem;
 
     const targetC = Math.floor(actor.x + actor.dirX * 0.85);
     const targetR = Math.floor(actor.y + actor.dirY * 0.85);
     const candidates = [
-      { c: targetC, r: targetR },
-      { c: pc + 1, r: pr },
-      { c: pc - 1, r: pr },
-      { c: pc, r: pr + 1 },
-      { c: pc, r: pr - 1 }
+      { c: targetC, r: targetR, fromGaze: true }
     ];
+    if (isFps) {
+      const farC = Math.floor(actor.x + actor.dirX * 1.48);
+      const farR = Math.floor(actor.y + actor.dirY * 1.48);
+      if (
+        (farC !== targetC || farR !== targetR) &&
+        targetR >= 0 && targetR < ROWS && targetC >= 0 && targetC < COLS &&
+        (grid[targetR][targetC] === TILE.FLOOR || grid[targetR][targetC] === TILE.OPEN_DOOR)
+      ) {
+        candidates.push({ c: farC, r: farR, fromGaze: true });
+      }
+    }
+    candidates.push(
+      { c: pc + 1, r: pr, fromGaze: false },
+      { c: pc - 1, r: pr, fromGaze: false },
+      { c: pc, r: pr + 1, fromGaze: false },
+      { c: pc, r: pr - 1, fromGaze: false }
+    );
 
+    let fallbackFurniture = null;
+    let fallbackOpenDoor = null;
     for (let idx = 0; idx < candidates.length; idx++) {
       const cand = candidates[idx];
       if (cand.c < 0 || cand.c >= COLS || cand.r < 0 || cand.r >= ROWS) continue;
       const t = grid[cand.r][cand.c];
+
+      // Improvement #3: Allow closing an adjacent OPEN_DOOR even right after walking through it (when not standing inside the doorway tile itself)
       if (t === TILE.OPEN_DOOR) {
-        if (idx !== 0 || (cand.c === pc && cand.r === pr)) continue;
+        if (cand.c === pc && cand.r === pr) continue;
+        if (cand.fromGaze) {
+          return { kind: 'tile', c: cand.c, r: cand.r, tile: t };
+        }
+        if (!fallbackOpenDoor) {
+          fallbackOpenDoor = { kind: 'tile', c: cand.c, r: cand.r, tile: t };
+        }
+        continue;
       }
 
       if (
         t === TILE.DOOR ||
-        t === TILE.OPEN_DOOR ||
         t === TILE.HOT_DOOR ||
         t === TILE.LOCKED_DOOR ||
         t === TILE.SINK ||
@@ -1496,9 +1556,16 @@
       ) {
         return { kind: 'tile', c: cand.c, r: cand.r, tile: t };
       }
+
+      if (t === TILE.FURNITURE && !fallbackFurniture) {
+        const stationKind = (cand.r + cand.c * 3) % 3;
+        if (stationKind === 1 || stationKind === 2) {
+          fallbackFurniture = { kind: 'tile', c: cand.c, r: cand.r, tile: t };
+        }
+      }
     }
 
-    return null;
+    return fallbackFurniture || fallbackOpenDoor;
   }
 
   function getInteractTarget() {
@@ -1589,6 +1656,16 @@
     let normalExtinguished = 0;
     let hazardTriggered = false;
 
+    // Improvement #4: Cancel nearby pendingHazards when pouring water
+    for (let pIdx = pendingHazards.length - 1; pIdx >= 0; pIdx--) {
+      const ph = pendingHazards[pIdx];
+      if (Math.hypot((ph.c + 0.5) - player.x, (ph.r + 0.5) - player.y) <= 2.6) {
+        pendingHazards.splice(pIdx, 1);
+        score += 30;
+        addFloatText(ph.c + 0.5, ph.r + 0.5, '💧 확산 사전 차단! +30', '#38bdf8');
+      }
+    }
+
     for (let i = fires.length - 1; i >= 0; i--) {
       const f = fires[i];
       const fx = f.c + 0.5;
@@ -1604,8 +1681,28 @@
             hazardTriggered = f.fireType;
             metrics.waterOnSpecialFireMistake++;
             player.hp = Math.max(5, player.hp - 12);
-            SoundFX.hurt();
-            addFloatText(fx, fy, f.fireType === 'oil' ? '💥 기름 폭발! 물 금지!' : '⚡ 감전 위험! 물 금지!', '#ef4444');
+            screenShakeTimer = 0.45;
+            if (f.fireType === 'oil' && typeof SoundFX.oilExplosion === 'function') {
+              SoundFX.oilExplosion();
+            } else {
+              SoundFX.hurt();
+            }
+            // Improvement #6: Spawn dramatic oil-flare or electric-spark particle burst
+            for (let k = 0; k < 18; k++) {
+              const ang = Math.random() * Math.PI * 2;
+              const spd = 1.8 + Math.random() * 2.8;
+              particles.push({
+                x: fx,
+                y: fy,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 0.45,
+                maxLife: 0.5,
+                size: 5 + Math.random() * 4,
+                color: f.fireType === 'oil' ? '#f97316' : '#38bdf8'
+              });
+            }
+            addFloatText(fx, fy, f.fireType === 'oil' ? '💥 수증기 기름 폭발! (K급소화기/덮기 필수!)' : '⚡ 감전 스파크! (차단기 OFF 필수!)', '#ef4444');
             if (!smokes.some(s => s.c === f.c && s.r === f.r)) {
               smokes.push({ c: f.c, r: f.r, phase: 0 });
             }
@@ -1621,9 +1718,9 @@
     }
 
     if (hazardTriggered === 'oil') {
-      showToast('🚨 [과학 원리 경고] 식용유·알코올 화재(🍳)에 물을 부으면 불길이 번집니다! 소화기(🧯질식소화)를 쓰세요!', 'border-red-500');
+      showToast('💥 [식용유(K급) 화재 폭발 경고!] 기름 불에 물을 부으면 수증기 폭발로 불길이 번집니다! 🧯소화기(질식소화)나 냄비 뚜껑·젖은 수건 덮기로 산소를 차단하세요!', 'border-red-500');
     } else if (hazardTriggered === 'electric') {
-      showToast('🚨 [과학 원리 경고] 전원이 켜진 전기 화재(⚡)에 물을 부으면 감전됩니다! 차단기(⚡)를 내리거나 소화기(🧯)를 쓰세요!', 'border-red-500');
+      showToast('⚡ [전기 감전 경고!] 전기가 통하는 상태에서 물을 뿌리면 감전됩니다! 먼저 ⚡배전판 차단기를 내리거나 🧯소화기를 사용하세요!', 'border-red-500');
     } else if (normalExtinguished > 0) {
       showToast(`🪣 [냉각 소화 성공] 물로 온도를 발화점 아래로 낮춰 화재 ${normalExtinguished}곳을 진압했습니다!`, 'border-blue-400');
     } else {
@@ -1669,6 +1766,18 @@
       });
     }
 
+    // Improvement #4: Cancel nearby pendingHazards when spraying extinguisher
+    let canceledPending = 0;
+    for (let pIdx = pendingHazards.length - 1; pIdx >= 0; pIdx--) {
+      const ph = pendingHazards[pIdx];
+      if (Math.hypot((ph.c + 0.5) - actor.x, (ph.r + 0.5) - actor.y) <= 2.9) {
+        pendingHazards.splice(pIdx, 1);
+        canceledPending++;
+        score += 30;
+        addFloatText(ph.c + 0.5, ph.r + 0.5, '🧯 확산 사전 차단! +30', '#38bdf8');
+      }
+    }
+
     let extinguishedCount = 0;
     let specialExtinguished = 0;
     for (let i = fires.length - 1; i >= 0; i--) {
@@ -1690,7 +1799,7 @@
           if (isSpec) {
             specialExtinguished++;
             score += 200;
-            addFloatText(fx, fy, '🧯 질식 소화(산소차단)! +200', '#38bdf8');
+            addFloatText(fx, fy, f.fireType === 'oil' ? '🧯 K급 질식소화(산소차단)! +200' : '🧯 전기화재 안전진압! +200', '#38bdf8');
           } else {
             score += 150;
             addFloatText(fx, fy, '🧯 화원 진압! +150', '#38bdf8');
@@ -1705,9 +1814,11 @@
     }
 
     if (specialExtinguished > 0) {
-      showToast(`🧯 [질식 소화 성공] 산소를 차단해 식용유/전기 화재를 안전하게 진압했습니다! (+${specialExtinguished * 200}점)`, 'border-sky-400');
+      showToast(`🧯 [맞춤형 질식 소화 성공] 산소를 차단해 식용유(K급)/전기 화재를 완벽히 진압했습니다! (+${specialExtinguished * 200}점)`, 'border-sky-400');
     } else if (extinguishedCount > 0) {
       showToast(`🧯 소화기로 불길 ${extinguishedCount}곳의 화원(뿌리)을 쓸어 껐습니다! (+${extinguishedCount * 150}점)`, 'border-sky-400');
+    } else if (canceledPending > 0) {
+      showToast(`🧯 불길 확산 예고 지점 ${canceledPending}곳을 사전에 방어했습니다! (+${canceledPending * 30}점)`, 'border-sky-400');
     } else {
       showToast('🧯 소화기를 분사했습니다. 바람을 등지고 불길 뿌리 쪽을 향해 분사하세요!', 'border-slate-600');
     }
@@ -1715,36 +1826,69 @@
     updateHUD();
   }
 
-  // --- 119 Emergency Call Simulation Modal ---
+  // --- Improvement #7: 2-Step Interactive 119 Emergency Call Simulation Modal ---
   function start119Simulation(c, r) {
     if (metrics.called119) {
       showToast('📞 이미 119에 정확한 위치와 상황을 신고했습니다! 신속히 대피하세요!');
       return;
     }
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    const stageLocName = st.name || '현재 건물';
+
+    function openStep2() {
+      openEduModal(
+        '119 종합상황실 교신 (2/2단계 · 상황 브리핑)',
+        '📞 "위치 확인 완료! 화재 원인과 고립 인원을 알려주세요!"',
+        `119 상황실: <strong>"[${stageLocName}] 위치로 소방차 출동 지령을 내렸습니다! 현장 맞춤형 진압을 위해 화재 종류와 남은 요구조자 상황을 알려주세요!"</strong>`,
+        [
+          {
+            label: '1️⃣ "주방·전기·배터리 등 발화 원인과 갇힌 이웃/반려동물 유무를 정확히 알리고 안내에 따라 대피합니다."',
+            primary: true,
+            onSelect: () => {
+              metrics.called119 = true;
+              score += 350;
+              SoundFX.win();
+              SoundFX.speak('119 신고가 완벽히 접수되었습니다. 바닥의 황금색 비상 유도선을 따라 낮은 자세로 즉시 대피하세요.');
+              addFloatText(c + 0.5, r + 0.5, '📞 119 교신 완료! +350', '#c084fc');
+              closeEduModal();
+              const nextObj = getNextStepObjective();
+              if (nextObj) {
+                autoGuidePath = computeSafeBfsPathToTarget(nextObj.c, nextObj.r);
+              }
+              showToast('📞 [119 2단계 교신 완벽 성공!] 소방차 출동 완료 & 상황실이 안전 탈출 경로를 브리핑했습니다! (+350점)', 'border-purple-400');
+            }
+          },
+          {
+            label: '2️⃣ "잘 모르겠고 일단 제가 아끼는 장난감부터 다 챙긴 뒤에 다시 전화할게요!"',
+            primary: false,
+            onSelect: () => {
+              SoundFX.warning();
+              showToast('⚠️ 물건을 챙기느라 지체하면 매우 위험합니다! 화재 상황과 인원만 알리고 즉시 대피해야 합니다.', 'border-amber-500');
+            }
+          }
+        ]
+      );
+    }
+
     openEduModal(
-      '1~2학년 통합교과 · 119 신고 절차',
-      '📞 119 긴급 화재 신고 시뮬레이션',
-      '소방관에게 가장 먼저, 가장 정확하게 전달해야 할 <strong>올바른 신고 내용</strong>을 선택하세요!',
+      '1~2학년 통합교과 · 119 신고 절차 (1/2단계 · 위치 전달)',
+      '📞 119 종합상황실 긴급 화재 신고',
+      `119 상황실: <strong>"삐뽀삐뽀! 119 종합상황실입니다. 어디에서 불이 났나요? 가장 먼저 정확한 위치를 말씀해 주세요!"</strong>`,
       [
         {
-          label: '1️⃣ "정확한 주소(또는 건물·교실 위치)와 화재 발생 장소, 현재 대피 인원을 침착하게 말합니다."',
+          label: `1️⃣ "여기는 [${stageLocName}]입니다! 정확한 도로명 주소(또는 건물·층수)를 침착하게 먼저 말합니다."`,
           primary: true,
           onSelect: () => {
-            metrics.called119 = true;
-            score += 300;
-            SoundFX.win();
-            SoundFX.speak('119 신고가 접수되었습니다. 소방차가 출동 중이니 침착하게 비상구로 대피하세요.');
-            addFloatText(c + 0.5, r + 0.5, '119 신고 완료! +300', '#c084fc');
-            closeEduModal();
-            showToast('📞 [119 신고 완벽 성공] 주소·발화장소·대피현황을 침착하게 전달했습니다! (+300점)', 'border-purple-400');
+            SoundFX.bell();
+            openStep2();
           }
         },
         {
-          label: '2️⃣ "불이 났어요! 무서워요, 무조건 빨리 와주세요!" (정확한 위치 누락)',
+          label: '2️⃣ "불이 났어요! 무서워요, 주소는 모르겠지만 무조건 빨리 와주세요!" (정확한 위치 누락)',
           primary: false,
           onSelect: () => {
             SoundFX.warning();
-            showToast('⚠️ 당황해서 주소를 말하지 않으면 소방차가 찾아오기 어렵습니다! 다시 정확히 신고해 보세요.', 'border-amber-500');
+            showToast('⚠️ 당황해서 주소를 말하지 않으면 소방차가 출동할 수 없습니다! 정확한 위치를 먼저 알려주세요.', 'border-amber-500');
           }
         }
       ]
@@ -2145,7 +2289,17 @@
       } else if (tile === TILE.OPEN_DOOR) {
         grid[r][c] = TILE.DOOR;
         nudgePlayerOutOfSolidTile(c, r);
-        SoundFX.unlock();
+        if (typeof SoundFX.doorShut === 'function') {
+          SoundFX.doorShut();
+        } else {
+          SoundFX.unlock();
+        }
+        // Improvement #4: Closing a fire door cancels any pendingHazards on or right across the doorway
+        for (let pIdx = pendingHazards.length - 1; pIdx >= 0; pIdx--) {
+          if (Math.hypot(pendingHazards[pIdx].c - c, pendingHazards[pIdx].r - r) <= 1.2) {
+            pendingHazards.splice(pIdx, 1);
+          }
+        }
         const closeKey = `close:${r},${c}`;
         if (!interactedDoors.has(closeKey)) {
           interactedDoors.add(closeKey);
@@ -2153,7 +2307,7 @@
           unlockBadge('fire_door');
           score += 150;
           addFloatText(c + 0.5, r + 0.5, '방화문 닫기(연기차단)! +150', '#818cf8');
-          showToast('🚪🛡️ [방화문 닫기 완료!] 지나온 문을 닫아 불길과 유독가스가 문 너머로 번지는 것을 차단했습니다! (+150점)', 'border-indigo-400');
+          showToast('🚪🛡️ [방화문 닫기 완료!] 지나온 문을 닫아 불길과 유독가스가 문 너머로 번지는 것을 물리적으로 차단했습니다! (+150점)', 'border-indigo-400');
         } else {
           addFloatText(c + 0.5, r + 0.5, '방화문 닫기 완료', '#818cf8');
           showToast('🚪🛡️ 방화문을 다시 닫아 연기 확산을 차단했습니다! (점수는 문당 최초 1회만 부여됩니다)', 'border-indigo-400');
@@ -2213,7 +2367,13 @@
           showToast('🔓 손등으로 온도를 확인한 뒤 열쇠로 잠긴 문을 열었습니다!');
         } else {
           SoundFX.warning();
-          showToast('🔒 잠긴 문입니다! 주변에서 열쇠(🔑)를 찾거나 [🔐 금고·배선퍼즐]에서 비상 마스터키를 해금하세요!', 'border-amber-500');
+          // Improvement #2: Automatically open Safe Keypad Modal when interacting with a locked door without a key
+          if (!safeSolved && typeof openPuzzleModalFn === 'function') {
+            openPuzzleModalFn('safe');
+            showToast('🔐 잠긴 문입니다! 비상 금고(614 / 0119) 암호 창을 열었습니다. 암호를 입력해 비상 마스터키(🔑)를 획득하세요!', 'border-amber-400');
+            return;
+          }
+          showToast('🔒 잠긴 문입니다! 주변 바닥의 열쇠(🔑)를 줍거나 금고(🔐)에서 마스터키를 해금하세요!', 'border-amber-500');
         }
       } else if (tile === TILE.ELEVATOR) {
         SoundFX.warning();
@@ -2233,10 +2393,22 @@
           player.breakerClosed = true;
           SoundFX.unlock();
           score += 250;
+          // Improvement #6: Visually weaken electric fires when breaker is turned off
+          fires.forEach((f) => {
+            if (f.fireType === 'electric') {
+              f.intensity = 0.55;
+              addFloatText(f.c + 0.5, f.r + 0.5, '⚡ 전원차단·전기불 약화!', '#38bdf8');
+            }
+          });
           addFloatText(c + 0.5, r + 0.5, '전원 차단기 OFF! +250', '#38bdf8');
-          showToast('⚡ [전기 화재 예방] 두꺼비집(전원 차단기)을 내려 추가 누전과 감전 위험을 차단했습니다! (+250점)', 'border-sky-400');
+          showToast('⚡ [전기 화재 예방] 전원 차단기를 내려 감전 위험을 없애고 전기 불길을 약화시켰습니다! (+250점 · 한 번 더 누르면 배선 복구 퍼즐)', 'border-sky-400');
+        } else if (!wireSolved && typeof openPuzzleModalFn === 'function') {
+          // Improvement #2: Open 4-color wire puzzle when interacting with breaker again
+          openPuzzleModalFn('wire');
+          showToast('⚡ 배전판 비상 배선 복구 창을 열었습니다! (🔴B·🔵D·🟡A·🟢C 연결 시 소화기 +1회 충전)', 'border-sky-400');
+          return;
         } else {
-          showToast('⚡ 전원 차단기가 이미 내려가 있습니다.');
+          showToast('⚡ 전원 차단기 안전 조치 및 비상 배선 복구가 모두 완료되었습니다.');
         }
       } else if (tile === TILE.PHONE_119) {
         start119Simulation(c, r);
@@ -2274,6 +2446,11 @@
           SoundFX.warning();
           showToast('🪵 무너진 나무 판자가 길을 막고 있습니다. 소방 도끼(🪓)를 찾거나 완강기(🪢)·경량칸막이(🧱)를 이용하세요!');
         }
+      } else if (tile === TILE.FURNITURE && typeof openPuzzleModalFn === 'function') {
+        const stationKind = (r + c * 3) % 3;
+        const tab = stationKind === 1 ? 'safe' : (stationKind === 2 ? (!bookSortSolved ? 'books' : 'dirlock') : 'safe');
+        openPuzzleModalFn(tab);
+        return;
       }
       updateHUD();
       if (cameraMode3D === 'FPS_3D') orientCameraToOpenSpace();
@@ -2281,15 +2458,27 @@
     }
   }
 
-  // --- Toggle Crouch ---
+  function flashButtonPress(btnEl) {
+    if (!btnEl) return;
+    btnEl.style.transform = 'scale(0.93)';
+    btnEl.style.filter = 'brightness(1.22)';
+    if (btnEl._flashTimer) clearTimeout(btnEl._flashTimer);
+    btnEl._flashTimer = setTimeout(() => {
+      btnEl.style.transform = '';
+      btnEl.style.filter = '';
+    }, 150);
+  }
+
+  // --- Toggle Crouch (Shortcut: Shift) ---
   function toggleCrouch() {
     if (gameState !== 'PLAYING') return;
     SoundFX.init();
+    SoundFX.playTone(player.crouching ? 440 : 340, 'triangle', 0.08, 0.09);
     player.crouching = !player.crouching;
     if (player.crouching) {
-      showToast('🧎 [대류 현상 활용] 낮은 자세로 바닥(30~60cm)의 신선한 공기를 호흡하며 이동합니다!');
+      showToast('🧎 [숙이기 ON · Shift] 대류 현상을 활용해 바닥(30~60cm)의 신선한 공기를 호흡하며 이동합니다!');
     } else {
-      showToast('🚶 서서 이동합니다. 이동 속도가 빨라지지만 상층부 유독가스에 취약합니다.');
+      showToast('🚶 [서서 이동 · Shift] 이동 속도가 빨라지지만 상층부 유독가스에 주의하세요.');
     }
     updateHUD();
   }
@@ -2746,6 +2935,9 @@
   let fpsCamYaw = 0;
   let fpsCamX = 1.5;
   let fpsCamY = 1.5;
+  let fpsCamEyeZ = 0.50;
+  let fpsHorizonRatio = 0.44;
+  let crouchVisualLerp = 0;
   let fpsWalkPhase = 0;
   let fpsLastStepHalf = 0;
   let fpsForwardSurge = 0;
@@ -3135,9 +3327,13 @@
       }
     }
 
-    // Smoothly interpolate 3D Follow-Camera position toward player
+    // Smoothly interpolate 3D Follow-Camera position & Crouch Eye-Height / Horizon toward player
     fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 10.0);
     fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 10.0);
+    const camPostureStep = Math.min(1, dt * 9.5);
+    fpsCamEyeZ += ((player.crouching ? 0.30 : 0.50) - fpsCamEyeZ) * camPostureStep;
+    fpsHorizonRatio += ((player.crouching ? 0.385 : 0.445) - fpsHorizonRatio) * camPostureStep;
+    crouchVisualLerp += ((player.crouching ? 1.0 : 0.0) - crouchVisualLerp) * camPostureStep;
 
     // Update 3D Walk Stride Phase & World-Space 3D Footprints (Calm 1/2 cadence)
     fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 6.5);
@@ -3297,12 +3493,42 @@
       player.o2 -= drainRate * dt;
 
       if (!player.crouching && !player.wetTowel && !player.hasMask && player.hurtCooldown <= 0) {
-        player.hurtCooldown = 1.1;
-        SoundFX.hurt();
-        addFloatText(player.x, player.y - 0.3, '💨 상층 연기 흡입! (낮은 자세 필요)', '#38bdf8');
+        player.hurtCooldown = 1.25;
+        if (typeof SoundFX.coughWarning === 'function') {
+          SoundFX.coughWarning();
+        } else {
+          SoundFX.hurt();
+        }
+        addFloatText(player.x, player.y - 0.3, '💨 상층 연기 흡입! (Shift 숙이기 필요)', '#38bdf8');
       }
     } else {
       player.o2 = Math.min(100, player.o2 + 4.5 * dt);
+    }
+
+    // Improvement #6 & #8: Screen Shake Decay, Low-Vital Heartbeat & Dark-Stage Exit Acoustic Beacon
+    if (screenShakeTimer > 0) {
+      screenShakeTimer = Math.max(0, screenShakeTimer - dt);
+    }
+    if ((player.hp <= 30 || player.o2 <= 30) && !st.isPreventionMode) {
+      heartbeatTimer -= dt;
+      if (heartbeatTimer <= 0) {
+        heartbeatTimer = 1.25;
+        if (typeof SoundFX.heartbeat === 'function') SoundFX.heartbeat();
+      }
+    } else {
+      heartbeatTimer = 0;
+    }
+    if (st.isDarkStage) {
+      guidePingTimer -= dt;
+      if (guidePingTimer <= 0) {
+        const nearestExit = findNearestTileOfTypes([TILE.EXIT]);
+        if (nearestExit && nearestExit.dist <= 6.0) {
+          guidePingTimer = Math.max(0.55, Math.min(1.8, nearestExit.dist * 0.28));
+          if (typeof SoundFX.guidePing === 'function') SoundFX.guidePing();
+        } else {
+          guidePingTimer = 1.2;
+        }
+      }
     }
 
     // Record breadcrumb for trajectory replay minimap
@@ -3312,7 +3538,28 @@
       pathHistory.push({ x: player.x, y: player.y, state: ptState });
     }
 
-    // Physical Fire Door & Smoke Spread Simulation (Scaled by Stage Difficulty & 1/2 Movement Pace)
+    // Improvement #4: Update 3-Second Pending Hazard Floor Warnings & Spawn When Timer Expires
+    for (let i = pendingHazards.length - 1; i >= 0; i--) {
+      const ph = pendingHazards[i];
+      ph.timer -= dt;
+      // If the player closed a fire door on this tile while it was pending, cancel it immediately!
+      if (grid[ph.r] && grid[ph.r][ph.c] === TILE.DOOR) {
+        pendingHazards.splice(i, 1);
+        continue;
+      }
+      if (ph.timer <= 0) {
+        pendingHazards.splice(i, 1);
+        if (
+          grid[ph.r] &&
+          (grid[ph.r][ph.c] === TILE.FLOOR || grid[ph.r][ph.c] === TILE.OPEN_DOOR) &&
+          !smokes.some(s => s.c === ph.c && s.r === ph.r)
+        ) {
+          smokes.push({ c: ph.c, r: ph.r, phase: Math.random() * 6.28 });
+        }
+      }
+    }
+
+    // Physical Fire Door & Smoke Spread Simulation (Queues 3s Floor Warning before spreading!)
     const baseSpread = (st.fireSpreadInterval || 11.0) * 1.45 * gradeMults.spreadMult;
     const spreadInterval = player.fireDoorsClosed > 0 ? baseSpread * 1.45 : baseSpread;
     if (fireSpreadTimer >= spreadInterval) {
@@ -3330,9 +3577,10 @@
         if (
           nc > 0 && nc < COLS - 1 && nr > 0 && nr < ROWS - 1 &&
           (grid[nr][nc] === TILE.FLOOR || grid[nr][nc] === TILE.OPEN_DOOR) &&
-          !smokes.some(s => s.c === nc && s.r === nr)
+          !smokes.some(s => s.c === nc && s.r === nr) &&
+          !pendingHazards.some(ph => ph.c === nc && ph.r === nr)
         ) {
-          smokes.push({ c: nc, r: nr, phase: Math.random() * 6.28 });
+          pendingHazards.push({ c: nc, r: nr, kind: 'smoke', timer: 3.0, maxTimer: 3.0 });
         }
       }
     }
@@ -3355,38 +3603,40 @@
     const target = getInteractTarget();
     let promptText = '';
     if (player.onFire) {
-      promptText = `🚨 옷에 불이 붙었습니다! [🔄 구르기 버튼 / F키]를 연타하세요! (${player.rollNeeded}회)`;
+      promptText = `🚨 옷에 불이 붙었습니다! [🔄 구르기 버튼 / Space·F키]를 연타하세요! (${player.rollNeeded}회)`;
     } else if (target) {
       if (target.kind === 'item') {
-        promptText = `[터치 / Space / 상호작용] ${target.item.icon} ${target.item.name} 획득·구조`;
+        promptText = `[Space / 반응하기] ${target.item.icon} ${target.item.name} 획득·구조`;
       } else if (target.tile === TILE.SINK) {
         promptText = player.hasTowel && !player.wetTowel
-          ? `[터치 / 상호작용] 💧 세면대에서 수건 적시기 & 물양동이 채우기`
-          : `[터치 / 상호작용] 💧 세면대 산소 회복 & 물양동이 보충`;
+          ? `[Space / 반응하기] 💧 세면대에서 수건 적시기 & 물양동이 채우기`
+          : `[Space / 반응하기] 💧 세면대 산소 회복 & 물양동이 보충`;
       } else if (target.tile === TILE.DOOR) {
-        promptText = `[터치 / 상호작용] 🤚🚪 손등으로 문 온도 확인 후 열기`;
+        promptText = `[Space / 반응하기] 🤚🚪 손등으로 문 온도 확인 후 열기`;
       } else if (target.tile === TILE.OPEN_DOOR) {
-        promptText = `[터치 / 상호작용] 🚪🛡️ 열린 방화문 다시 닫기 (연기 통과 차단!)`;
+        promptText = `[Space / 반응하기] 🚪🛡️ 열린 방화문 다시 닫기 (연기 통과 차단!)`;
       } else if (target.tile === TILE.HOT_DOOR) {
-        promptText = `[터치 / 상호작용] 🤚🌡️ 손등으로 문 손잡이 온도 감지하기 (고온 주의!)`;
+        promptText = `[Space / 반응하기] 🤚🌡️ 손등으로 문 손잡이 온도 감지하기 (고온 주의!)`;
       } else if (target.tile === TILE.LOCKED_DOOR) {
-        promptText = `[터치 / 상호작용] 🔒 열쇠로 잠긴 문 열기`;
+        promptText = `[Space / 반응하기] 🔒 열쇠로 잠긴 문 열기`;
       } else if (target.tile === TILE.GAS_VALVE) {
-        promptText = `[터치 / 상호작용] 🔴 주방 가스 밸브 잠그기 (가연물 차단)`;
+        promptText = `[Space / 반응하기] 🔴 주방 가스 밸브 잠그기 (가연물 차단)`;
       } else if (target.tile === TILE.BREAKER) {
-        promptText = `[터치 / 상호작용] ⚡ 전원 차단기(두꺼비집) 내리기`;
+        promptText = `[Space / 반응하기] ⚡ 전원 차단기(두꺼비집) 내리기`;
       } else if (target.tile === TILE.PHONE_119) {
-        promptText = `[터치 / 상호작용] 📞 119에 화재 발생 신고하기`;
+        promptText = `[Space / 반응하기] 📞 119에 화재 발생 신고하기`;
       } else if (target.tile === TILE.LIFELINE) {
-        promptText = `[터치 / 상호작용] 🪢 베란다 완강기(3단계 절차)로 탈출하기`;
+        promptText = `[Space / 반응하기] 🪢 베란다 완강기(3단계 절차)로 탈출하기`;
       } else if (target.tile === TILE.PARTITION) {
-        promptText = `[터치 / 상호작용] 🧱 아파트 베란다 경량칸막이 부수고 옆집으로 탈출하기`;
+        promptText = `[Space / 반응하기] 🧱 아파트 베란다 경량칸막이 부수고 옆집으로 탈출하기`;
       } else if (target.tile === TILE.HAZARD) {
-        promptText = `[터치 / 상호작용] 🔍 가정 내 화재 위험요소 점검·수리하기`;
+        promptText = `[Space / 반응하기] 🔍 가정 내 화재 위험요소 점검·수리하기`;
       } else if (target.tile === TILE.ALARM_BELL) {
-        promptText = `[터치 / 상호작용] 🔔 화재 비상벨(발신기) 누르고 "불이야!" 외치기`;
+        promptText = `[Space / 반응하기] 🔔 화재 비상벨(발신기) 누르고 "불이야!" 외치기`;
       } else if (target.tile === TILE.DEBRIS) {
-        promptText = `[터치 / 상호작용] 🪓 소방 도끼로 장애물 부수기`;
+        promptText = `[Space / 반응하기] 🪓 소방 도끼로 장애물 부수기`;
+      } else if (target.tile === TILE.FURNITURE) {
+        promptText = `[Space / 반응하기] 🔐 비상 금고·단서 서가 조사하기`;
       } else if (target.tile === TILE.ELEVATOR) {
         promptText = `⚠️ 엘리베이터 (화재 시 탑승 절대 금지!)`;
       }
@@ -4856,14 +5106,14 @@
     // Bottom-Left 1st-Person 3D Walkthrough Status Badge (Never overlaps top toast banner!)
     const gearSummary = player.wetTowel
       ? '🧣젖은수건 착용'
-      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : '▲전진·▼후진·◀▶회전'));
+      : (player.hasMask ? '😷방연마스크 착용' : (player.hasTowel ? '🧣수건 보유' : 'Space:반응 · Shift:숙이기'));
     ctx.save();
     const badgeY = height - 34;
-    const badgeText = `👁️ 1인칭 3D 탈출뷰 (${player.crouching ? '🧎낮은자세' : '🚶서있음'} · ${gearSummary})`;
+    const badgeText = `👁️ 1인칭 3D 뷰 (${player.crouching ? '🧎낮은자세[Shift]' : '🚶서있음[Shift]'} · ${gearSummary})`;
     ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     const badgeW = Math.ceil(ctx.measureText(badgeText).width) + 18;
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-    ctx.strokeStyle = '#818cf8';
+    ctx.strokeStyle = player.crouching ? '#10b981' : '#818cf8';
     ctx.lineWidth = 1.5;
     ctx.fillRect(10, badgeY, badgeW, 24);
     ctx.strokeRect(10, badgeY, badgeW, 24);
@@ -4882,6 +5132,28 @@
   // 4) Center Raycast Reticle (⌖) with Real-Time Target Name, Distance (m) & Required Action HUD
   // 5) 1st-Person 3D Held Equipment (Flashlight / Wet Towel / Extinguisher / Axe) + Ground-Locked 3D Avatar
   let flashlightSpotEnabled = true;
+  const HEX_RGB_CACHE = Object.create(null);
+  let cachedEscapePathKey = '';
+  let cachedEscapePathResult = [];
+
+  function getCachedHexRgb(hex) {
+    let rgb = HEX_RGB_CACHE[hex];
+    if (!rgb) {
+      const n = parseInt(hex.slice(1), 16);
+      rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      HEX_RGB_CACHE[hex] = rgb;
+    }
+    return rgb;
+  }
+
+  function getCachedShortestEscapePath(sc, sr, tc, tr) {
+    const key = `${currentStageIdx}:${sc},${sr}->${tc},${tr}:f${fires.length}`;
+    if (key !== cachedEscapePathKey) {
+      cachedEscapePathKey = key;
+      cachedEscapePathResult = computeShortestEscapePath(sc, sr, tc, tr);
+    }
+    return cachedEscapePathResult;
+  }
 
   function renderFirstPerson3D(width, height, now, st) {
     const fov = Math.PI * 0.44;
@@ -4905,11 +5177,33 @@
 
     const reduceMot = !!(appSettings && appSettings.reduceMotion);
     const brightMul = Math.max(0.75, Math.min(1.85, ((appSettings && appSettings.brightness) || 100) / 100));
-    const camEyeZ = player.crouching ? 0.32 : 0.50;
+    const camEyeZ = fpsCamEyeZ;
     const walkBobY = reduceMot ? 0 : Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 0.45);
-    const horizon = (player.crouching ? height * 0.39 : height * 0.44) + walkBobY;
+    const horizon = height * fpsHorizonRatio + walkBobY;
     const vertScale = height * 0.74;
     const halfW = width * 0.5;
+
+    // Pre-compute fire light pulse & exit light coordinates ONCE per frame (eliminates thousands of Math.sin calls)
+    const activeFireLights = [];
+    if (fires && fires.length > 0) {
+      for (let k = 0; k < fires.length; k++) {
+        const f = fires[k];
+        const fx = f.c + 0.5;
+        const fy = f.r + 0.5;
+        if (Math.abs(fx - camWorldX) > 10.5 || Math.abs(fy - camWorldY) > 10.5) continue;
+        const pulse = 0.84 + 0.16 * Math.sin(now * 6.2 + (f.phase || k));
+        activeFireLights.push({ x: fx, y: fy, strength: 0.52 * pulse });
+      }
+    }
+
+    const exitLightSources = [];
+    for (let er = 0; er < ROWS; er++) {
+      for (let ec = 0; ec < COLS; ec++) {
+        if (grid[er][ec] === TILE.EXIT) {
+          exitLightSources.push({ x: ec + 0.5, y: er + 0.5 });
+        }
+      }
+    }
 
     function toCamSpace(wx, wy, wz = 0) {
       const dx = wx - camWorldX;
@@ -4959,30 +5253,51 @@
       return clipped.map(projectCamPoint);
     }
 
-    function shadeHexColor(hex, factor, fireWarmth = 0) {
+    function shadeHexColor(hex, factor, fireWarmth = 0, exitGlow = 0) {
       const f = Math.max(0.18, Math.min(1.68, factor * brightMul));
-      const n = parseInt(hex.slice(1), 16);
-      const fw = Math.max(0, Math.min(0.85, fireWarmth));
-      const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * f + fw * 125)));
-      const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * f + fw * 52)));
-      const b = Math.min(255, Math.max(0, Math.round((n & 255) * f - fw * 18)));
+      const rgb = getCachedHexRgb(hex);
+      const fw = fireWarmth > 0 ? Math.min(0.85, fireWarmth) : 0;
+      const eg = exitGlow > 0 ? Math.min(0.65, exitGlow) : 0;
+      const r = Math.min(255, Math.max(0, (rgb[0] * f + fw * 125 - eg * 14) | 0));
+      const g = Math.min(255, Math.max(0, (rgb[1] * f + fw * 52 + eg * 95) | 0));
+      const b = Math.min(255, Math.max(0, (rgb[2] * f - fw * 18 + eg * 56) | 0));
       return `rgb(${r},${g},${b})`;
     }
 
     function getFireLightAt(wx, wy) {
-      if (!fires || fires.length === 0) return 0;
+      const len = activeFireLights.length;
+      if (len === 0) return 0;
       let warmth = 0;
-      for (let k = 0; k < fires.length; k++) {
-        const f = fires[k];
-        const dx = (f.c + 0.5) - wx;
-        const dy = (f.r + 0.5) - wy;
+      for (let k = 0; k < len; k++) {
+        const fl = activeFireLights[k];
+        const dx = fl.x - wx;
+        if (dx > 3.4 || dx < -3.4) continue;
+        const dy = fl.y - wy;
+        if (dy > 3.4 || dy < -3.4) continue;
         const dSq = dx * dx + dy * dy;
         if (dSq < 11.5) {
-          const pulse = 0.84 + 0.16 * Math.sin(now * 6.2 + (f.phase || k));
-          warmth += (1 - dSq / 11.5) * 0.52 * pulse;
+          warmth += (1 - dSq * 0.08695) * fl.strength;
         }
       }
-      return Math.min(0.78, warmth);
+      return warmth > 0.78 ? 0.78 : warmth;
+    }
+
+    function getExitLightAt(wx, wy) {
+      const len = exitLightSources.length;
+      if (len === 0) return 0;
+      let glow = 0;
+      for (let k = 0; k < len; k++) {
+        const ex = exitLightSources[k];
+        const dx = ex.x - wx;
+        if (dx > 3.0 || dx < -3.0) continue;
+        const dy = ex.y - wy;
+        if (dy > 3.0 || dy < -3.0) continue;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < 9.0) {
+          glow += (1 - dSq * 0.1111) * 0.42;
+        }
+      }
+      return glow > 0.55 ? 0.55 : glow;
     }
 
     // 1. 3D Ceiling & Perspective Floor Base Backdrop with Power/Lighting Atmosphere
@@ -5002,7 +5317,7 @@
     ctx.fillStyle = floorGrad;
     ctx.fillRect(0, horizon, width, height - horizon);
 
-    // 2. Near-Plane Clipped 3D Perspective Floor Quads & Ceiling Acoustic Panels (100% Continuous Floor!)
+    // 2. Frustum-Culled & Near-Plane Clipped 3D Perspective Floor Quads & Ceiling Panels
     const floorTiles = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
@@ -5010,9 +5325,14 @@
         const dx = c + 0.5 - camWorldX;
         const dy = r + 0.5 - camWorldY;
         const distSq = dx * dx + dy * dy;
-        if (distSq > 120) continue;
+        if (distSq > 72) continue;
         const centerDepth = dx * cosYaw + dy * sinYaw;
-        if (centerDepth < -0.75) continue;
+        if (centerDepth < -0.65) continue;
+        // Horizontal FOV frustum culling: skip tiles completely outside left/right view cone
+        if (centerDepth > 0.85) {
+          const centerRight = -dx * sinYaw + dy * cosYaw;
+          if (Math.abs(centerRight) > (centerDepth + 0.9) * tanHalfFov + 0.85) continue;
+        }
         floorTiles.push({ r, c, distSq, centerDepth });
       }
     }
@@ -5031,49 +5351,51 @@
       const even = (r + c) % 2 === 0;
       const t = grid[r][c];
       const tileFireWarmth = getFireLightAt(c + 0.5, r + 0.5);
+      const tileExitGlow = getExitLightAt(c + 0.5, r + 0.5);
       const ceilLightBoost = ((r % 2 === 1) && (c % 2 === 1)) ? (powerRestored ? 0.14 : 0.07) : 0;
-      const depthShade = Math.max(0.36, Math.min(1.24, (1.10 + ceilLightBoost + tileFireWarmth * 0.25) / (1 + dist * 0.14)));
+      const depthShade = Math.max(0.36, Math.min(1.26, (1.10 + ceilLightBoost + tileFireWarmth * 0.25 + tileExitGlow * 0.20) / (1 + dist * 0.14)));
 
       let baseHex = even ? '#3b4c63' : '#2e3d52';
-      let strokeCol = 'rgba(148, 163, 184, 0.30)';
+      let strokeCol = 'rgba(148, 163, 184, 0.28)';
 
       if (t === TILE.EXIT) {
         baseHex = '#10b981';
         strokeCol = '#a7f3d0';
       } else if (c <= 3 && r <= 3) {
-        // Warm Oak Parquet Bedroom Floor
         baseHex = even ? '#854d0e' : '#713f12';
-        strokeCol = 'rgba(253, 224, 71, 0.25)';
+        strokeCol = 'rgba(253, 224, 71, 0.22)';
       } else if (c >= 4 && c <= 7 && r <= 3) {
-        // Clean Aqua Ceramic Bathroom Tile
         baseHex = even ? '#0e7490' : '#155e75';
-        strokeCol = 'rgba(103, 232, 249, 0.32)';
+        strokeCol = 'rgba(103, 232, 249, 0.28)';
       } else if (c <= 5 && r >= 5) {
-        // Warm Terracotta Kitchen/Lab Tile
         baseHex = even ? '#7f1d1d' : '#651a1a';
-        strokeCol = 'rgba(253, 164, 175, 0.26)';
+        strokeCol = 'rgba(253, 164, 175, 0.22)';
       }
 
-      ctx.fillStyle = shadeHexColor(baseHex, depthShade, tileFireWarmth);
+      ctx.fillStyle = shadeHexColor(baseHex, depthShade, tileFireWarmth, tileExitGlow);
       ctx.beginPath();
       ctx.moveTo(poly[0].x, poly[0].y);
       for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
       ctx.closePath();
       ctx.fill();
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = Math.max(0.75, Math.min(1.8, 2.4 / Math.max(0.4, dist)));
-      ctx.stroke();
+      if (dist < 5.6) {
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
 
-      // Subtle Floor Specular Reflection Under Ceiling Lights or Firelight
-      if (dist < 6.8 && (((r % 2 === 1) && (c % 2 === 1)) || tileFireWarmth > 0.18)) {
+      // Subtle Floor Specular Reflection Under Ceiling Lights, Firelight, or Emergency Exit Light
+      if (dist < 5.4 && (((r % 2 === 1) && (c % 2 === 1)) || tileFireWarmth > 0.18 || tileExitGlow > 0.16)) {
         const sheenPoly = projectClipped3DPolygon(
           [[c + 0.22, r + 0.22, 0.003], [c + 0.78, r + 0.22, 0.003], [c + 0.78, r + 0.78, 0.003], [c + 0.22, r + 0.78, 0.003]],
           0.12
         );
         if (sheenPoly) {
           ctx.fillStyle = tileFireWarmth > 0.18
-            ? `rgba(251, 146, 60, ${Math.min(0.26, tileFireWarmth * 0.34)})`
-            : (powerRestored ? 'rgba(254, 249, 195, 0.085)' : 'rgba(148, 163, 184, 0.045)');
+            ? `rgba(251, 146, 60, ${Math.min(0.28, tileFireWarmth * 0.36)})`
+            : (tileExitGlow > 0.16
+              ? `rgba(52, 211, 153, ${Math.min(0.24, tileExitGlow * 0.38)})`
+              : (powerRestored ? 'rgba(254, 249, 195, 0.08)' : 'rgba(148, 163, 184, 0.04)'));
           ctx.beginPath();
           ctx.moveTo(sheenPoly[0].x, sheenPoly[0].y);
           for (let k = 1; k < sheenPoly.length; k++) ctx.lineTo(sheenPoly[k].x, sheenPoly[k].y);
@@ -5082,8 +5404,8 @@
         }
       }
 
-      // Wood Parquet Plank Sub-Line or Corridor Photoluminescent Guide Strip
-      if (r === 4 || c === 8) {
+      // Corridor Photoluminescent Guide Strip
+      if ((r === 4 || c === 8) && dist < 6.5) {
         const stripPoly = projectClipped3DPolygon(
           [[c + 0.38, r + 0.38, 0.005], [c + 0.62, r + 0.38, 0.005], [c + 0.62, r + 0.62, 0.005], [c + 0.38, r + 0.62, 0.005]],
           0.10
@@ -5098,37 +5420,17 @@
         }
       }
 
-      // 3D Ceiling Acoustic Grid Panel Outline
-      if (dist < 7.8) {
-        const ceilTilePoly = projectClipped3DPolygon(
-          [[c, r, 0.995], [c + 1, r, 0.995], [c + 1, r + 1, 0.995], [c, r + 1, 0.995]],
-          0.20
-        );
-        if (ceilTilePoly) {
-          ctx.strokeStyle = 'rgba(71, 85, 105, 0.28)';
-          ctx.lineWidth = Math.max(0.6, 1.4 / Math.max(0.6, dist));
-          ctx.beginPath();
-          ctx.moveTo(ceilTilePoly[0].x, ceilTilePoly[0].y);
-          for (let k = 1; k < ceilTilePoly.length; k++) ctx.lineTo(ceilTilePoly[k].x, ceilTilePoly[k].y);
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
-
-      // Recessed 3D Ceiling LED Light Panel & Soft Radial Halo above open rooms
-      if ((r % 2 === 1) && (c % 2 === 1) && dist < 9.5) {
+      // Recessed 3D Ceiling LED Light Panel & Fast Translucent Halo (no per-tile createRadialGradient overhead)
+      if ((r % 2 === 1) && (c % 2 === 1) && dist < 7.2) {
         const ceilPoly = projectClipped3DPolygon(
           [[c + 0.20, r + 0.20, 0.99], [c + 0.80, r + 0.20, 0.99], [c + 0.80, r + 0.80, 0.99], [c + 0.20, r + 0.80, 0.99]],
           0.18
         );
         if (ceilPoly) {
           const lightPt = project3DPoint(c + 0.5, r + 0.5, 0.98, 0.22);
-          if (lightPt && dist < 7.2) {
-            const haloR = Math.max(18, Math.min(72, 95 / lightPt.depth));
-            const haloGrad = ctx.createRadialGradient(lightPt.x, lightPt.y, haloR * 0.1, lightPt.x, lightPt.y, haloR);
-            haloGrad.addColorStop(0, st.isDarkStage ? 'rgba(56, 189, 248, 0.22)' : 'rgba(254, 249, 195, 0.26)');
-            haloGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
-            ctx.fillStyle = haloGrad;
+          if (lightPt && dist < 5.5) {
+            const haloR = Math.max(14, Math.min(54, 72 / lightPt.depth));
+            ctx.fillStyle = st.isDarkStage ? 'rgba(56, 189, 248, 0.09)' : 'rgba(254, 249, 195, 0.11)';
             ctx.beginPath();
             ctx.arc(lightPt.x, lightPt.y, haloR, 0, Math.PI * 2);
             ctx.fill();
@@ -5142,15 +5444,12 @@
           for (let k = 1; k < ceilPoly.length; k++) ctx.lineTo(ceilPoly[k].x, ceilPoly[k].y);
           ctx.closePath();
           ctx.fill();
-          ctx.strokeStyle = '#cbd5e1';
-          ctx.lineWidth = Math.max(0.8, 1.8 / Math.max(0.6, dist));
-          ctx.stroke();
         }
-      } else if ((r % 2 === 0) && (c % 2 === 0) && dist < 6.5) {
+      } else if ((r % 2 === 0) && (c % 2 === 0) && dist < 5.2) {
         // Ceiling Optical Smoke Detector Dome & Red Sensing LED
         const detPt = project3DPoint(c + 0.5, r + 0.5, 0.985, 0.25);
         if (detPt) {
-          const dr = Math.max(2.5, Math.min(8, 11 / detPt.depth));
+          const dr = Math.max(2.5, Math.min(7, 10 / detPt.depth));
           ctx.fillStyle = '#cbd5e1';
           ctx.beginPath();
           ctx.arc(detPt.x, detPt.y, dr, 0, Math.PI * 2);
@@ -5160,13 +5459,23 @@
           ctx.arc(detPt.x + dr * 0.25, detPt.y, Math.max(1.2, dr * 0.32), 0, Math.PI * 2);
           ctx.fill();
         }
+      } else if (((r + c) % 2 === 1) && dist < 4.6) {
+        // 3D Ceiling Fire Sprinkler Nozzle & Thermal Bulb
+        const spkPt = project3DPoint(c + 0.5, r + 0.5, 0.975, 0.25);
+        if (spkPt) {
+          const sr = Math.max(2.0, Math.min(6.0, 8.0 / spkPt.depth));
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(spkPt.x - sr * 0.7, spkPt.y - sr * 0.3, sr * 1.4, sr * 0.5);
+          ctx.fillStyle = '#ef4444';
+          ctx.fillRect(spkPt.x - sr * 0.22, spkPt.y + sr * 0.15, sr * 0.44, sr * 0.55);
+        }
       }
     }
 
-    // 2B. Discrete 3D Glowing Floor Guide Pads & World-Space 3D Footprints (Never clips into a giant yellow polygon under the camera!)
+    // 2B. Discrete 3D Glowing Floor Guide Pads, Interactive Target Focus Ring & World-Space 3D Footprints
     const nextObj = getNextStepObjective();
     const routePath = nextObj
-      ? computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r)
+      ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r)
       : [];
 
     if (routePath && routePath.length >= 2) {
@@ -5174,7 +5483,8 @@
         const prev = routePath[i - 1];
         const curr = routePath[i];
         const cp = toCamSpace(curr.c + 0.5, curr.r + 0.5, 0.015);
-        if (cp.depth < 0.65 || cp.depth > 9.5) continue;
+        if (cp.depth < 0.65 || cp.depth > 8.5) continue;
+        if (Math.abs(cp.right) > (cp.depth + 0.6) * tanHalfFov + 0.5) continue;
         const padPoly = projectClipped3DPolygon(
           [
             [curr.c + 0.32, curr.r + 0.32, 0.012],
@@ -5187,7 +5497,7 @@
         if (padPoly) {
           ctx.fillStyle = 'rgba(16, 185, 129, 0.38)';
           ctx.strokeStyle = 'rgba(250, 204, 21, 0.88)';
-          ctx.lineWidth = Math.max(1, 2.2 / cp.depth);
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(padPoly[0].x, padPoly[0].y);
           for (let k = 1; k < padPoly.length; k++) ctx.lineTo(padPoly[k].x, padPoly[k].y);
@@ -5210,9 +5520,39 @@
       }
     }
 
+    // 3D Pulsing Interactive Target Floor Ring when an object/door/item is in [Space] reaction range
+    const activeInteract3D = getInteractTarget();
+    if (activeInteract3D) {
+      const tc = activeInteract3D.kind === 'item' ? activeInteract3D.item.c : activeInteract3D.c;
+      const tr = activeInteract3D.kind === 'item' ? activeInteract3D.item.r : activeInteract3D.r;
+      const pulsePad = 0.10 + 0.03 * Math.sin(now * 5.2);
+      const focusPoly = projectClipped3DPolygon(
+        [
+          [tc + pulsePad, tr + pulsePad, 0.016],
+          [tc + 1 - pulsePad, tr + pulsePad, 0.016],
+          [tc + 1 - pulsePad, tr + 1 - pulsePad, 0.016],
+          [tc + pulsePad, tr + 1 - pulsePad, 0.016]
+        ],
+        0.18
+      );
+      if (focusPoly) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.22)';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(focusPoly[0].x, focusPoly[0].y);
+        for (let k = 1; k < focusPoly.length; k++) ctx.lineTo(focusPoly[k].x, focusPoly[k].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     for (const fs of footsteps3D) {
       const fp = project3DPoint(fs.x, fs.y, 0.01, 0.25);
-      if (!fp || fp.depth > 5.0) continue;
+      if (!fp || fp.depth > 4.5) continue;
       const alpha = Math.max(0, (fs.life / fs.maxLife) * 0.55);
       const rx = Math.max(2.5, 8 / fp.depth);
       const ry = Math.max(1.4, 3.8 / fp.depth);
@@ -5222,10 +5562,10 @@
       ctx.fill();
     }
 
-    // 3. High-Resolution 1px 3D Architectural Wall Shader with Distance Lighting, Flashlight Cone & Escape-Room Wall Fixtures
+    // 3. Optimized 3D Architectural Wall Shader with Adaptive Ray Count (4x fewer draw calls with crisp 2-3px columns)
     const qSetting = (appSettings && appSettings.graphicsQuality) || 'auto';
-    const rayBudget = qSetting === 'low' ? 320 : 960;
-    const numRays = Math.min(rayBudget, Math.max(240, Math.floor(width)));
+    const rayBudget = qSetting === 'low' ? 160 : (qSetting === 'normal' ? 220 : (qSetting === 'high' ? 380 : 240));
+    const numRays = Math.min(rayBudget, Math.max(140, Math.floor(width * 0.40)));
     const zBuffer = new Float32Array(numRays);
     const visibleWallFixtures = new Map();
 
@@ -5766,8 +6106,9 @@
       const cy = (wy0 + wy1) * 0.5;
       const cz = (wz0 + wz1) * 0.5;
       const centerCam = toCamSpace(cx, cy, cz);
-      // Do not draw boxes behind or intersecting the camera lens (< 0.36m) to prevent screen-filling flat polygons
-      if (centerCam.depth <= 0.36 || centerCam.depth > 10.5) return;
+      // Do not draw boxes behind/intersecting camera lens (< 0.36m), far away (> 8.5m), or outside horizontal FOV
+      if (centerCam.depth <= 0.36 || centerCam.depth > 8.5) return;
+      if (Math.abs(centerCam.right) > (centerCam.depth + 0.85) * tanHalfFov + 0.65) return;
 
       const faces = [];
       if (camWorldY < wy0) {
@@ -5788,7 +6129,6 @@
 
       if (faces.length === 0) return;
 
-      // Build a per-column Z-buffer visibility clip path so walls ALWAYS occlude furniture behind them!
       let minScreenX = width;
       let maxScreenX = 0;
       const projectedFaces = [];
@@ -5805,26 +6145,41 @@
 
       const startRay = Math.max(0, Math.floor((minScreenX / width) * numRays));
       const endRay = Math.min(numRays - 1, Math.ceil((maxScreenX / width) * numRays));
-      let anyVisibleCol = false;
+      if (startRay > endRay) return;
 
-      ctx.save();
-      ctx.beginPath();
+      // Merge contiguous visible Z-buffer columns into spans; skip ctx.clip() entirely if 100% unoccluded!
+      const totalCols = endRay - startRay + 1;
+      let visibleCols = 0;
+      const spans = [];
+      let spanStart = -1;
       for (let rIdx = startRay; rIdx <= endRay; rIdx++) {
         if (centerCam.depth < zBuffer[rIdx] + 0.20) {
-          anyVisibleCol = true;
-          const rx0 = Math.floor((rIdx * width) / numRays);
-          const rx1 = Math.ceil(((rIdx + 1) * width) / numRays);
-          ctx.rect(rx0, 0, Math.max(1, rx1 - rx0), height);
+          visibleCols++;
+          if (spanStart === -1) spanStart = rIdx;
+        } else if (spanStart !== -1) {
+          spans.push([spanStart, rIdx - 1]);
+          spanStart = -1;
         }
       }
-      if (!anyVisibleCol) {
-        ctx.restore();
-        return;
+      if (spanStart !== -1) {
+        spans.push([spanStart, endRay]);
       }
-      ctx.clip();
+      if (visibleCols === 0) return;
+
+      const needsClip = visibleCols < totalCols;
+      if (needsClip) {
+        ctx.save();
+        ctx.beginPath();
+        for (let s = 0; s < spans.length; s++) {
+          const rx0 = Math.floor((spans[s][0] * width) / numRays);
+          const rx1 = Math.ceil(((spans[s][1] + 1) * width) / numRays);
+          ctx.rect(rx0, 0, Math.max(1, rx1 - rx0), height);
+        }
+        ctx.clip();
+      }
 
       // Ground Contact Ambient Occlusion Shadow Beneath 3D Furniture & Escape-Room Stations
-      if (wz0 <= 0.04 && centerCam.depth < 7.5) {
+      if (wz0 <= 0.04 && centerCam.depth < 6.0) {
         const aoPoly = projectClipped3DPolygon(
           [
             [wx0 - 0.05, wy0 - 0.05, 0.004],
@@ -5853,16 +6208,18 @@
         for (let k = 1; k < pf.poly.length; k++) ctx.lineTo(pf.poly[k].x, pf.poly[k].y);
         ctx.closePath();
         ctx.fill();
-        if (strokeCol) {
+        if (strokeCol && centerCam.depth < 6.0) {
           ctx.strokeStyle = strokeCol;
-          ctx.lineWidth = 1.1;
+          ctx.lineWidth = 1;
           ctx.stroke();
         }
       }
-      ctx.restore();
+      if (needsClip) {
+        ctx.restore();
+      }
     }
 
-    // Collect all 3D room objects, open doors, items, fires, smokes, and door labels for back-to-front depth sorting
+    // Collect all 3D room objects, open doors, items, fires, smokes, and door labels with FOV frustum culling
     const objects3D = [];
 
     for (let r = 0; r < ROWS; r++) {
@@ -5870,28 +6227,29 @@
         const t = grid[r][c];
         if (t === TILE.FLOOR || t === TILE.WALL) continue;
         const cp = toCamSpace(c + 0.5, r + 0.5, 0.25);
-        if (cp.depth <= 0.15 || cp.depth > 10.5) continue;
+        if (cp.depth <= 0.15 || cp.depth > 8.5) continue;
+        if (Math.abs(cp.right) > (cp.depth + 0.85) * tanHalfFov + 0.65) continue;
         objects3D.push({ kind: 'tileObj', r, c, t, depth: cp.depth });
       }
     }
 
     for (const it of items) {
       const cp = toCamSpace(it.c + 0.5, it.r + 0.5, 0.20);
-      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+      if (cp.depth > 0.15 && cp.depth <= 8.5 && Math.abs(cp.right) <= (cp.depth + 0.8) * tanHalfFov + 0.6) {
         objects3D.push({ kind: 'item', it, depth: cp.depth });
       }
     }
 
     for (const f of fires) {
       const cp = toCamSpace(f.c + 0.5, f.r + 0.5, 0.25);
-      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+      if (cp.depth > 0.15 && cp.depth <= 8.5 && Math.abs(cp.right) <= (cp.depth + 0.8) * tanHalfFov + 0.6) {
         objects3D.push({ kind: 'fire', f, depth: cp.depth });
       }
     }
 
     for (const s of smokes) {
       const cp = toCamSpace(s.c + 0.5, s.r + 0.5, 0.75);
-      if (cp.depth > 0.15 && cp.depth <= 10.5) {
+      if (cp.depth > 0.15 && cp.depth <= 7.5 && Math.abs(cp.right) <= (cp.depth + 0.8) * tanHalfFov + 0.6) {
         objects3D.push({ kind: 'smoke', s, depth: cp.depth });
       }
     }
@@ -5950,25 +6308,19 @@
           const vertWall = isVerticalWallDoor(c, r);
           if (distToCam > 0.48) {
             if (vertWall) {
-              // Door in North-South wall (player walks East-West along X)
               draw3DPerspectiveBox(c + 0.36, r + 0.08, c + 0.64, r + 0.92, 0.0, 0.018, '#94a3b8', '#64748b', '#475569', '#cbd5e1');
               draw3DPerspectiveBox(c + 0.35, r + 0.00, c + 0.65, r + 0.08, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
               draw3DPerspectiveBox(c + 0.35, r + 0.92, c + 0.65, r + 1.00, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
               draw3DPerspectiveBox(c + 0.35, r + 0.00, c + 0.65, r + 1.00, 0.88, 1.00, '#3f2305', '#5c2808', '#291507', '#92400e');
-              // 90-degree Swung Open Door Leaf + Vision Glass + Chrome Handle resting against North wall
               draw3DPerspectiveBox(c + 0.56, r + 0.06, c + 0.95, r + 0.11, 0.02, 0.86, '#92400e', '#8c4a19', '#5c2808', '#d97706');
               draw3DPerspectiveBox(c + 0.64, r + 0.055, c + 0.86, r + 0.115, 0.50, 0.76, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
-              draw3DPerspectiveBox(c + 0.85, r + 0.045, c + 0.92, r + 0.125, 0.42, 0.46, '#f8fafc', '#fde047', '#cbd5e1', '#94a3b8');
             } else {
-              // Door in East-West wall (player walks North-South along Y)
               draw3DPerspectiveBox(c + 0.08, r + 0.36, c + 0.92, r + 0.64, 0.0, 0.018, '#94a3b8', '#64748b', '#475569', '#cbd5e1');
               draw3DPerspectiveBox(c + 0.00, r + 0.35, c + 0.08, r + 0.65, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
               draw3DPerspectiveBox(c + 0.92, r + 0.35, c + 1.00, r + 0.65, 0.0, 0.90, '#3f2305', '#5c2808', '#291507', '#92400e');
               draw3DPerspectiveBox(c + 0.00, r + 0.35, c + 1.00, r + 0.65, 0.88, 1.00, '#3f2305', '#5c2808', '#291507', '#92400e');
-              // 90-degree Swung Open Door Leaf + Vision Glass + Chrome Handle resting against West wall
               draw3DPerspectiveBox(c + 0.06, r + 0.56, c + 0.11, r + 0.95, 0.02, 0.86, '#92400e', '#8c4a19', '#5c2808', '#d97706');
               draw3DPerspectiveBox(c + 0.055, r + 0.64, c + 0.115, r + 0.86, 0.50, 0.76, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
-              draw3DPerspectiveBox(c + 0.045, r + 0.85, c + 0.125, r + 0.92, 0.42, 0.46, '#f8fafc', '#fde047', '#cbd5e1', '#94a3b8');
             }
           }
           const dp = project3DPoint(c + 0.5, r + 0.5, 0.84);
@@ -5997,21 +6349,17 @@
           t === TILE.HAZARD
         ) {
           if (t === TILE.GAS_VALVE) {
-            // 3D Yellow Gas Pipeline Stand + Red/Green Shutoff Valve Lever
             draw3DPerspectiveBox(c + 0.26, r + 0.26, c + 0.74, r + 0.74, 0, 0.38, '#eab308', '#ca8a04', '#854d0e', '#fef08a');
             const vCol = player.gasClosed ? '#10b981' : '#ef4444';
             draw3DPerspectiveBox(c + 0.34, r + 0.34, c + 0.66, r + 0.66, 0.38, 0.50, vCol, vCol, '#0f172a', '#ffffff');
           } else if (t === TILE.BREAKER) {
-            // 3D Steel Electrical Distribution Cabinet + Breaker Switch Array
             draw3DPerspectiveBox(c + 0.22, r + 0.24, c + 0.78, r + 0.76, 0, 0.52, '#475569', '#334155', '#1e293b', '#94a3b8');
             const bCol = player.breakerClosed ? '#10b981' : '#3b82f6';
             draw3DPerspectiveBox(c + 0.32, r + 0.32, c + 0.68, r + 0.68, 0.52, 0.58, bCol, '#1e293b', '#0f172a', '#7dd3fc');
           } else if (t === TILE.ALARM_BELL) {
-            // 3D Red Fire Alarm Transmitter Stand + Dome Bell
             draw3DPerspectiveBox(c + 0.28, r + 0.28, c + 0.72, r + 0.72, 0, 0.44, '#dc2626', '#b91c1c', '#7f1d1d', '#fca5a5');
             draw3DPerspectiveBox(c + 0.36, r + 0.36, c + 0.64, r + 0.64, 0.44, 0.56, '#fde047', '#eab308', '#a16207', '#ffffff');
           } else if (t === TILE.PHONE_119) {
-            // 3D Red Emergency 119 Hotline Console
             draw3DPerspectiveBox(c + 0.26, r + 0.26, c + 0.74, r + 0.74, 0, 0.46, '#ef4444', '#dc2626', '#991b1b', '#fecaca');
             draw3DPerspectiveBox(c + 0.34, r + 0.34, c + 0.66, r + 0.66, 0.46, 0.54, '#f8fafc', '#cbd5e1', '#64748b', '#38bdf8');
           } else {
@@ -6054,7 +6402,6 @@
         }
       } else if (obj.kind === 'item') {
         const { it } = obj;
-        // Draw a Glowing 3D Floor Pad + Pedestal Cushion under the Item + Floating 3D Item Orb
         const glowPad = projectClipped3DPolygon(
           [[it.c + 0.22, it.r + 0.22, 0.008], [it.c + 0.78, it.r + 0.22, 0.008], [it.c + 0.78, it.r + 0.78, 0.008], [it.c + 0.22, it.r + 0.78, 0.008]],
           0.18
@@ -6093,7 +6440,6 @@
         }
       } else if (obj.kind === 'fire') {
         const { f } = obj;
-        // 3D Glowing Floor Ember Pool Beneath Flame
         const emberPoly = projectClipped3DPolygon(
           [
             [f.c + 0.16, f.r + 0.16, 0.008],
@@ -6120,34 +6466,63 @@
         const { s } = obj;
         const sp = project3DPoint(s.c + 0.5, s.r + 0.5, 0.78);
         if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.1)) {
-          const srad = Math.max(20, Math.min(64, 74 / sp.depth));
-          for (let p = 0; p < 3; p++) {
-            const pAng = now * 1.4 + (s.phase || 0) + p * 2.1;
-            const ox = Math.cos(pAng) * srad * 0.24;
-            const oy = Math.sin(pAng * 0.8) * srad * 0.14;
-            const rPuff = srad * (0.76 + (p % 2) * 0.20);
-            const sGrad = ctx.createRadialGradient(sp.x + ox, sp.y + oy - rPuff * 0.15, rPuff * 0.08, sp.x + ox, sp.y + oy, rPuff);
-            sGrad.addColorStop(0, 'rgba(30, 41, 59, 0.54)');
-            sGrad.addColorStop(0.55, 'rgba(71, 85, 105, 0.34)');
-            sGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
-            ctx.fillStyle = sGrad;
-            ctx.beginPath();
-            ctx.arc(sp.x + ox, sp.y + oy, rPuff, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          const srad = Math.max(18, Math.min(58, 68 / sp.depth));
+          const pAng = now * 1.4 + (s.phase || 0);
+          const ox = Math.cos(pAng) * srad * 0.18;
+          const oy = Math.sin(pAng * 0.8) * srad * 0.12;
+          ctx.fillStyle = 'rgba(51, 65, 85, 0.34)';
+          ctx.beginPath();
+          ctx.arc(sp.x + ox, sp.y + oy, srad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(30, 41, 59, 0.42)';
+          ctx.beginPath();
+          ctx.arc(sp.x - ox * 0.6, sp.y - oy * 0.5, srad * 0.66, 0, Math.PI * 2);
+          ctx.fill();
         }
       }
     }
 
-    // 4B. Realistic Upper-Ceiling Toxic Smoke Accumulation Layer (Visually reinforces why crouching 🧎 keeps vision & air clear!)
+    // 4A-2. 3D Perspective Extinguisher Foam & Water Spray Particles in 1st-Person 3D View
+    if (particles && particles.length > 0) {
+      for (const p of particles) {
+        const lifeRatio = Math.max(0, Math.min(1, p.life / (p.maxLife || 0.5)));
+        const pz = 0.24 + (1 - lifeRatio) * 0.16;
+        const pp = project3DPoint(p.x, p.y, pz, 0.12);
+        if (pp && isPointVisibleInZBuffer(pp.x, pp.depth - 0.08)) {
+          const prad = Math.max(4, Math.min(34, (p.size * 7.2) / pp.depth));
+          const isWater = p.color === '#60a5fa';
+          ctx.fillStyle = isWater ? `rgba(96, 165, 250, ${lifeRatio * 0.75})` : `rgba(224, 242, 254, ${lifeRatio * 0.78})`;
+          ctx.beginPath();
+          ctx.arc(pp.x, pp.y, prad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 4B. Realistic Upper-Ceiling Toxic Smoke Accumulation Layer & Fresh-Air Floor Zone (Smoothly responds to crouchVisualLerp via Shift!)
     if (smokes && smokes.length > 0) {
-      const smokeHazeH = horizon * (player.crouching ? 0.42 : 0.78);
+      const smokeHazeRatio = 0.80 - crouchVisualLerp * 0.42;
+      const smokeHazeH = horizon * smokeHazeRatio;
+      const topAlpha = 0.66 - crouchVisualLerp * 0.30;
+      const midAlpha = 0.32 - crouchVisualLerp * 0.18;
       const hazeGrad = ctx.createLinearGradient(0, 0, 0, smokeHazeH);
-      hazeGrad.addColorStop(0, player.crouching ? 'rgba(15, 23, 42, 0.38)' : 'rgba(15, 23, 42, 0.62)');
-      hazeGrad.addColorStop(0.6, player.crouching ? 'rgba(51, 65, 85, 0.14)' : 'rgba(51, 65, 85, 0.28)');
+      hazeGrad.addColorStop(0, `rgba(15, 23, 42, ${topAlpha.toFixed(2)})`);
+      hazeGrad.addColorStop(0.62, `rgba(51, 65, 85, ${midAlpha.toFixed(2)})`);
       hazeGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
       ctx.fillStyle = hazeGrad;
       ctx.fillRect(0, 0, width, smokeHazeH);
+
+      // When crouching (Shift), highlight the clear 30~60cm fresh air floor zone!
+      if (crouchVisualLerp > 0.25) {
+        ctx.save();
+        const freshAlpha = Math.min(1, crouchVisualLerp) * 0.16;
+        const freshGrad = ctx.createLinearGradient(0, height - 90, 0, height);
+        freshGrad.addColorStop(0, 'rgba(16, 185, 129, 0)');
+        freshGrad.addColorStop(1, `rgba(16, 185, 129, ${freshAlpha.toFixed(3)})`);
+        ctx.fillStyle = freshGrad;
+        ctx.fillRect(0, height - 90, width, 90);
+        ctx.restore();
+      }
     }
 
     // 5. PRD F05 Center Raycast Reticle (⌖) & Real-Time Target Distance / Required Action Inspector HUD
@@ -6163,7 +6538,7 @@
         aimedTargetInfo = {
           name: `${hitItem.icon} ${hitItem.name}`,
           dist: d,
-          action: d <= 1.8 ? '✋ 행동하기(Space/E): 즉시 획득/구출' : '더 가까이 이동하세요'
+          action: d <= 1.85 ? '✋ 반응하기(Space): 즉시 획득/구출' : '더 가까이 이동하세요'
         };
         break;
       }
@@ -6171,17 +6546,17 @@
       if (tt !== TILE.FLOOR && tt !== TILE.OPEN_DOOR) {
         if (tt === TILE.WALL) break;
         const tNames = {
-          [TILE.DOOR]: ['🚪 일반 방문', '✋ 행동하기(Space/E): 문 열기'],
-          [TILE.LOCKED_DOOR]: ['🔒 잠긴 방문', player.keys > 0 ? '🔑 열쇠로 즉시 개방 가능!' : '🔐 금고(614) 또는 열쇠(🔑) 필요'],
-          [TILE.HOT_DOOR]: ['🌡️🔥 고온 위험문', '⚠️ 백드래프트 위험! 절대 열지 마세요'],
-          [TILE.SINK]: ['🚰 욕실 세면대', player.hasTowel && !player.wetTowel ? '✋ 수건 물에 적시기' : '💧 깨끗한 물 공급원'],
-          [TILE.GAS_VALVE]: ['🔴 주방 가스밸브', player.gasClosed ? '✅ 이미 안전하게 잠김' : '✋ 행동하기: 가스밸브 잠그기'],
-          [TILE.BREAKER]: ['⚡ 비상 배전판', player.breakerClosed ? '✅ 배선·전원 복구 완료' : '✋ 행동하기 / 🔐 배선 퍼즐(R=B,B=D,Y=A,G=C)'],
-          [TILE.DEBRIS]: ['🪵 목재 장애물', player.hasAxe ? '🪓 소방도끼로 즉시 돌파 가능!' : '🪓 소방도끼 필요 (서가 정렬 퍼즐/탐색)'],
+          [TILE.DOOR]: ['🚪 일반 방문', '✋ 반응하기(Space): 문 열기'],
+          [TILE.LOCKED_DOOR]: ['🔒 잠긴 방문', player.keys > 0 ? '🔑 반응하기(Space): 열쇠로 즉시 개방!' : '🔐 금고(614) 또는 열쇠(🔑) 필요'],
+          [TILE.HOT_DOOR]: ['🌡️🔥 고온 위험문', '✋ 반응하기(Space): 손등 온도 확인 (열지마세요!)'],
+          [TILE.SINK]: ['🚰 욕실 세면대', player.hasTowel && !player.wetTowel ? '✋ 반응하기(Space): 수건 물에 적시기' : '💧 반응하기(Space): 산소회복·물보충'],
+          [TILE.GAS_VALVE]: ['🔴 주방 가스밸브', player.gasClosed ? '✅ 이미 안전하게 잠김' : '✋ 반응하기(Space): 가스밸브 잠그기'],
+          [TILE.BREAKER]: ['⚡ 비상 배전판', player.breakerClosed ? '✅ 배선·전원 복구 완료' : '✋ 반응하기(Space): 차단기 작동 / 배선 퍼즐'],
+          [TILE.DEBRIS]: ['🪵 목재 장애물', player.hasAxe ? '🪓 반응하기(Space): 소방도끼로 즉시 돌파!' : '🪓 소방도끼 필요 (서가 정렬 퍼즐/탐색)'],
           [TILE.EXIT]: ['🏃 비상구(EXIT)', '✋ 모든 목표 달성 후 최종 탈출!'],
-          [TILE.FURNITURE]: ['🔐 단서 서가 · 비상 금고', '🔐 상단 [퍼즐조사(Q)]로 금고·서가 조사'],
-          [TILE.ALARM_BELL]: ['🔔 화재 비상벨', '✋ 행동하기: 비상 경보 울리기'],
-          [TILE.PHONE_119]: ['📞 119 비상전화', '✋ 행동하기: 119 화재 신고']
+          [TILE.FURNITURE]: ['🔐 단서 서가 · 비상 금고', '✋ 반응하기(Space): 금고·서가 단서 조사'],
+          [TILE.ALARM_BELL]: ['🔔 화재 비상벨', '✋ 반응하기(Space): 비상 경보 울리기'],
+          [TILE.PHONE_119]: ['📞 119 비상전화', '✋ 반응하기(Space): 119 화재 신고']
         };
         if (tNames[tt]) {
           aimedTargetInfo = { name: tNames[tt][0], dist: d, action: tNames[tt][1] };
@@ -6307,8 +6682,103 @@
     ctx.fillText(pBadgeText, charFootX, headTopY - 11.5);
     ctx.restore();
 
+    // Improvement #4 & #5: Draw 3-Second Pending Floor Hazards & 3D Top Compass Bar in FPS_3D
+    const Tac3D = window.FireEscape && window.FireEscape.Tactical3D;
+    if (Tac3D) {
+      if (pendingHazards && pendingHazards.length > 0 && typeof Tac3D.drawPendingHazardsFPS === 'function') {
+        Tac3D.drawPendingHazardsFPS(ctx, pendingHazards, projectClipped3DPolygon, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.draw3DCompassBar === 'function') {
+        Tac3D.draw3DCompassBar(ctx, width, height, { player, fpsCamYaw, nextObj });
+      }
+    }
+
     // 7. Top-Right 3D Radar Minimap & Bottom-Left Status Pill
     draw3DRadarMinimapOverlay(ctx, width, height, nextObj);
+  }
+
+  // --- Offscreen Static Floor Cache for DIORAMA_3D ---
+  let dioramaFloorCacheCanvas = null;
+  let dioramaFloorCacheKey = '';
+
+  function getDioramaFloorCache(tileSize) {
+    const stageKey = activeCustomStage ? 'custom' : String(currentStageIdx);
+    // Include door/debris state hash so wall AO stays accurate
+    let gridSig = '';
+    for (let r = 0; r < ROWS; r++) {
+      gridSig += grid[r].join('') + '|';
+    }
+    const key = `${stageKey}_${tileSize}_${gridSig}`;
+    const boardW = COLS * tileSize;
+    const boardH = ROWS * tileSize;
+    if (dioramaFloorCacheCanvas && dioramaFloorCacheKey === key && dioramaFloorCacheCanvas.width === boardW && dioramaFloorCacheCanvas.height === boardH) {
+      return dioramaFloorCacheCanvas;
+    }
+    if (!dioramaFloorCacheCanvas) {
+      dioramaFloorCacheCanvas = document.createElement('canvas');
+    }
+    dioramaFloorCacheCanvas.width = Math.max(1, Math.ceil(boardW));
+    dioramaFloorCacheCanvas.height = Math.max(1, Math.ceil(boardH));
+    dioramaFloorCacheKey = key;
+    const fctx = dioramaFloorCacheCanvas.getContext('2d');
+    if (!fctx) return null;
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const x = c * tileSize;
+        const y = r * tileSize;
+        const even = (c + r) % 2 === 0;
+        const isBedroom = r < 4 && c < 5;
+        const isBathroom = r < 4 && c >= 5 && c <= 8;
+        const isKitchen = r < 4 && c > 8;
+
+        if (isBedroom) {
+          fctx.fillStyle = even ? '#4a3728' : '#3f2e21';
+          fctx.fillRect(x, y, tileSize, tileSize);
+          fctx.strokeStyle = 'rgba(253, 230, 138, 0.12)';
+          fctx.lineWidth = 1;
+          fctx.beginPath();
+          fctx.moveTo(x, y + tileSize * 0.5);
+          fctx.lineTo(x + tileSize, y + tileSize * 0.5);
+          fctx.stroke();
+        } else if (isBathroom) {
+          fctx.fillStyle = even ? '#1e3a4c' : '#173040';
+          fctx.fillRect(x, y, tileSize, tileSize);
+        } else if (isKitchen) {
+          fctx.fillStyle = even ? '#432822' : '#36201b';
+          fctx.fillRect(x, y, tileSize, tileSize);
+        } else {
+          fctx.fillStyle = even ? '#283548' : '#202b3b';
+          fctx.fillRect(x, y, tileSize, tileSize);
+          if (grid[r][c] !== TILE.WALL && (r === 4 || r === 6 || r === 8)) {
+            fctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
+            fctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.46, tileSize * 0.8, Math.max(2, tileSize * 0.07));
+          }
+        }
+
+        fctx.strokeStyle = 'rgba(203, 213, 225, 0.15)';
+        fctx.lineWidth = 1;
+        fctx.strokeRect(x, y, tileSize, tileSize);
+        fctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+        fctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize * 0.16);
+
+        const northTile = r > 0 ? grid[r - 1][c] : TILE.WALL;
+        if (northTile === TILE.WALL || northTile === TILE.FURNITURE || northTile === TILE.DOOR || northTile === TILE.LOCKED_DOOR) {
+          fctx.fillStyle = 'rgba(2, 6, 23, 0.34)';
+          fctx.fillRect(x, y, tileSize, tileSize * 0.18);
+          fctx.fillStyle = 'rgba(2, 6, 23, 0.16)';
+          fctx.fillRect(x, y + tileSize * 0.18, tileSize, tileSize * 0.16);
+        }
+        const westTile = c > 0 ? grid[r][c - 1] : TILE.WALL;
+        if (westTile === TILE.WALL || westTile === TILE.FURNITURE) {
+          fctx.fillStyle = 'rgba(2, 6, 23, 0.28)';
+          fctx.fillRect(x, y, tileSize * 0.12, tileSize);
+          fctx.fillStyle = 'rgba(2, 6, 23, 0.12)';
+          fctx.fillRect(x + tileSize * 0.12, y, tileSize * 0.10, tileSize);
+        }
+      }
+    }
+    return dioramaFloorCacheCanvas;
   }
 
   // --- Unified 3D Architectural Building Escape Renderer (Dispatches 'FPS_3D' vs 'DIORAMA_3D') ---
@@ -6319,17 +6789,21 @@
 
     const now = performance.now() * 0.004;
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    const nextObj = getNextStepObjective();
 
     if (cameraMode3D === 'FPS_3D') {
       renderFirstPerson3D(width, height, now, st);
+      if (isFullMapOverlayOpen && window.FireEscape && window.FireEscape.Tactical3D) {
+        const escapePath = nextObj ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r) : [];
+        window.FireEscape.Tactical3D.drawFullTacticalMapOverlay(ctx, width, height, {
+          grid, cols: COLS, rows: ROWS, TILE, player, fpsCamYaw, fires, smokes, pendingHazards, items, nextObj, escapePath, stageName: st.name, roomLabels: st.roomLabels
+        });
+      }
       return;
     }
 
     // Deep atmospheric 3D building backdrop
-    const bgGrad = ctx.createRadialGradient(width * 0.5, height * 0.45, 40, width * 0.5, height * 0.5, Math.max(width, height) * 0.75);
-    bgGrad.addColorStop(0, '#1e293b');
-    bgGrad.addColorStop(1, '#090d16');
-    ctx.fillStyle = bgGrad;
+    ctx.fillStyle = '#0c1322';
     ctx.fillRect(0, 0, width, height);
 
     const layout = computeDioramaLayout(width, height);
@@ -6340,7 +6814,9 @@
     const slabH = layout.slabH || Math.max(6, tileSize * 0.22);
 
     ctx.save();
-    ctx.translate(offsetX, offsetY);
+    const shakeX = screenShakeTimer > 0 && !(appSettings && appSettings.reduceMotion) ? Math.sin(now * 65) * 4.5 : 0;
+    const shakeY = screenShakeTimer > 0 && !(appSettings && appSettings.reduceMotion) ? Math.cos(now * 58) * 3.5 : 0;
+    ctx.translate(offsetX + shakeX, offsetY + shakeY);
     ctx.scale(stretchX * zoom, zoom);
 
     // 0. Draw 3D Architectural Building Plinth / Foundation Slab & Outer Drop Shadow
@@ -6363,69 +6839,43 @@
     ctx.closePath();
     ctx.fill();
 
-    // 1. Floor Pass: Draw 3D Architectural Room Flooring (Oak Parquet Bedrooms, Ceramic Bathrooms, Checkered Kitchens, Slate Hallways)
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const x = c * tileSize;
-        const y = r * tileSize;
-        const even = (c + r) % 2 === 0;
-        const isBedroom = r < 4 && c < 5;
-        const isBathroom = r < 4 && c >= 5 && c <= 8;
-        const isKitchen = r < 4 && c > 8;
+    // 1. Floor Pass: Draw Cached 3D Architectural Room Flooring in 1 blit
+    const floorCache = getDioramaFloorCache(tileSize);
+    if (floorCache) {
+      ctx.drawImage(floorCache, 0, 0, boardW, boardH);
+    }
 
-        if (isBedroom) {
-          // Warm Oak Hardwood Parquet Planks
-          ctx.fillStyle = even ? '#4a3728' : '#3f2e21';
-          ctx.fillRect(x, y, tileSize, tileSize);
-          ctx.strokeStyle = 'rgba(253, 230, 138, 0.12)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x, y + tileSize * 0.5);
-          ctx.lineTo(x + tileSize, y + tileSize * 0.5);
-          ctx.stroke();
-        } else if (isBathroom) {
-          // Clean Aqua Ceramic Bathroom Tiles
-          ctx.fillStyle = even ? '#1e3a4c' : '#173040';
-          ctx.fillRect(x, y, tileSize, tileSize);
-        } else if (isKitchen) {
-          // Warm Terracotta Kitchen Checkered Tiles
-          ctx.fillStyle = even ? '#432822' : '#36201b';
-          ctx.fillRect(x, y, tileSize, tileSize);
-        } else {
-          // Polished Slate Corridor Stones with Green Photoluminescent Emergency Strip
-          ctx.fillStyle = even ? '#283548' : '#202b3b';
-          ctx.fillRect(x, y, tileSize, tileSize);
-          if (grid[r][c] !== TILE.WALL && (r === 4 || r === 6 || r === 8)) {
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.16)';
-            ctx.fillRect(x + tileSize * 0.1, y + tileSize * 0.46, tileSize * 0.8, Math.max(2, tileSize * 0.07));
-          }
-        }
+    // Improvement #4: Draw 3-Second Floor Hazard Warnings in DIORAMA_3D
+    if (pendingHazards && pendingHazards.length > 0 && window.FireEscape && window.FireEscape.Tactical3D) {
+      window.FireEscape.Tactical3D.drawPendingHazardsDiorama(ctx, pendingHazards, tileSize, now);
+    }
 
-        // Subtle 3D floor tile bevel
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.15)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, tileSize, tileSize);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize * 0.16);
+    // 1.2 Dynamic 3D Firelight & Emergency Exit Floor Illumination Pools
+    for (const f of fires) {
+      const fx = (f.c + 0.5) * tileSize;
+      const fy = (f.r + 0.5) * tileSize;
+      const flickerR = tileSize * (1.45 + 0.14 * Math.sin(now * 5.8 + (f.phase || 0)));
+      ctx.fillStyle = f.fireType === 'electric' ? 'rgba(56, 189, 248, 0.16)' : 'rgba(251, 146, 60, 0.18)';
+      ctx.beginPath();
+      ctx.arc(fx, fy, flickerR, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-        // 3D Ambient Occlusion Shadows cast by North and West Walls/Furniture
-        const northTile = r > 0 ? grid[r - 1][c] : TILE.WALL;
-        if (northTile === TILE.WALL || northTile === TILE.FURNITURE || northTile === TILE.DOOR || northTile === TILE.LOCKED_DOOR) {
-          const nShadow = ctx.createLinearGradient(x, y, x, y + tileSize * 0.36);
-          nShadow.addColorStop(0, 'rgba(2, 6, 23, 0.46)');
-          nShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
-          ctx.fillStyle = nShadow;
-          ctx.fillRect(x, y, tileSize, tileSize * 0.36);
-        }
-        const westTile = c > 0 ? grid[r][c - 1] : TILE.WALL;
-        if (westTile === TILE.WALL || westTile === TILE.FURNITURE) {
-          const wShadow = ctx.createLinearGradient(x, y, x + tileSize * 0.24, y);
-          wShadow.addColorStop(0, 'rgba(2, 6, 23, 0.36)');
-          wShadow.addColorStop(1, 'rgba(2, 6, 23, 0)');
-          ctx.fillStyle = wShadow;
-          ctx.fillRect(x, y, tileSize * 0.24, tileSize);
-        }
-      }
+    // 1.25 3D Pulsing Interactive Target Aura for [Space] Reaction Target
+    const activeTargetDiorama = getInteractTarget();
+    if (activeTargetDiorama) {
+      const tc = activeTargetDiorama.kind === 'item' ? activeTargetDiorama.item.c : activeTargetDiorama.c;
+      const tr = activeTargetDiorama.kind === 'item' ? activeTargetDiorama.item.r : activeTargetDiorama.r;
+      const tx = tc * tileSize;
+      const ty = tr * tileSize;
+      const pulse = 0.65 + 0.35 * Math.sin(now * 5.5);
+      ctx.save();
+      ctx.fillStyle = `rgba(250, 204, 21, ${0.18 * pulse})`;
+      ctx.strokeStyle = `rgba(253, 224, 71, ${0.88 * pulse})`;
+      ctx.lineWidth = 2.2;
+      ctx.fillRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
+      ctx.strokeRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
+      ctx.restore();
     }
 
     // 1.3 Draw 3D Floor Footstep Ripples (Visual feedback as the character walks through rooms)
@@ -6461,7 +6911,6 @@
     // 1.6 Draw Live Golden 3D Floor Path ([나] ---> [🎯 목표])
     const px = player.x * tileSize;
     const py = player.y * tileSize;
-    const nextObj = getNextStepObjective();
     if (nextObj && !player.onFire) {
       const tx = (nextObj.c + 0.5) * tileSize;
       const ty = (nextObj.r + 0.5) * tileSize;
@@ -6499,10 +6948,6 @@
         const y = r * tileSize;
 
         if (t === TILE.WALL) {
-          // Automatic Smart Cutaway:
-          // 1) Front-most south wall (r === ROWS - 1)
-          // 2) Wall directly south of a vertical room Door / Locked Door / Debris so doors are 100% visible!
-          // 3) Wall directly south of the player in Close-Up 3D mode
           const northT = r > 0 ? grid[r - 1][c] : TILE.WALL;
           const isSouthOfDoor = (
             northT === TILE.DOOR ||
@@ -6524,7 +6969,6 @@
             ctx.globalAlpha = 0.72;
           }
 
-          // Right 3D depth face when right neighbor is not a wall
           if (!hasRightWall) {
             ctx.fillStyle = '#1e293b';
             ctx.beginPath();
@@ -6536,27 +6980,22 @@
             ctx.fill();
           }
 
-          // Front 3D Wall Face (Wallpaper + Warm Wooden Wainscoting + Baseboard)
           if (!hasBottomWall) {
             const wallTopY = y - curWallH * 0.28;
             const totalFrontH = tileSize + curWallH * 0.28;
-            const frontGrad = ctx.createLinearGradient(x, wallTopY, x, y + tileSize);
-            frontGrad.addColorStop(0, '#94a3b8');
-            frontGrad.addColorStop(0.58, '#64748b');
-            frontGrad.addColorStop(0.59, '#78350f');
-            frontGrad.addColorStop(1, '#451a03');
-            ctx.fillStyle = frontGrad;
-            ctx.fillRect(x, wallTopY, tileSize, totalFrontH);
+            const upperH = totalFrontH * 0.58;
+            ctx.fillStyle = '#7588a3';
+            ctx.fillRect(x, wallTopY, tileSize, upperH);
+            ctx.fillStyle = '#5c2809';
+            ctx.fillRect(x, wallTopY + upperH, tileSize, totalFrontH - upperH);
 
-            // Chair-rail molding line between upper wallpaper and lower wood wainscoting
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(x, wallTopY + totalFrontH * 0.58);
-            ctx.lineTo(x + tileSize, wallTopY + totalFrontH * 0.58);
+            ctx.moveTo(x, wallTopY + upperH);
+            ctx.lineTo(x + tileSize, wallTopY + upperH);
             ctx.stroke();
 
-            // Dark 3D baseboard at floor junction
             ctx.fillStyle = '#0f172a';
             ctx.fillRect(x, y + tileSize - Math.max(3, tileSize * 0.09), tileSize, Math.max(3, tileSize * 0.09));
           } else {
@@ -6564,7 +7003,6 @@
             ctx.fillRect(x, y - curWallH * 0.25, tileSize, tileSize + curWallH * 0.25);
           }
 
-          // Raised 3D Architectural Roof Top Cap with Crown Molding
           const roofH = hasBottomWall ? tileSize : tileSize * 0.76;
           ctx.fillStyle = isCutawayWall ? '#64748b' : '#cbd5e1';
           ctx.fillRect(x, y - curWallH, tileSize, roofH);
@@ -6774,7 +7212,6 @@
         const bob = Math.sin(now * 2.4 + it.c) * 3;
         const iy = baseY - tileSize * 0.28 + bob;
 
-        // 3D Floor Shadow & Pedestal Ring
         ctx.fillStyle = 'rgba(2, 6, 23, 0.65)';
         ctx.beginPath();
         ctx.ellipse(ix, baseY + tileSize * 0.08, tileSize * 0.28, tileSize * 0.13, 0, 0, Math.PI * 2);
@@ -6795,7 +7232,6 @@
             skinId: 'npc'
           });
         } else {
-          // 3D Extruded Supply Pedestal + Floating Item Orb
           const ringColor = it.type === 'toy' ? '#fb7185' : (it.type === 'dog' ? '#4ade80' : (it.type === 'key' ? '#facc15' : '#38bdf8'));
           draw3DBox(
             ctx,
@@ -6857,16 +7293,11 @@
         const pRad = 0.32 * tileSize;
         const footY = py + tileSize * 0.16;
 
-        // 3D Volumetric Flashlight Cone in Player's Facing Direction (F key / Top Button)
         if (flashlightSpotEnabled || player.hasFlashlight) {
           ctx.save();
           const fAngle = Math.atan2(player.dirY || 0, player.dirX || 1);
           const coneLen = tileSize * (player.hasFlashlight ? 2.6 : 1.9);
-          const coneGrad = ctx.createRadialGradient(px, py - tileSize * 0.18, tileSize * 0.1, px, py - tileSize * 0.18, coneLen);
-          coneGrad.addColorStop(0, 'rgba(254, 249, 195, 0.38)');
-          coneGrad.addColorStop(0.6, 'rgba(253, 224, 71, 0.16)');
-          coneGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
-          ctx.fillStyle = coneGrad;
+          ctx.fillStyle = 'rgba(253, 224, 71, 0.22)';
           ctx.beginPath();
           ctx.moveTo(px, py - tileSize * 0.18);
           ctx.arc(px, py - tileSize * 0.18, coneLen, fAngle - 0.42, fAngle + 0.42);
@@ -6875,7 +7306,6 @@
           ctx.restore();
         }
 
-        // 3D Floor Shadow & Glowing Safety Ring under Player
         ctx.fillStyle = 'rgba(2, 6, 23, 0.68)';
         ctx.beginPath();
         ctx.ellipse(px, footY, pRad * 1.15, pRad * 0.45, 0, 0, Math.PI * 2);
@@ -6894,7 +7324,6 @@
           ctx.setLineDash([]);
         }
 
-        // Idea 7: Rescued Companions (Dog & NPCs) Following Along Breadcrumbs + Cheering Speech Bubbles
         if (player.rescuedDog || player.rescuedNpcs > 0 || rescuedCompanions.length > 0) {
           const dogComp = rescuedCompanions.find(c => c.type === 'dog');
           if (player.rescuedDog || dogComp) {
@@ -6919,7 +7348,6 @@
               wetTowel: player.wetTowel
             });
           }
-          // Context-aware cheering & safety tip speech bubble above rescued companion
           const bubbleComp = rescuedCompanions[0] || {
             x: player.x - player.dirX * 0.68,
             y: player.y - player.dirY * 0.68,
@@ -6964,7 +7392,6 @@
           onFire: player.onFire
         });
 
-        // Bold '나' + Honor Title / Relay Runner / AI Captain 3D Floating Tag above Human Head
         ctx.save();
         const titlePrefix = (customGear && customGear.honorTitle) ? `[${customGear.honorTitle}] ` : '';
         const relayTag = isRelayMode ? `🤝${relayCurrentRunner}주자 · ` : '';
@@ -7000,19 +7427,29 @@
         });
       }
 
-      // 2E. 3D Elevated Ceiling Smoke Plumes in Row r (Floating near roof level)
+      // 2E. 3D Elevated Ceiling Smoke Plumes in Row r (Fast layered circles instead of per-tile radial gradient)
       for (const s of smokes) {
         if (s.r !== r) continue;
         const sx = (s.c + 0.5) * tileSize;
-        const sy = (s.r + 0.5) * tileSize - wallH * 0.55;
+        const floorY = (s.r + 0.52) * tileSize;
+        const sy = (s.r + 0.5) * tileSize - wallH * (player.crouching ? 0.68 : 0.55);
         const wobble = Math.sin(now + s.phase) * tileSize * 0.06;
-        const grad = ctx.createRadialGradient(sx + wobble, sy, tileSize * 0.08, sx, sy, tileSize * 0.66);
-        grad.addColorStop(0, 'rgba(100, 116, 139, 0.72)');
-        grad.addColorStop(1, 'rgba(30, 41, 59, 0)');
-        ctx.fillStyle = grad;
+
+        ctx.fillStyle = player.crouching ? 'rgba(16, 185, 129, 0.14)' : 'rgba(2, 6, 23, 0.32)';
         ctx.beginPath();
-        ctx.arc(sx, sy, tileSize * 0.66, 0, Math.PI * 2);
+        ctx.ellipse(sx + wobble * 0.4, floorY, tileSize * 0.38, tileSize * 0.22, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.fillStyle = player.crouching ? 'rgba(51, 65, 85, 0.34)' : 'rgba(71, 85, 105, 0.52)';
+        ctx.beginPath();
+        ctx.arc(sx, sy, tileSize * 0.60, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = player.crouching ? 'rgba(71, 85, 105, 0.42)' : 'rgba(100, 116, 139, 0.68)';
+        ctx.beginPath();
+        ctx.arc(sx + wobble, sy, tileSize * 0.36, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.font = `${Math.floor(tileSize * 0.34)}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -7042,14 +7479,17 @@
       ctx.restore();
     }
 
-    // 3. Draw Extinguisher / Water Particles in 3D Space
+    // 3. Draw Volumetric Extinguisher / Water Particles in 3D Space (Fast layered circles)
     for (const p of particles) {
       const alpha = Math.max(0, p.life / p.maxLife);
+      const px3d = p.x * tileSize;
+      const py3d = p.y * tileSize - tileSize * 0.24 - (1 - alpha) * tileSize * 0.14;
+      const rad = Math.max(1.5, p.size * (1.25 - alpha * 0.25));
       ctx.fillStyle = p.color === '#60a5fa'
-        ? `rgba(96, 165, 250, ${alpha})`
-        : `rgba(224, 242, 254, ${alpha})`;
+        ? `rgba(96, 165, 250, ${alpha * 0.65})`
+        : `rgba(224, 242, 254, ${alpha * 0.68})`;
       ctx.beginPath();
-      ctx.arc(p.x * tileSize, p.y * tileSize - tileSize * 0.22, p.size, 0, Math.PI * 2);
+      ctx.arc(px3d, py3d, rad * 1.35, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -7075,12 +7515,9 @@
       ctx.fillRect(-10, -wallH - 10, boardW + sideBevel + 20, boardH + wallH + slabH + 20);
       drawGuideSignsAndExits(true);
     } else {
-      const aura = ctx.createRadialGradient(px, py - tileSize * 0.2, pRad * 0.4, px, py - tileSize * 0.2, auraRadius);
-      aura.addColorStop(0, player.hasFlashlight ? 'rgba(254, 240, 138, 0.22)' : 'rgba(255, 255, 255, 0.12)');
-      aura.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = aura;
+      ctx.fillStyle = player.hasFlashlight ? 'rgba(254, 240, 138, 0.09)' : 'rgba(255, 255, 255, 0.05)';
       ctx.beginPath();
-      ctx.arc(px, py - tileSize * 0.2, auraRadius, 0, Math.PI * 2);
+      ctx.arc(px, py - tileSize * 0.2, auraRadius * 0.75, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -7131,9 +7568,18 @@
     if (isCloseUp) {
       draw3DRadarMinimapOverlay(ctx, width, height, nextObj);
     }
+
+    // Improvement #5: Render Full-Screen Tactical Blueprint Map Overlay when toggled ('M' key or #btnTacticalMapTop)
+    if (isFullMapOverlayOpen && window.FireEscape && window.FireEscape.Tactical3D) {
+      const escapePath = nextObj ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r) : [];
+      window.FireEscape.Tactical3D.drawFullTacticalMapOverlay(ctx, width, height, {
+        grid, cols: COLS, rows: ROWS, TILE, player, fpsCamYaw, fires, smokes, pendingHazards, items, nextObj, escapePath, stageName: st.name, roomLabels: st.roomLabels
+      });
+    }
   }
 
   // --- Main Animation Loop ---
+  let idleModalFrameSkip = 0;
   function gameLoop(timestamp) {
     if (!lastFrameTime) lastFrameTime = timestamp;
     const rawDeltaMs = Math.max(0, timestamp - lastFrameTime);
@@ -7164,7 +7610,18 @@
     if (gameState === 'PLAYING' || isReadingNotebook) {
       updateGame(dt);
     }
-    renderCanvas();
+
+    // Avoid heavy 60fps 3D canvas redraws while a full-screen modal/overlay is covering the canvas and player isn't moving
+    const isOverlayVisible = gameOverlay && !gameOverlay.classList.contains('hidden');
+    const isModalCovering = isOverlayVisible || isReadingNotebook || (puzzleModal && !puzzleModal.classList.contains('hidden'));
+    if (isModalCovering && !keysPressed.up && !keysPressed.down && !keysPressed.left && !keysPressed.right) {
+      idleModalFrameSkip = (idleModalFrameSkip + 1) % 6;
+      if (idleModalFrameSkip === 0) {
+        renderCanvas();
+      }
+    } else {
+      renderCanvas();
+    }
 
     animFrameId = requestAnimationFrame(gameLoop);
   }
@@ -7316,7 +7773,7 @@
   function resizeCanvas() {
     syncViewportOrientation();
     const q = appSettings ? appSettings.graphicsQuality : 'auto';
-    const maxDpr = q === 'low' ? 1 : 2;
+    const maxDpr = q === 'low' ? 1 : (q === 'high' ? 1.5 : 1.25);
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
     canvasContainer.style.height = '';
@@ -7346,6 +7803,26 @@
   if (typeof ResizeObserver !== 'undefined' && canvasContainer.parentElement) {
     const ro = new ResizeObserver(() => resizeCanvas());
     ro.observe(canvasContainer.parentElement);
+  }
+
+  // --- Improvement #5: Full-Screen Tactical Blueprint Map Toggle ('M' Key / Top Button) ---
+  const btnTacticalMapTop = document.getElementById('btnTacticalMapTop');
+  function toggleFullTacticalMap() {
+    SoundFX.init();
+    isFullMapOverlayOpen = !isFullMapOverlayOpen;
+    SoundFX.playTone(isFullMapOverlayOpen ? 560 : 420, 'sine', 0.06, 0.08);
+    if (btnTacticalMapTop) {
+      btnTacticalMapTop.className = isFullMapOverlayOpen
+        ? 'px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-500 border border-sky-200 text-slate-950 transition flex items-center gap-1 shadow-sm whitespace-nowrap'
+        : 'px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap';
+    }
+    if (isFullMapOverlayOpen) {
+      showToast('🗺️ [전술 피난안내도 열림 · M키] 건물 전체 구조와 추천 황금 탈출 경로를 확인하세요! (타일 클릭 시 자동 이동)', 'border-sky-400');
+    }
+    renderCanvas();
+  }
+  if (btnTacticalMapTop) {
+    btnTacticalMapTop.addEventListener('click', toggleFullTacticalMap);
   }
 
   // --- 3D Tactical Flashlight Toggle (PRD F05 & Section 5: F Key / Top Button) ---
@@ -7393,6 +7870,28 @@
   function handleCanvasPointer(clientX, clientY, isTapStart) {
     if (gameState !== 'PLAYING') return;
     SoundFX.init();
+
+    // Improvement #5: Handle click inside Full-Screen Tactical Blueprint Map Overlay
+    if (isFullMapOverlayOpen && isTapStart) {
+      const local = window.getElementLocalCoords(canvas, clientX, clientY);
+      const Tac3D = window.FireEscape && window.FireEscape.Tactical3D;
+      const hitTile = Tac3D && typeof Tac3D.getTacticalMapTileAt === 'function'
+        ? Tac3D.getTacticalMapTileAt(local.x, local.y, local.width, local.height, COLS, ROWS)
+        : null;
+      if (hitTile) {
+        pointerMoveTarget = { x: hitTile.c + 0.5, y: hitTile.r + 0.5 };
+        isFullMapOverlayOpen = false;
+        if (btnTacticalMapTop) {
+          btnTacticalMapTop.className = 'px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap';
+        }
+        showToast(`🗺️ 피난안내도 목표 지점(${hitTile.c + 1}, ${hitTile.r + 1})으로 이동합니다!`, 'border-sky-400');
+      } else {
+        toggleFullTacticalMap();
+      }
+      renderCanvas();
+      return;
+    }
+
     const { gx, gy, c, r } = getCanvasGridCoords(clientX, clientY);
     if (gx < 0 || gx > COLS || gy < 0 || gy > ROWS) return;
 
@@ -7467,7 +7966,7 @@
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!canvasPointerDown || gameState !== 'PLAYING') return;
+    if (!canvasPointerDown || gameState !== 'PLAYING' || isFullMapOverlayOpen) return;
     if (cameraMode3D === 'FPS_3D' && !isClientPointIn3DRadarMinimap(e.clientX, e.clientY)) {
       const totalDx = e.clientX - canvasDragStartX;
       const totalDy = e.clientY - canvasDragStartY;
@@ -7661,7 +8160,7 @@
       return;
     }
 
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter'].includes(e.code)) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'ShiftLeft', 'ShiftRight'].includes(e.code)) {
       if (gameState === 'PLAYING') e.preventDefault();
     }
 
@@ -7683,8 +8182,10 @@
       if (e.code === 'ArrowRight' || e.code === 'KeyD') { keysPressed.right = true; pointerMoveTarget = null; }
     }
 
+    // [반응하기 단축키: Space (보조: E / Enter)]
     if ((e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Slash') && !e.repeat) {
       if (gameState === 'PLAYING') {
+        flashButtonPress(btnAction);
         if (player.onFire) {
           performStopDropRoll();
           return;
@@ -7716,7 +8217,7 @@
         }
       }
     }
-    if (e.code === 'KeyQ') {
+    if (e.code === 'KeyQ' && !e.repeat) {
       if (gameState === 'PLAYING') useWaterBucket();
     }
     if (e.code === 'KeyF') {
@@ -7728,14 +8229,16 @@
         }
       }
     }
-    if (e.code === 'ShiftLeft' || e.code === 'KeyC') {
+    // [숙이기 단축키: Shift (보조: C)]
+    if ((e.code === 'ShiftLeft' || e.code === 'KeyC') && !e.repeat) {
       if (gameState === 'PLAYING') toggleCrouch();
     }
-    if (e.code === 'ShiftRight') {
+    if (e.code === 'ShiftRight' && !e.repeat) {
       if (gameState === 'PLAYING') {
         if (isCoopMode) {
           player2.crouching = !player2.crouching;
-          showToast(player2.crouching ? '🧎 [2P 낮은 자세] 2P 대원이 자세를 낮췄습니다!' : '🚶 [2P 서서 이동] 2P 대원이 일어섰습니다.');
+          flashButtonPress(btnCrouch);
+          showToast(player2.crouching ? '🧎 [2P 숙이기 ON] 2P 대원이 자세를 낮췄습니다!' : '🚶 [2P 숙이기 해제] 2P 대원이 일어섰습니다.');
         } else {
           toggleCrouch();
         }
@@ -7744,6 +8247,12 @@
     if (e.code === 'KeyV' && !e.repeat) {
       if (gameState === 'PLAYING') {
         toggleCamera3DMode();
+      }
+    }
+    if (e.code === 'KeyM' && !e.repeat) {
+      if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+        e.preventDefault();
+        toggleFullTacticalMap();
       }
     }
     if (e.code === 'KeyZ' && !e.repeat) {
@@ -7774,6 +8283,11 @@
       }
     }
     if ((e.code === 'KeyP' || e.code === 'Escape') && !e.repeat) {
+      if (isFullMapOverlayOpen) {
+        e.preventDefault();
+        toggleFullTacticalMap();
+        return;
+      }
       if (gameState === 'PLAYING' || gameState === 'PAUSED') {
         e.preventDefault();
         btnPause.click();
@@ -7864,9 +8378,9 @@
     closeOtherModalsExcept(null, true);
     gameState = 'START';
     overlayIcon.textContent = '🔥';
-    overlaySubtitle.textContent = '3D 방탈출 화재 대피 시뮬레이션';
+    overlaySubtitle.textContent = '2022 개정 교육과정 · 3D 화재 대피 방탈출 웹앱';
     overlayTitle.textContent = '화재 탈출 넘버원 3D';
-    overlayDesc.innerHTML = '불타는 다중 미로 건물 속에서 <strong>젖은 수건·열쇠·소방도끼·차단기 퍼즐</strong>을 풀고 고립된 가족과 친구를 구출해 <strong>비상구(EXIT)</strong>로 탈출하는 3D 방탈출 게임입니다.';
+    overlayDesc.innerHTML = '불타는 건물에서 <strong>젖은 수건·단서 퍼즐</strong>로 문을 열고 <strong>낮은 자세</strong>로 <strong>비상구(EXIT)</strong>까지 탈출하는 3D 안전 체험 웹앱입니다.';
     overlayTipsBox.classList.remove('hidden');
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
@@ -7887,13 +8401,38 @@
     if (btnMainGuide) btnMainGuide.classList.remove('hidden');
     btnOpenCertFromOverlay.classList.remove('hidden');
     btnSecondaryAction.classList.add('hidden');
-    btnPrimaryAction.textContent = '▶️ 게임 시작하기';
+    btnPrimaryAction.textContent = '▶️ 전체화면으로 게임 시작';
     gameOverlay.classList.remove('hidden');
     const overlayCardMain = document.getElementById('overlayCard');
     if (overlayCardMain) overlayCardMain.scrollTop = 0;
     overlaySelectedIndex = 0;
     setTimeout(updateOverlaySelectionUI, 20);
   }
+
+  // Improvement #1: Main Screen Quick Stage Selector Bar (#mainStageSelectBar) Click Handlers
+  document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.pickup();
+      const stageAttr = pill.getAttribute('data-main-stage');
+      if (stageAttr === 'daily' && typeof generateDailyChallengeStage === 'function') {
+        const dailySt = generateDailyChallengeStage();
+        loadStage(0, true, dailySt);
+        overlaySubtitle.textContent = `선택된 구역: 🎲 ${dailySt.name}`;
+        btnPrimaryAction.textContent = '▶️ 오늘의 119 챌린지 시작';
+        showToast(`🎲 [${dailySt.name}] 구역이 선택되었습니다!`, 'border-amber-400');
+      } else {
+        const idx = parseInt(stageAttr || '0', 10);
+        if (!isNaN(idx) && idx >= 0 && idx < STAGES.length) {
+          loadStage(idx, true, null);
+          const stObj = STAGES[idx];
+          overlaySubtitle.textContent = `선택된 구역: ${stObj.name}`;
+          btnPrimaryAction.textContent = `▶️ ${stObj.name.split(':')[0]} 전체화면 시작`;
+          showToast(`🎯 [${stObj.name}] 구역이 선택되었습니다!`, 'border-orange-400');
+        }
+      }
+    });
+  });
 
   if (btnHomeMain) {
     btnHomeMain.addEventListener('click', () => {
@@ -8764,7 +9303,7 @@
       if (btnPrimaryAction && gameState === 'START') {
         btnPrimaryAction.disabled = false;
         btnPrimaryAction.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnPrimaryAction.textContent = '▶️ 게임 시작하기';
+        btnPrimaryAction.textContent = '▶️ 전체화면으로 게임 시작';
       }
     } else {
       const worldNames = {
@@ -9043,7 +9582,7 @@
     if (hintTotalBadge) hintTotalBadge.textContent = String(hintLog.length);
     if (notebookStageName) notebookStageName.textContent = st.name;
 
-    // 1. Checklist & Clues Panel (Explicit text status tags [완료] / [진행중] / [미완료] — never color alone)
+    // 1. Checklist & Clues Panel (Concise 1-line items with whitespace-nowrap)
     if (notebookTaskList) {
       const tasks = [];
       if (st.isPreventionMode) {
@@ -9051,14 +9590,14 @@
         tasks.push({
           status: doneHaz ? '[완료]' : '[진행중]',
           done: doneHaz,
-          text: `가정 내 화재 위험요소 5곳 안전 점검 (${player.hazardsFixed} / ${player.totalHazards}곳)`
+          text: `가정 내 화재 위험요소 5곳 안전 점검하기 (${player.hazardsFixed}/${player.totalHazards}곳)`
         });
       } else {
         const hasResp = player.wetTowel || player.hasMask;
         tasks.push({
           status: hasResp ? '[완료]' : '[미완료]',
           done: hasResp,
-          text: '호흡기 보호: 수건을 줍고 세면대(🚰) 물에 적시거나 방연마스크(😷) 착용하기'
+          text: '호흡기 보호: 수건을 세면대(🚰) 물에 적시거나 방연마스크(😷) 착용하기'
         });
         if (st.requireGasClosed) {
           tasks.push({
@@ -9072,73 +9611,73 @@
         tasks.push({
           status: !hasLockedDoor ? '[완료]' : (keyOrUnlocked ? '[진행중]' : '[미완료]'),
           done: !hasLockedDoor,
-          text: '잠긴 방문(🔒) 개방: 열쇠(🔑)를 찾거나 [🔐 금고·배선퍼즐]에서 비상 금고 해금하기'
+          text: `잠긴 방문(🔒) 열기: 열쇠(🔑)를 줍거나 비상 금고(암호 ${safeCode}) 해금하기`
         });
         if (st.requireRescueNpc || st.requireRescueDog) {
           const remainingRescue = items.some(it => it.type === 'npc' || it.type === 'dog');
           tasks.push({
             status: !remainingRescue ? '[완료]' : '[미완료]',
             done: !remainingRescue,
-            text: '고립된 가족·친구·반려견 구출하여 동행하기'
+            text: '고립된 가족·친구·반려견 구출하여 함께 이동하기'
           });
         }
       }
       tasks.push({
         status: '[진행중]',
         done: false,
-        text: '최종 탈출: 낮은 자세(🧎)를 유지하며 초록색 비상구(EXIT) 또는 완강기(🪢)로 탈출하기'
+        text: '최종 탈출: 낮은 자세(Shift)를 유지하며 비상구(EXIT) 또는 완강기(🪢)로 탈출하기'
       });
 
-      const sizeCls = isClueZoomed ? 'text-sm sm:text-base leading-relaxed' : 'text-xs leading-relaxed';
-      notebookTaskList.className = `space-y-1.5 text-slate-200 ${sizeCls}`;
+      const sizeCls = isClueZoomed ? 'text-sm leading-snug' : 'text-xs leading-snug';
+      notebookTaskList.className = `space-y-1 text-slate-200 overflow-x-auto no-scrollbar ${sizeCls}`;
       notebookTaskList.innerHTML = tasks.map((t) => `
-        <div class="p-2 rounded-lg border ${t.done ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-200'} flex items-start gap-2">
+        <div class="px-2.5 py-1.5 rounded-lg border ${t.done ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200' : 'bg-slate-900 border-slate-700 text-slate-200'} flex items-center gap-2 whitespace-nowrap">
           <span class="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${t.done ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500/25 text-amber-300 border border-amber-400/40'}">${t.status}</span>
-          <span>${t.text}</span>
+          <span class="whitespace-nowrap">${t.text}</span>
         </div>
       `).join('');
     }
 
     if (notebookClueList) {
-      const sizeCls = isClueZoomed ? 'text-sm sm:text-base leading-relaxed' : 'text-xs leading-relaxed';
-      notebookClueList.className = `space-y-1.5 text-slate-300 ${sizeCls}`;
+      const sizeCls = isClueZoomed ? 'text-sm leading-snug' : 'text-xs leading-snug';
+      notebookClueList.className = `space-y-1 text-slate-300 overflow-x-auto no-scrollbar ${sizeCls}`;
       const customClueBody = (customQuizConfig && customQuizConfig.safeClue)
-        ? `🎯 <strong>[선생님 출제 우리 반 암호 단서]</strong> ${customQuizConfig.safeClue} (정답 암호: <strong>${safeCode}</strong>)`
-        : `우리 반 안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>이며, 구역별 비상 암호(<strong>${safeCode}</strong> 또는 긴급 직통번호 <strong>0119</strong>) 입력으로 비상 마스터 열쇠(🔑)를 꺼낼 수 있습니다.`;
+        ? `🎯 [우리 반 암호] ${customQuizConfig.safeClue} → 정답: <strong>${safeCode}</strong>`
+        : `비상 금고 비밀번호는 <strong>[ ${safeCode} ]</strong> (또는 <strong>614</strong> / <strong>0119</strong>) → 비상 열쇠(🔑) 획득`;
       const clueNotes = [
         {
-          badge: '[새 기록]',
-          title: `📄 현장 소방 안전 지침서 (${st.name})`,
-          body: `연기는 위쪽으로 빠르게 이동(대류 현상)하므로 바닥에서 30~60cm 아래의 신선한 공기층을 따라 <strong>[🧎 낮은 자세]</strong>로 대피하십시오. 뜨거운 문(🌡️)은 백드래프트 폭발 위험이 있으므로 절대 열지 말고 우회하십시오.`
+          badge: '[안전수칙]',
+          title: '📄 대피 핵심 수칙',
+          body: '연기는 위로 올라가므로 <strong>[🧎 낮은 자세(Shift)]</strong>로 대피하고 뜨거운 문(🌡️)은 절대 열지 마세요.'
         },
         {
-          badge: safeSolved ? '[완료]' : '[단서 원문]',
-          title: '🔢 퍼즐 1 · 비상 금고 잠금장치 암호 단서 메모',
+          badge: safeSolved ? '[완료]' : '[단서 1]',
+          title: '🔢 퍼즐 1 · 금고 암호',
           body: customClueBody
         },
         {
-          badge: wireSolved ? '[완료]' : '[단서 원문]',
-          title: '⚡ 퍼즐 2 · 배전판 비상 배선 복구 도면 (색약 배려 문자 병기)',
-          body: `배전판 단자 연결 규칙: <strong>🔴 빨강(RED) → [B]단자</strong>, <strong>🔵 파랑(BLUE) → [D]단자</strong>, <strong>🟡 노랑(YELLOW) → [A]단자</strong>, <strong>🟢 초록(GREEN) → [C]단자</strong>로 연결하면 누전이 차단되고 비상 소화기가 충전됩니다.`
+          badge: wireSolved ? '[완료]' : '[단서 2]',
+          title: '⚡ 퍼즐 2 · 배전판 배선',
+          body: '단자 연결: <strong>🔴빨강=[B] · 🔵파랑=[D] · 🟡노랑=[A] · 🟢초록=[C]</strong> → 전원 차단 및 소화기 충전'
         },
         {
-          badge: dirLockSolved ? '[완료]' : '[단서 원문]',
-          title: '🧭 퍼즐 3 · 구호장비 보관함 6단계 방향 자물쇠 (비상대피 동선)',
-          body: `벽면 피난안내도 화살표 순서: <strong>[⬆️ 위 → ➡️ 오른쪽 → ➡️ 오른쪽 → ⬇️ 아래 → ⬅️ 왼쪽 → ⬆️ 위]</strong> 순서대로 방향 자물쇠를 조작하면 방연마스크(😷)와 손전등(🔦)이 지급됩니다.`
+          badge: dirLockSolved ? '[완료]' : '[단서 3]',
+          title: '🧭 퍼즐 3 · 방향 자물쇠',
+          body: '화살표 순서: <strong>[ ⬆️위 → ➡️오른쪽 → ➡️오른쪽 → ⬇️아래 → ⬅️왼쪽 → ⬆️위 ]</strong> → 방연마스크·손전등 획득'
         },
         {
-          badge: bookSortSolved ? '[완료]' : '[단서 원문]',
-          title: '📚 퍼즐 4 · 소방 안전 매뉴얼 십진 청구기호 정렬 규칙',
-          body: `소수점 아래 숫자는 자릿수가 아니라 크기 순서로 비교합니다(<code>.12 &lt; .2</code>). 올바른 오름차순 배열: <strong>425.12 → 425.2 → 430 → 440 → 450 → 480</strong> (완료 시 🪓소방도끼 + 🧯소화기 보급).`
+          badge: bookSortSolved ? '[완료]' : '[단서 4]',
+          title: '📚 퍼즐 4 · 매뉴얼 정렬',
+          body: '청구기호 오름차순: <strong>[ 425.12 → 425.2 → 430 → 440 → 450 → 480 ]</strong> → 소방도끼(🪓) 획득'
         }
       ];
       notebookClueList.innerHTML = clueNotes.map(cn => `
-        <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-700/80">
-          <div class="flex items-center justify-between gap-2 mb-1">
-            <span class="font-extrabold text-amber-300">${cn.title}</span>
-            <span class="px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 text-[10px] font-black">${cn.badge}</span>
+        <div class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/80 flex items-center justify-between gap-2 whitespace-nowrap">
+          <div class="flex items-center gap-2 min-w-0 whitespace-nowrap">
+            <span class="font-extrabold text-amber-300 shrink-0">${cn.title}:</span>
+            <span class="text-slate-200 whitespace-nowrap">${cn.body}</span>
           </div>
-          <p class="text-slate-300">${cn.body}</p>
+          <span class="px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-400/40 text-sky-300 text-[10px] font-black shrink-0">${cn.badge}</span>
         </div>
       `).join('');
     }
@@ -9155,33 +9694,33 @@
     }
     if (hintStep1Text) {
       hintStep1Text.innerHTML = open1
-        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 먼저 세면대(🚰)에서 젖은 수건을 착용하거나 방향 자물쇠(<strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong>)로 방연마스크를 획득하고, 금고 단서(<strong>${safeCode}</strong>)와 배전판 도면(R=B, B=D, Y=A, G=C)을 확인하세요.`
-        : '힌트 열기를 누르면 현재 목표의 위치와 안전 원리를 안내합니다.';
+        ? `<strong>[열람됨]</strong> 세면대(🚰)에서 수건을 적시거나 방향자물쇠(<strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong>)로 마스크를 챙기세요.`
+        : '힌트 열기를 누르면 현재 목표의 위치와 안전 수칙을 한 줄로 안내합니다.';
     }
     if (btnUnlockHint1) {
-      btnUnlockHint1.textContent = open1 ? '✅ 1단계 힌트 다시 보기 (횟수 유지)' : '💡 1단계 힌트 열기 (+1회)';
+      btnUnlockHint1.textContent = open1 ? '✅ 1단계 힌트 열람됨' : '💡 1단계 힌트 열기 (+1회)';
       btnUnlockHint1.className = open1
-        ? 'w-full py-1.5 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition'
-        : 'w-full py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition';
+        ? 'px-3 py-1 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition whitespace-nowrap shrink-0'
+        : 'px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition whitespace-nowrap shrink-0';
     }
     if (hintStep2Text) {
       hintStep2Text.innerHTML = open2
-        ? `<strong>[열람됨 · 재열람 시 횟수 미증가]</strong> 상단 <strong>[🔐 퍼즐조사]</strong>에서 ① 금고 암호 <strong>${safeCode}</strong>(또는 <strong>614</strong> / <strong>0119</strong>) → 열쇠(🔑), ② 배전판 <strong>빨강=B, 파랑=D, 노랑=A, 초록=C</strong> → 소화기, ③ 방향자물쇠 <strong>위·오른쪽·오른쪽·아래·왼쪽·위</strong> → 마스크, ④ 청구기호 <strong>425.12 → 425.2 → 430 → 440 → 450 → 480</strong> → 소방도끼를 획득할 수 있습니다.`
-        : '1단계 힌트를 확인한 뒤 결정적 해답과 암호를 확인할 수 있습니다.';
+        ? `<strong>[정답]</strong> ①금고: <strong>${safeCode}</strong>(614) · ②배선: <strong>빨B·파D·노A·초C</strong> · ③방향: <strong>위·우·우·하·좌·위</strong> · ④서가: <strong>425.12→425.2→430→440→450→480</strong>`
+        : '1단계 힌트 확인 후 모든 퍼즐 정답 코드를 한 줄로 바로 확인할 수 있습니다.';
     }
     if (btnUnlockHint2) {
-      btnUnlockHint2.textContent = open2 ? '✅ 2단계 결정적 힌트 다시 보기 (횟수 유지)' : '🔑 2단계 결정적 힌트 열기 (+1회)';
+      btnUnlockHint2.textContent = open2 ? '✅ 2단계 정답 열람됨' : '🔑 2단계 정답 열기 (+1회)';
       btnUnlockHint2.className = open2
-        ? 'w-full py-1.5 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition'
-        : 'w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs transition';
+        ? 'px-3 py-1 rounded-lg bg-slate-800 border border-emerald-500/50 text-emerald-300 font-extrabold text-xs transition whitespace-nowrap shrink-0'
+        : 'px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs transition whitespace-nowrap shrink-0';
     }
     if (hintHistoryList) {
       if (hintLog.length === 0) {
-        hintHistoryList.innerHTML = '<div class="text-slate-500">아직 열람한 힌트가 없습니다.</div>';
+        hintHistoryList.innerHTML = '<div class="text-slate-500 whitespace-nowrap">아직 열람한 힌트가 없습니다.</div>';
       } else {
         hintHistoryList.innerHTML = hintLog.map((id, idx) => `
-          <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-            <strong>#${idx + 1} [${id}]</strong> — ${id.endsWith('_1') ? '1단계 탐색 방향 힌트 열람 완료 (재열람 무제한)' : '2단계 결정적 해답·암호 힌트 열람 완료 (재열람 무제한)'}
+          <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300 whitespace-nowrap">
+            <strong>#${idx + 1} [${id}]</strong> — ${id.endsWith('_1') ? '1단계 탐색 방향 힌트 열람 완료' : '2단계 결정적 정답 힌트 열람 완료'}
           </div>
         `).join('');
       }
@@ -9196,23 +9735,23 @@
           icon: '🔑',
           name: `비상 열쇠 (${player.keys}개)`,
           owned: player.keys > 0,
-          desc: '잠긴 방문(🔒) 앞에서 사용하면 문을 즉시 개방합니다.',
+          desc: '잠긴 방문(🔒) 앞에서 문을 즉시 개방합니다.',
           onUse: () => {
             const adjLocked = findNearestTileOfTypes([TILE.LOCKED_DOOR]);
             if (adjLocked && adjLocked.dist <= 2.2) {
               triggerInteraction({ kind: 'tile', c: adjLocked.c, r: adjLocked.r, tile: TILE.LOCKED_DOOR });
               return '🔓 근처의 잠긴 방문(🔒)을 열쇠로 개방했습니다!';
             }
-            return 'ℹ️ 현재 잠긴 문(🔒) 앞이 아닙니다. 열쇠는 절대 소멸되지 않고 안전하게 보관됩니다.';
+            return 'ℹ️ 현재 잠긴 문(🔒) 앞이 아닙니다. 열쇠는 소멸되지 않고 보관됩니다.';
           }
         },
         {
           id: 'clue_safe',
           cat: 'record',
           icon: '📄',
-          name: `비상 금고 암호 기록표 (${safeCode})`,
+          name: `금고 암호 메모 (${safeCode})`,
           owned: true,
-          desc: `현재 구역 디지털 금고 비밀번호 단서(${safeCode} / 614 / 0119)가 적힌 소방 점검표입니다.`,
+          desc: `금고 비밀번호 단서(${safeCode} / 614 / 0119) 기록표입니다.`,
           onUse: () => {
             closeNotebookModalFn();
             openPuzzleModalFn('safe');
@@ -9223,9 +9762,9 @@
           id: 'clue_wire',
           cat: 'record',
           icon: '📐',
-          name: '배전판 배선 복구 도면 (R=B, B=D, Y=A, G=C)',
+          name: '배전판 도면 (R=B, B=D, Y=A, G=C)',
           owned: true,
-          desc: '색약 배려 문자 표기가 포함된 배전판 비상 배선 연결 도면입니다.',
+          desc: '배전판 비상 배선 연결 도면입니다.',
           onUse: () => {
             closeNotebookModalFn();
             openPuzzleModalFn('wire');
@@ -9236,9 +9775,9 @@
           id: 'clue_dirlock',
           cat: 'record',
           icon: '🧭',
-          name: '비상대피 동선 방향 자물쇠 표식',
+          name: '방향 자물쇠 표식 (위·우·우·하·좌·위)',
           owned: true,
-          desc: '위 → 오른쪽 → 오른쪽 → 아래 → 왼쪽 → 위 순서의 구호장비 보관함 해제 기록입니다.',
+          desc: '구호장비 보관함 6단계 방향 해제 기록입니다.',
           onUse: () => {
             closeNotebookModalFn();
             openPuzzleModalFn('dirlock');
@@ -9249,9 +9788,9 @@
           id: 'clue_books',
           cat: 'record',
           icon: '📚',
-          name: '소방 매뉴얼 청구기호 정렬표 (425.12~480)',
+          name: '청구기호 정렬표 (425.12~480)',
           owned: true,
-          desc: '425.12 → 425.2 → 430 → 440 → 450 → 480 오름차순 서가 배열 기록입니다.',
+          desc: '425.12 → 425.2 → 430 → 440 → 450 → 480 서가 배열 기록입니다.',
           onUse: () => {
             closeNotebookModalFn();
             openPuzzleModalFn('books');
@@ -9264,12 +9803,12 @@
           icon: player.hasMask ? '😷' : (player.wetTowel ? '💧' : '🧣'),
           name: player.hasMask ? '방연마스크 (착용중)' : (player.wetTowel ? '젖은 수건 (착용중)' : '마른 수건'),
           owned: player.hasMask || player.wetTowel || player.hasTowel,
-          desc: '유독가스 연기 구역에서 산소 고갈 속도를 대폭 줄여 주는 필수 호흡기 보호구입니다.',
+          desc: '연기 구역에서 산소 고갈 속도를 줄여 주는 호흡기 보호구입니다.',
           onUse: () => {
             if (player.hasMask || player.wetTowel) {
-              return '✅ 이미 호흡기 보호구(젖은 수건/방연마스크)를 착용하고 있어 유독가스로부터 보호받고 있습니다!';
+              return '✅ 이미 호흡기 보호구(젖은 수건/방연마스크)를 착용하고 있습니다!';
             }
-            return '💧 마른 수건 상태입니다. 세면대(🚰) 앞으로 이동해 물에 적셔 주세요! (아이템은 소멸되지 않습니다)';
+            return '💧 마른 수건 상태입니다. 세면대(🚰) 앞으로 이동해 물에 적셔 주세요!';
           }
         },
         {
@@ -9278,7 +9817,7 @@
           icon: '🧯',
           name: `ABC 분말소화기 (${player.extinguisherCharges}회)`,
           owned: player.extinguisherCharges > 0,
-          desc: '일반·식용유·전기 화재를 모두 안전하게 진압할 수 있는 다목적 소화기입니다.',
+          desc: '일반·식용유·전기 화재를 모두 진압하는 다목적 소화기입니다.',
           onUse: () => {
             useExtinguisher();
             return '🧯 소화기 분사를 시도했습니다!';
@@ -9290,14 +9829,14 @@
           icon: '🪓',
           name: '소방 도끼',
           owned: player.hasAxe,
-          desc: '복도를 가로막는 나무 장애물(🪵)이나 경량칸막이(🧱)를 돌파할 때 사용합니다.',
+          desc: '나무 장애물(🪵)이나 경량칸막이(🧱)를 돌파할 때 사용합니다.',
           onUse: () => {
             const adjDebris = findNearestTileOfTypes([TILE.DEBRIS]);
             if (adjDebris && adjDebris.dist <= 2.2) {
               triggerInteraction({ kind: 'tile', c: adjDebris.c, r: adjDebris.r, tile: TILE.DEBRIS });
               return '🪓 근처의 나무 장애물(🪵)을 소방 도끼로 부쉈습니다!';
             }
-            return 'ℹ️ 근처에 부술 장애물(🪵)이 없습니다. 소방 도끼는 소멸되지 않고 그대로 유지됩니다.';
+            return 'ℹ️ 근처에 부술 장애물(🪵)이 없습니다. 소방 도끼는 그대로 유지됩니다.';
           }
         }
       ];
@@ -9312,13 +9851,13 @@
             <span class="text-2xl shrink-0">${entry.icon}</span>
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between gap-1">
-                <span class="text-xs font-extrabold ${entry.owned ? 'text-amber-300' : 'text-slate-400'}">${entry.name}</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-black ${entry.owned ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'}">${entry.owned ? '[보유중]' : '[미보유]'}</span>
+                <span class="text-xs font-extrabold whitespace-nowrap truncate ${entry.owned ? 'text-amber-300' : 'text-slate-400'}">${entry.name}</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${entry.owned ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'}">${entry.owned ? '[보유중]' : '[미보유]'}</span>
               </div>
-              <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">${entry.desc}</p>
+              <p class="text-[11px] text-slate-300 mt-0.5 whitespace-nowrap overflow-x-auto no-scrollbar">${entry.desc}</p>
             </div>
           </div>
-          <button type="button" data-inv-id="${entry.id}" class="inv-use-btn w-full py-1.5 rounded-lg text-[11px] font-extrabold transition ${
+          <button type="button" data-inv-id="${entry.id}" class="inv-use-btn w-full py-1.5 rounded-lg text-[11px] font-extrabold transition whitespace-nowrap ${
             entry.owned
               ? 'bg-sky-600 hover:bg-sky-500 text-white'
               : 'bg-slate-800 text-slate-400'
@@ -9372,8 +9911,8 @@
       const active = id === tabName;
       if (btn) {
         btn.className = active
-          ? 'py-1.5 rounded-lg bg-amber-500 text-slate-950 transition'
-          : 'py-1.5 rounded-lg text-slate-300 hover:text-white transition';
+          ? 'py-1.5 px-2 rounded-lg bg-amber-500 text-slate-950 transition whitespace-nowrap truncate'
+          : 'py-1.5 px-2 rounded-lg text-slate-300 hover:text-white transition whitespace-nowrap truncate';
       }
       if (panel) {
         panel.classList.toggle('hidden', !active);
@@ -9417,7 +9956,7 @@
   if (btnToggleClueZoom) {
     btnToggleClueZoom.addEventListener('click', () => {
       isClueZoomed = !isClueZoomed;
-      btnToggleClueZoom.textContent = isClueZoomed ? '🔎 기본 글자크기' : '🔍 글자크게(확대)';
+      btnToggleClueZoom.textContent = isClueZoomed ? '🔎 기본글자' : '🔍 글자확대';
       renderNotebookModal();
     });
   }
@@ -10534,9 +11073,11 @@
   }
 
   const btnExitOverlayTop = document.getElementById('btnExitOverlayTop');
+  const btnExitGameDrawer = document.getElementById('btnExitGameDrawer');
   if (btnExitGameOverlay) btnExitGameOverlay.addEventListener('click', openExitGameModalFn);
   if (btnExitOverlayTop) btnExitOverlayTop.addEventListener('click', openExitGameModalFn);
   if (btnExitGameTop) btnExitGameTop.addEventListener('click', openExitGameModalFn);
+  if (btnExitGameDrawer) btnExitGameDrawer.addEventListener('click', openExitGameModalFn);
   if (btnExitFromSettings) btnExitFromSettings.addEventListener('click', openExitGameModalFn);
   if (btnCloseExitModal) btnCloseExitModal.addEventListener('click', closeExitGameModalFn);
   if (btnCancelExitGame) btnCancelExitGame.addEventListener('click', closeExitGameModalFn);
@@ -11185,6 +11726,26 @@
     syncContinueButtonUI();
     resizeCanvas();
     updateOverlaySelectionUI();
+
+    // Automatically attempt Fullscreen on launch & on first user gesture so the web app runs in full screen from the start
+    if (!navigator.webdriver) {
+      requestGameFullscreen(true);
+      let autoFsTriggered = false;
+      const triggerInitialFullscreen = (ev) => {
+        if (autoFsTriggered) return;
+        if (ev && ev.target && typeof ev.target.closest === 'function') {
+          if (ev.target.closest('[data-fullscreen-btn], #btnExitGameOverlay, #btnExitGameTop, #btnConfirmExitClose')) {
+            return;
+          }
+        }
+        autoFsTriggered = true;
+        if (!isFullscreenActive()) {
+          requestGameFullscreen(true);
+        }
+      };
+      window.addEventListener('pointerdown', triggerInitialFullscreen, { once: true, passive: true });
+      window.addEventListener('keydown', triggerInitialFullscreen, { once: true, passive: true });
+    }
 
     // Feature 10: Register Offline PWA Service Worker
     if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
