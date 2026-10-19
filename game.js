@@ -11748,7 +11748,9 @@
 
     // Feature 10: Register Offline PWA Service Worker
     if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+        if (reg && typeof reg.update === 'function') reg.update().catch(() => {});
+      }).catch(() => {});
     }
 
     if (animFrameId) cancelAnimationFrame(animFrameId);
