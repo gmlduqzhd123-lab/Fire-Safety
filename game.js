@@ -874,30 +874,30 @@
         : 'px-1 sm:px-2 py-0.5 sm:py-1 text-[9.5px] sm:text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0';
     }
 
-    // Improvement #1: Sync Main Screen Illustrated Escape Zone Cards
+    // Improvement #1: Sync Main Screen Escape Zone Dock Cards (Draft 2)
     const activeMainStageKey = (customStageObj && customStageObj.isDailyChallenge) ? 'daily' : String(currentStageIdx);
     document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
       const key = pill.getAttribute('data-main-stage');
       const badgeEl = pill.querySelector('[data-stage-badge]');
       if (key === activeMainStageKey) {
-        pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border-2 border-orange-400 bg-gradient-to-b from-orange-500/20 to-slate-950/95 ring-2 ring-yellow-300/60 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+        pill.className = 'main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-gradient-to-b from-orange-500/30 to-slate-950 border-2 border-orange-400 ring-2 ring-yellow-300/50 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]';
         if (badgeEl) {
           badgeEl.textContent = '선택됨';
-          badgeEl.className = 'absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow bg-orange-400 text-slate-950';
+          badgeEl.className = 'px-2 py-0.5 rounded-full text-[9.5px] font-black bg-orange-400 text-slate-950';
         }
       } else {
         if (key === '5') {
-          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-emerald-500/60 bg-emerald-950/35 hover:border-emerald-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+          pill.className = 'main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 hover:border-emerald-400 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]';
         } else if (key === 'daily') {
-          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-amber-500/60 bg-amber-950/35 hover:border-amber-400 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+          pill.className = 'main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-amber-950/40 border border-amber-500/50 hover:border-amber-400 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]';
         } else {
-          pill.className = 'main-stage-pill group p-2 sm:p-2.5 rounded-2xl border border-slate-700/90 bg-slate-950/90 hover:border-orange-400/70 flex flex-col justify-between text-left shadow-lg overflow-hidden transition hover:scale-[1.01]';
+          pill.className = 'main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-orange-400/70 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]';
         }
         if (badgeEl) {
           const defBadge = badgeEl.getAttribute('data-default-badge') || '';
-          const defClass = badgeEl.getAttribute('data-default-badge-class') || 'bg-slate-900/90 text-orange-200 border border-orange-400/40';
+          const defClass = badgeEl.getAttribute('data-default-badge-class') || 'bg-slate-800 text-slate-300';
           badgeEl.textContent = defBadge;
-          badgeEl.className = `absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded font-black text-[9px] shadow ${defClass}`;
+          badgeEl.className = `px-2 py-0.5 rounded-full text-[9.5px] font-black ${defClass}`;
         }
       }
     });
@@ -8291,9 +8291,9 @@
     closeOtherModalsExcept(null, true);
     gameState = 'START';
     overlayIcon.textContent = '🚨';
-    overlaySubtitle.textContent = '생명 최우선 · 즉시 대피 훈련';
-    overlayTitle.innerHTML = '화재 탈출<br class="hidden lg:inline"/> 넘버원 3D';
-    overlayDesc.innerHTML = '연기 속 <span class="text-emerald-300 underline underline-offset-4">낮은 자세</span>로 <span class="text-amber-300">비상구(EXIT)</span>까지 신속히 탈출하세요!';
+    overlaySubtitle.textContent = '생명 최우선 · 3D 실감형 대피 훈련';
+    overlayTitle.innerHTML = '화재 탈출 넘버원 3D';
+    overlayDesc.innerHTML = '연기 속 <span class="text-emerald-300 underline underline-offset-4">낮은 자세(Shift)</span>로 <span class="text-amber-300">비상구(EXIT)</span>까지 신속히 탈출하세요!';
     overlayTipsBox.classList.remove('hidden');
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
