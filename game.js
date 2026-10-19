@@ -2849,8 +2849,19 @@
   let fpsCamY = 1.5;
   let fpsCamEyeZ = 0.50;
   let fpsHorizonRatio = 0.44;
+  let fpsCamPullback = 0.42;
+  let fpsAngularVel = 0;
   let crouchVisualLerp = 0;
   let fpsWalkPhase = 0;
+  let walkCyclePhase = 0;
+  let strideBlend = 0;
+  let playerVelX = 0;
+  let playerVelY = 0;
+  let visualDirX = 0;
+  let visualDirY = 1;
+  let visualFacingX = 1;
+  let dioramaCamX = 1.5;
+  let dioramaCamY = 1.5;
   let fpsLastStepHalf = 0;
   let fpsForwardSurge = 0;
   let fpsTurnBias = 0;
@@ -2968,7 +2979,7 @@
         const dy = player.y - comp.y;
         const dist = Math.hypot(dx, dy);
         if (dist > desiredDist) {
-          const step = Math.min(dist - desiredDist, dt * 2.2);
+          const step = Math.min(dist - desiredDist, dt * 2.4);
           comp.x += (dx / (dist || 1)) * step;
           comp.y += (dy / (dist || 1)) * step;
         }
@@ -2987,10 +2998,10 @@
     }
 
     const activeSkin = getSelectedSkin();
-    // 1/2 Movement Speed in 3D Modes (1.88 tiles/s standing, 1.32 tiles/s crouching) for calm, non-dizzying navigation
+    // Balanced 3D Movement Speed (1.92 tiles/s standing, 1.36 tiles/s crouching) with smooth inertia
     let baseSpeed = player.crouching
-      ? 1.32 * (activeSkin.crouchSpeedBonus || 1.0)
-      : 1.88;
+      ? 1.36 * (activeSkin.crouchSpeedBonus || 1.0)
+      : 1.92;
     if (player.carryingToy) baseSpeed *= 0.72;
 
     // Feature 10: Automatic Bluetooth / USB Gamepad Support (Zero UI clutter)
@@ -3028,11 +3039,11 @@
     let targetSurge = 0;
     let targetTurnBias = 0;
     const sensMult = Math.max(0.6, Math.min(1.4, (appSettings.sensitivity || 100) / 100));
-    const motionMult = appSettings.reduceMotion ? 0.25 : 0.65;
+    const motionMult = appSettings.reduceMotion ? 0.25 : 0.68;
 
     if (cameraMode3D === 'FPS_3D') {
-      // Smooth, Non-Dizzying 1st-Person 3D Perspective Walkthrough Controls:
-      // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Calm Smooth Turn
+      // Smooth, Inertia-Damped 1st-Person 3D Perspective Walkthrough Controls:
+      // ▲(W) = Walk Forward into the 3D room/corridor, ▼(S) = Step Backward, ◀(A)/▶(D) = Smooth Damped Turn
       const turnInput = ((keysPressed.right ? 1 : 0) - (keysPressed.left ? 1 : 0)) || gpAxesX;
       const forwardInput = ((keysPressed.up ? 1 : 0) - (keysPressed.down ? 1 : 0)) || -gpAxesY;
 
@@ -3040,21 +3051,24 @@
         pointerMoveTarget = null;
       }
 
-      if (turnInput !== 0) {
-        // Gentle, non-dizzying turn rate (~45% slower than before)
-        const turnSpeed = (forwardInput !== 0 ? 0.72 : 0.86) * sensMult;
-        fpsCamYaw += turnInput * turnSpeed * dt;
-        targetTurnBias = turnInput * 0.45 * motionMult;
-        player.dirX = Math.cos(fpsCamYaw);
-        player.dirY = Math.sin(fpsCamYaw);
-      } else if (forwardInput > 0) {
-        // Gentle Corridor Alignment Assist: when walking forward without turning, softly align toward nearest 90° corridor axis if close
+      const maxTurnRate = (forwardInput !== 0 ? 0.84 : 0.98) * sensMult;
+      const desiredAngVel = turnInput * maxTurnRate;
+      fpsAngularVel += (desiredAngVel - fpsAngularVel) * Math.min(1, dt * (turnInput !== 0 ? 11.5 : 14.0));
+      if (Math.abs(fpsAngularVel) > 0.001) {
+        fpsCamYaw += fpsAngularVel * dt;
+        targetTurnBias = (fpsAngularVel / Math.max(0.5, maxTurnRate)) * 0.48 * motionMult;
+      } else {
+        fpsAngularVel = 0;
+      }
+
+      if (turnInput === 0 && Math.abs(fpsAngularVel) < 0.03 && forwardInput > 0) {
+        // Subtle Corridor Alignment Assist only when already nearly aligned (< 8 deg) so it never fights user steering
         const snapAxis = Math.round(fpsCamYaw / (Math.PI * 0.5)) * (Math.PI * 0.5);
         let axisDiff = snapAxis - fpsCamYaw;
         while (axisDiff > Math.PI) axisDiff -= Math.PI * 2;
         while (axisDiff < -Math.PI) axisDiff += Math.PI * 2;
-        if (Math.abs(axisDiff) < 0.24) {
-          fpsCamYaw += axisDiff * Math.min(1, dt * 2.6);
+        if (Math.abs(axisDiff) < 0.14) {
+          fpsCamYaw += axisDiff * Math.min(1, dt * 1.4);
         }
       }
 
@@ -3073,8 +3087,8 @@
           let diff = desiredYaw - fpsCamYaw;
           while (diff > Math.PI) diff -= Math.PI * 2;
           while (diff < -Math.PI) diff += Math.PI * 2;
-          fpsCamYaw += diff * Math.min(1, dt * 2.8 * sensMult);
-          targetTurnBias = Math.max(-0.5, Math.min(0.5, diff * 0.6)) * motionMult;
+          fpsCamYaw += diff * Math.min(1, dt * 3.2 * sensMult);
+          targetTurnBias = Math.max(-0.5, Math.min(0.5, diff * 0.55)) * motionMult;
           mvX = dx / dist;
           mvY = dy / dist;
           isMoving = true;
@@ -3087,7 +3101,7 @@
       player.dirX = Math.cos(fpsCamYaw);
       player.dirY = Math.sin(fpsCamYaw);
     } else {
-      // Full-Building 3D Cutaway ('DIORAMA_3D') 4-Way Movement
+      // Full-Building 3D Cutaway ('DIORAMA_3D') 4/8-Way Movement with Smooth Inertia
       if (keysPressed.up) mvY -= 1;
       if (keysPressed.down) mvY += 1;
       if (keysPressed.left) mvX -= 1;
@@ -3118,18 +3132,37 @@
         mvY /= len;
         player.dirX = mvX;
         player.dirY = mvY;
-        fpsCamYaw = Math.atan2(mvY, mvX);
+        // Smoothly slerp fpsCamYaw toward movement direction so switching to FPS_3D is seamless
+        const targetYaw = Math.atan2(mvY, mvX);
+        let yawDiff = targetYaw - fpsCamYaw;
+        while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
+        while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
+        fpsCamYaw += yawDiff * Math.min(1, dt * 9.0);
         targetSurge = 1.0 * motionMult;
         targetTurnBias = mvX * 0.65 * motionMult;
       }
     }
 
-    if (isMoving) {
+    // Smooth Velocity Acceleration & Deceleration (Eliminates robotic 1-frame starts/stops)
+    const targetVx = isMoving ? mvX * baseSpeed : 0;
+    const targetVy = isMoving ? mvY * baseSpeed : 0;
+    const velLerp = Math.min(1, dt * (isMoving ? 15.0 : 12.0));
+    playerVelX += (targetVx - playerVelX) * velLerp;
+    playerVelY += (targetVy - playerVelY) * velLerp;
+    if (!isMoving && Math.hypot(playerVelX, playerVelY) < 0.015) {
+      playerVelX = 0;
+      playerVelY = 0;
+    }
+
+    const currentSpeed = Math.hypot(playerVelX, playerVelY);
+    const hasVelocity = currentSpeed > 0.02;
+
+    if (isMoving || hasVelocity) {
       const probeDirX = player.dirX || mvX;
       const probeDirY = player.dirY || mvY;
 
       // Auto-Interact when walking toward a closed door, locked door (with key), debris (with axe), or sink/valve/breaker/alarm
-      if (autoInteractCooldown <= 0) {
+      if (isMoving && autoInteractCooldown <= 0) {
         const probeAngles = cameraMode3D === 'FPS_3D' ? [0, 0.45, -0.45] : [0];
         let interacted = false;
         for (const angOff of probeAngles) {
@@ -3160,20 +3193,21 @@
         }
       }
 
-      const stepX = mvX * baseSpeed * dt;
-      const stepY = mvY * baseSpeed * dt;
+      const stepX = playerVelX * dt;
+      const stepY = playerVelY * dt;
       let movedX = false;
       let movedY = false;
 
-      // Horizontal step + strong doorway auto-centering & wall-sliding
-      if (canMoveTo(player.x + stepX, player.y, player.radius)) {
+      // Horizontal step + smooth doorway auto-centering & wall-sliding
+      if (Math.abs(stepX) > 0.0001 && canMoveTo(player.x + stepX, player.y, player.radius)) {
         player.x += stepX;
         movedX = true;
-      } else if (Math.abs(mvX) > 0.25) {
+      } else if (Math.abs(mvX) > 0.2) {
+        playerVelX *= 0.5;
         const centerY = Math.floor(player.y) + 0.5;
         const diffY = centerY - player.y;
         if (Math.abs(diffY) > 0.01 && Math.abs(diffY) < 0.49) {
-          const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), baseSpeed * 1.05 * dt);
+          const nudgeY = Math.sign(diffY) * Math.min(Math.abs(diffY), baseSpeed * 1.15 * dt);
           if (canMoveTo(player.x, player.y + nudgeY, player.radius)) {
             player.y += nudgeY;
           }
@@ -3184,15 +3218,16 @@
         }
       }
 
-      // Vertical step + strong doorway auto-centering & wall-sliding
-      if (canMoveTo(player.x, player.y + stepY, player.radius)) {
+      // Vertical step + smooth doorway auto-centering & wall-sliding
+      if (Math.abs(stepY) > 0.0001 && canMoveTo(player.x, player.y + stepY, player.radius)) {
         player.y += stepY;
         movedY = true;
-      } else if (Math.abs(mvY) > 0.25) {
+      } else if (Math.abs(mvY) > 0.2) {
+        playerVelY *= 0.5;
         const centerX = Math.floor(player.x) + 0.5;
         const diffX = centerX - player.x;
         if (Math.abs(diffX) > 0.01 && Math.abs(diffX) < 0.49) {
-          const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), baseSpeed * 1.05 * dt);
+          const nudgeX = Math.sign(diffX) * Math.min(Math.abs(diffX), baseSpeed * 1.15 * dt);
           if (canMoveTo(player.x + nudgeX, player.y, player.radius)) {
             player.x += nudgeX;
           }
@@ -3203,8 +3238,7 @@
         }
       }
 
-      // Smart 3D Corridor & Doorway Slide Assist in FPS_3D:
-      // If pressing ▲ (forward) into a wall near a corner or doorway, smoothly glide along the wall toward the next escape route tile!
+      // Gentle 3D Corridor & Doorway Slide Assist in FPS_3D (glides position without hijacking camera yaw!)
       if (cameraMode3D === 'FPS_3D' && keysPressed.up && !movedX && !movedY) {
         const nextObj = getNextStepObjective();
         if (nextObj) {
@@ -3214,15 +3248,10 @@
             const wdx = (wp.c + 0.5) - player.x;
             const wdy = (wp.r + 0.5) - player.y;
             const wlen = Math.hypot(wdx, wdy) || 1;
-            const slideX = (wdx / wlen) * baseSpeed * 0.85 * dt;
-            const slideY = (wdy / wlen) * baseSpeed * 0.85 * dt;
+            const slideX = (wdx / wlen) * baseSpeed * 0.72 * dt;
+            const slideY = (wdy / wlen) * baseSpeed * 0.72 * dt;
             if (canMoveTo(player.x + slideX, player.y, player.radius)) player.x += slideX;
             if (canMoveTo(player.x, player.y + slideY, player.radius)) player.y += slideY;
-            const desiredYaw = Math.atan2(wdy, wdx);
-            let yawDiff = desiredYaw - fpsCamYaw;
-            while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
-            while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
-            fpsCamYaw += yawDiff * Math.min(1, dt * 2.8);
           }
         }
       }
@@ -3239,19 +3268,66 @@
       }
     }
 
-    // Smoothly interpolate 3D Follow-Camera position & Crouch Eye-Height / Horizon toward player
-    fpsCamX += (player.x - fpsCamX) * Math.min(1, dt * 10.0);
-    fpsCamY += (player.y - fpsCamY) * Math.min(1, dt * 10.0);
+    // Smoothly interpolate 3D Character Visual Facing & Continuous Walk Cycle (Zero limb-popping!)
+    const speedRatio = Math.min(1, currentSpeed / Math.max(0.8, baseSpeed));
+    const targetStrideBlend = isMoving ? Math.max(0.35, speedRatio) : 0;
+    strideBlend += (targetStrideBlend - strideBlend) * Math.min(1, dt * (isMoving ? 12.0 : 9.5));
+    if (strideBlend < 0.005) strideBlend = 0;
+
+    // Continuous phase accumulation: advances at breathing rate when idle, and at stride cadence when walking
+    const walkFreq = (player.crouching ? 6.8 : 8.4) * strideBlend + 1.8 * (1 - strideBlend);
+    walkCyclePhase = (walkCyclePhase + dt * walkFreq) % (Math.PI * 200);
+
+    const dirLerp = Math.min(1, dt * 12.5);
+    visualDirX += ((player.dirX || 0) - visualDirX) * dirLerp;
+    visualDirY += ((player.dirY || 0) - visualDirY) * dirLerp;
+    const vLen = Math.hypot(visualDirX, visualDirY);
+    if (vLen > 0.01) {
+      visualDirX /= vLen;
+      visualDirY /= vLen;
+    }
+    if (Math.abs(player.dirX) > 0.14) {
+      const targetFace = player.dirX < 0 ? -1 : 1;
+      visualFacingX += (targetFace - visualFacingX) * Math.min(1, dt * 13.0);
+    }
+
+    // Smoothly interpolate 3D Follow-Camera position, continuous pullback & Crouch Eye-Height / Horizon
+    const camFollowLerp = Math.min(1, dt * 11.5);
+    fpsCamX += (player.x - fpsCamX) * camFollowLerp;
+    fpsCamY += (player.y - fpsCamY) * camFollowLerp;
+
+    // Continuous wall-clearance check for FPS_3D camera pullback (eliminates discrete 0.06 step stutter!)
+    const cosY = Math.cos(fpsCamYaw);
+    const sinY = Math.sin(fpsCamYaw);
+    let maxClearBack = 0;
+    for (let probe = 0.03; probe <= 0.48; probe += 0.03) {
+      if (canMoveTo(fpsCamX - cosY * probe, fpsCamY - sinY * probe, 0.15)) {
+        maxClearBack = probe;
+      } else {
+        break;
+      }
+    }
+    fpsCamPullback += (maxClearBack - fpsCamPullback) * Math.min(1, dt * 14.0);
+
+    // Smoothly damp DIORAMA_3D camera with subtle velocity look-ahead and smooth zoom interpolation
+    const lookAheadX = player.x + visualDirX * 0.36 * strideBlend;
+    const lookAheadY = player.y + visualDirY * 0.28 * strideBlend;
+    dioramaCamX += (lookAheadX - dioramaCamX) * Math.min(1, dt * 7.5);
+    dioramaCamY += (lookAheadY - dioramaCamY) * Math.min(1, dt * 7.5);
+    if (typeof dioramaZoomCurrent !== 'undefined') {
+      dioramaZoomCurrent += (dioramaZoom - dioramaZoomCurrent) * Math.min(1, dt * 7.0);
+    }
+
     const camPostureStep = Math.min(1, dt * 9.5);
     fpsCamEyeZ += ((player.crouching ? 0.30 : 0.50) - fpsCamEyeZ) * camPostureStep;
     fpsHorizonRatio += ((player.crouching ? 0.385 : 0.445) - fpsHorizonRatio) * camPostureStep;
     crouchVisualLerp += ((player.crouching ? 1.0 : 0.0) - crouchVisualLerp) * camPostureStep;
 
-    // Update 3D Walk Stride Phase & World-Space 3D Footprints (Calm 1/2 cadence)
-    fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 6.5);
-    fpsTurnBias += (targetTurnBias - fpsTurnBias) * Math.min(1, dt * 6.5);
-    if (isMoving) {
-      const strideSpeed = player.crouching ? 4.2 : 5.4;
+    // Update 3D Walk Stride Phase & World-Space 3D Footprints
+    fpsForwardSurge += (targetSurge - fpsForwardSurge) * Math.min(1, dt * 7.5);
+    fpsTurnBias += (targetTurnBias - fpsTurnBias) * Math.min(1, dt * 7.5);
+    if (isMoving || strideBlend > 0.25) {
+      const strideSpeed = (player.crouching ? 4.4 : 5.6) * Math.max(0.4, strideBlend);
       fpsWalkPhase += dt * strideSpeed;
       const curHalf = Math.floor(fpsWalkPhase / Math.PI);
       if (curHalf !== fpsLastStepHalf) {
@@ -3271,8 +3347,8 @@
       }
     } else {
       const modPhase = fpsWalkPhase % Math.PI;
-      if (modPhase > 0.05 && modPhase < Math.PI - 0.05) {
-        fpsWalkPhase += (modPhase > Math.PI * 0.5 ? (Math.PI - modPhase) : -modPhase) * Math.min(1, dt * 10);
+      if (modPhase > 0.03 && modPhase < Math.PI - 0.03) {
+        fpsWalkPhase += (modPhase > Math.PI * 0.5 ? (Math.PI - modPhase) : -modPhase) * Math.min(1, dt * 9.0);
       }
     }
 
@@ -3608,29 +3684,32 @@
     };
   };
 
-  let dioramaZoom = 1.0;
+  let dioramaZoom = 1.08;
+  let dioramaZoomCurrent = 1.08;
 
   function computeDioramaLayout(w, h) {
     const isCompact = h < 540;
     const padX = isCompact ? 4 : 8;
     const padTop = isCompact ? 4 : 10;
     const padBottom = isCompact ? 4 : 6;
-    const wallRatio = isCompact ? 0.36 : 0.44;
+    const wallRatio = isCompact ? 0.38 : 0.46;
     const slabRatio = isCompact ? 0.16 : 0.22;
     const rawTileW = (w - padX * 2) / COLS;
     const tileH = (h - padTop - padBottom) / (ROWS + wallRatio + slabRatio);
     const tileSize = Math.max(12, Math.min(rawTileW, tileH));
     const stretchX = Math.max(1, Math.min(1.52, rawTileW / Math.max(1, tileSize)));
-    const zoom = dioramaZoom || 1;
+    const zoom = dioramaZoomCurrent || dioramaZoom || 1;
     const wallH = tileSize * wallRatio;
     const slabH = tileSize * slabRatio;
     const boardW = tileSize * COLS * stretchX;
     const boardH = tileSize * ROWS;
     let offsetX = (w - boardW * zoom) / 2;
     let offsetY = (padTop + wallH) * zoom + (h - (padTop + padBottom + wallH + boardH + slabH) * zoom) / 2;
-    if (zoom > 1.01 && typeof player !== 'undefined' && player) {
-      const targetX = w * 0.5 - (player.x * tileSize * stretchX) * zoom;
-      const targetY = h * 0.52 - (player.y * tileSize) * zoom;
+    if (zoom > 1.005 && typeof player !== 'undefined' && player) {
+      const camX = typeof dioramaCamX === 'number' ? dioramaCamX : player.x;
+      const camY = typeof dioramaCamY === 'number' ? dioramaCamY : player.y;
+      const targetX = w * 0.5 - (camX * tileSize * stretchX) * zoom;
+      const targetY = h * 0.52 - (camY * tileSize) * zoom;
       const minX = w - (boardW + padX) * zoom;
       const maxX = padX * zoom;
       const minY = h - (boardH + slabH + padBottom) * zoom;
@@ -3638,7 +3717,7 @@
       offsetX = Math.min(Math.max(targetX, Math.min(minX, maxX)), Math.max(minX, maxX));
       offsetY = Math.min(Math.max(targetY, Math.min(minY, maxY)), Math.max(minY, maxY));
     }
-    return { tileSize, stretchX, zoom, wallH, slabH, offsetX, offsetY, isCloseUp: zoom > 1.05 };
+    return { tileSize, stretchX, zoom, wallH, slabH, offsetX, offsetY, isCloseUp: zoom > 1.18 };
   }
 
   function computeShortestEscapePath(startC, startR, goalC, goalR) {
@@ -3703,6 +3782,12 @@
   function orientCameraToOpenSpace() {
     fpsCamX = player.x;
     fpsCamY = player.y;
+    dioramaCamX = player.x;
+    dioramaCamY = player.y;
+    playerVelX = 0;
+    playerVelY = 0;
+    strideBlend = 0;
+    fpsAngularVel = 0;
     const nextObj = getNextStepObjective();
     let bestYaw = Math.atan2(player.dirY || 0, player.dirX || 1);
     if (nextObj) {
@@ -3718,6 +3803,9 @@
     fpsCamYaw = bestYaw;
     player.dirX = Math.cos(fpsCamYaw);
     player.dirY = Math.sin(fpsCamYaw);
+    visualDirX = player.dirX;
+    visualDirY = player.dirY;
+    visualFacingX = player.dirX < -0.1 ? -1 : 1;
     footsteps3D = [];
     fpsForwardSurge = 0;
     fpsTurnBias = 0;
@@ -3753,17 +3841,17 @@
   function toggleMapZoomMode() {
     SoundFX.init();
     SoundFX.pickup();
-    dioramaZoom = dioramaZoom > 1.05 ? 1.0 : 1.4;
+    dioramaZoom = dioramaZoom > 1.18 ? 1.0 : 1.42;
     const zIcon = document.getElementById('mapZoomIcon');
     const zText = document.getElementById('mapZoomText');
-    if (dioramaZoom > 1.05) {
+    if (dioramaZoom > 1.18) {
       if (zIcon) zIcon.textContent = '🗺️';
       if (zText) zText.textContent = '전체맵뷰';
-      showToast('🔍 [1.4배 플레이어 중심 확대뷰] 캐릭터와 방 구조를 크게 확대했습니다! (우측 상단 미니맵 표시)', 'border-sky-400');
+      showToast('🔍 [1.4배 플레이어 중심 3D 추적뷰] 캐릭터와 방 구조를 부드럽게 확대 추적합니다!', 'border-sky-400');
     } else {
       if (zIcon) zIcon.textContent = '🔍';
       if (zText) zText.textContent = '화면확대';
-      showToast('🗺️ [와이드 전체 건물 뷰] 건물 전체 대피 동선을 한눈에 표시합니다!', 'border-sky-400');
+      showToast('🗺️ [와이드 전체 건물 3D 뷰] 건물 전체 대피 동선을 한눈에 표시합니다!', 'border-sky-400');
     }
     renderCanvas();
   }
@@ -3961,10 +4049,14 @@
   function drawHumanCharacter(ctx, footX, footY, charHeight, opts = {}) {
     const {
       crouching = false,
+      crouchLerp = crouching ? 1 : 0,
       moving = false,
+      strideBlend: rawStrideBlend,
+      walkPhase: rawWalkPhase,
       now = 0,
       dirX = 1,
       dirY = 0,
+      facingX: rawFacingX,
       skinId = 'student',
       wetTowel = false,
       hasTowel = false,
@@ -3973,13 +4065,40 @@
       onFire = false
     } = opts;
 
-    // When walking North (▲ Up into the building), render the 3D back-view human with backpack & safety stripes!
-    if (dirY < -0.55 && Math.abs(dirY) >= Math.abs(dirX)) {
+    const cLerp = Math.max(0, Math.min(1, typeof crouchLerp === 'number' ? crouchLerp : (crouching ? 1 : 0)));
+    const sBlend = Math.max(0, Math.min(1, typeof rawStrideBlend === 'number' ? rawStrideBlend : (moving ? 1 : 0)));
+    const phase = typeof rawWalkPhase === 'number' ? rawWalkPhase : (now * 3.4);
+
+    // 1. When walking North (▲ Up into the building), render the 3D Back-3/4 human with backpack & safety stripes
+    if (dirY < -0.50 && Math.abs(dirY) >= Math.abs(dirX) * 0.85) {
       drawHumanCharacter3DWalk(ctx, footX, footY, charHeight, {
         crouching,
+        crouchLerp: cLerp,
         moving,
-        walkPhase: moving ? now * 9.5 : 0,
-        turnBias: dirX * 0.5,
+        strideBlend: sBlend,
+        walkPhase: phase,
+        turnBias: dirX * 0.55,
+        viewMode: 'back',
+        skinId,
+        wetTowel,
+        hasTowel,
+        hasMask,
+        rightTool,
+        onFire
+      });
+      return;
+    }
+
+    // 2. When walking South (▼ Down toward the camera), render the 3D Front-3/4 human stepping toward the viewer!
+    if (dirY > 0.50 && Math.abs(dirY) >= Math.abs(dirX) * 0.85) {
+      drawHumanCharacter3DWalk(ctx, footX, footY, charHeight, {
+        crouching,
+        crouchLerp: cLerp,
+        moving,
+        strideBlend: sBlend,
+        walkPhase: phase,
+        turnBias: dirX * 0.55,
+        viewMode: 'front',
         skinId,
         wetTowel,
         hasTowel,
@@ -3991,10 +4110,13 @@
     }
 
     const u = Math.max(24, charHeight);
-    const facing = dirX < -0.15 ? -1 : 1;
-    const walkPhase = moving ? now * 9.5 : now * 2.2;
-    const stride = moving ? Math.sin(walkPhase) : Math.sin(walkPhase) * 0.12;
-    const bounce = moving ? Math.abs(Math.cos(walkPhase)) * (u * 0.035) : Math.sin(walkPhase) * (u * 0.012);
+    const facing = dirX < -0.12 ? -1 : (dirX > 0.12 ? 1 : (typeof rawFacingX === 'number' && rawFacingX < 0 ? -1 : 1));
+    // Smooth 3D horizontal turn compression when turning between left and right
+    const turnScaleX = typeof rawFacingX === 'number' ? (0.82 + 0.18 * Math.min(1, Math.abs(rawFacingX))) : 1.0;
+    const stride = Math.sin(phase) * (0.08 + 0.92 * sBlend);
+    const strideCos = Math.cos(phase) * sBlend;
+    const bounce = Math.abs(Math.cos(phase)) * (u * 0.038) * sBlend + Math.sin(phase) * (u * 0.010) * (1 - sBlend);
+    const diagDepthY = Math.max(-0.45, Math.min(0.45, dirY)) * (u * 0.045);
 
     // Outfit palette based on character role/skin
     let jacketMain = '#2563eb';
@@ -4046,24 +4168,25 @@
     ctx.save();
     ctx.translate(footX, footY - bounce);
 
-    // Posture kinematics (Standing vs Low Fire-Escape Crouch)
-    const hipY = crouching ? -u * 0.30 : -u * 0.44;
-    const hipX = crouching ? -facing * u * 0.06 : 0;
-    const torsoLen = u * 0.28;
-    const torsoLean = crouching ? facing * 0.46 : facing * (moving ? 0.10 : 0.04);
+    // Smoothly interpolated posture kinematics (Standing <-> Low Fire-Escape Crouch via cLerp)
+    const hipY = -u * (0.44 - 0.14 * cLerp);
+    const hipX = -facing * u * (0.06 * cLerp) * turnScaleX;
+    const torsoLen = u * (0.28 - 0.02 * cLerp);
+    const torsoLean = facing * (0.04 + 0.08 * sBlend + 0.38 * cLerp) * turnScaleX;
     const shoulderX = hipX + Math.sin(torsoLean) * torsoLen;
     const shoulderY = hipY - Math.cos(torsoLean) * torsoLen;
-    const headX = shoulderX + facing * (crouching ? u * 0.05 : u * 0.02);
+    const headX = shoulderX + facing * u * (0.02 + 0.035 * cLerp) * turnScaleX;
     const headY = shoulderY - u * 0.145;
     const headR = u * 0.125;
     const limbR = Math.max(2.2, u * 0.048);
 
-    // 1. Back Leg (Thigh -> Knee -> Ankle -> Shoe)
+    // 1. Back Leg (Thigh -> Knee -> Ankle -> Shoe) with smooth knee-lift arc
     const backStep = -stride;
-    const backKneeX = hipX + facing * (crouching ? u * 0.11 : u * 0.04) + backStep * u * 0.08;
-    const backKneeY = crouching ? -u * 0.16 : -u * 0.23;
-    const backFootX = hipX - facing * u * 0.04 + backStep * u * 0.13;
-    const backFootY = -u * 0.03 + (backStep < 0 ? backStep * u * 0.03 : 0);
+    const backLift = Math.max(0, -strideCos) * (u * 0.045) * sBlend;
+    const backKneeX = hipX + facing * u * (0.04 + 0.07 * cLerp) * turnScaleX + backStep * u * 0.085 * turnScaleX;
+    const backKneeY = -u * (0.23 - 0.07 * cLerp) - backLift * 0.55 - diagDepthY * 0.4;
+    const backFootX = hipX - facing * u * 0.04 * turnScaleX + backStep * u * 0.135 * turnScaleX;
+    const backFootY = -u * 0.03 - backLift - diagDepthY * 0.6;
 
     drawLimbSegment(ctx, hipX, hipY, backKneeX, backKneeY, limbR, pantsBackCol, '#020617');
     drawLimbSegment(ctx, backKneeX, backKneeY, backFootX, backFootY, limbR * 0.88, pantsBackCol, '#020617');
@@ -4071,15 +4194,15 @@
     // Back Shoe
     ctx.fillStyle = '#cbd5e1';
     ctx.beginPath();
-    ctx.ellipse(backFootX + facing * u * 0.03, backFootY + u * 0.015, u * 0.065, u * 0.032, 0, 0, Math.PI * 2);
+    ctx.ellipse(backFootX + facing * u * 0.03 * turnScaleX, backFootY + u * 0.015, u * 0.065, u * 0.032, -backStep * 0.18 * facing, 0, Math.PI * 2);
     ctx.fill();
 
     // 2. Back Arm
-    const backArmSwing = stride * 0.45;
-    const backElbowX = shoulderX - facing * u * 0.04 + Math.sin(backArmSwing) * u * 0.10;
+    const backArmSwing = stride * 0.48;
+    const backElbowX = shoulderX - facing * u * 0.04 * turnScaleX + Math.sin(backArmSwing) * u * 0.10 * turnScaleX;
     const backElbowY = shoulderY + u * 0.12;
-    const backHandX = backElbowX + facing * u * 0.06 + Math.sin(backArmSwing) * u * 0.08;
-    const backHandY = backElbowY + u * 0.10;
+    const backHandX = backElbowX + facing * u * 0.06 * turnScaleX + Math.sin(backArmSwing) * u * 0.08 * turnScaleX;
+    const backHandY = backElbowY + u * 0.10 - Math.abs(Math.sin(backArmSwing)) * u * 0.025;
     drawLimbSegment(ctx, shoulderX, shoulderY + u * 0.02, backElbowX, backElbowY, limbR * 0.82, jacketDark, '#0f172a');
     drawLimbSegment(ctx, backElbowX, backElbowY, backHandX, backHandY, limbR * 0.72, jacketDark, '#0f172a');
     ctx.fillStyle = '#fdba74';
@@ -4087,11 +4210,27 @@
     ctx.arc(backHandX, backHandY, limbR * 0.75, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Articulated Human Torso (3D Shaded Jacket + Reflective Safety Stripe)
+    // 2.5 3D Contoured Backpack on Back of Torso (Adds 3D depth in side/3/4 profile!)
     ctx.save();
     ctx.translate(hipX, hipY);
     ctx.rotate(torsoLean);
     const torsoW = u * 0.21;
+    const packSideX = -facing * torsoW * 0.54;
+    ctx.fillStyle = skinId === 'firefighter' ? '#d97706' : '#1e293b';
+    ctx.strokeStyle = skinId === 'firefighter' ? '#fef08a' : '#475569';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(
+      facing > 0 ? packSideX - u * 0.065 : packSideX - u * 0.015,
+      -torsoLen * 0.86,
+      u * 0.08,
+      torsoLen * 0.64,
+      3
+    );
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Articulated Human Torso (3D Shaded Jacket + Reflective Safety Stripe)
     const tGrad = ctx.createLinearGradient(-torsoW * 0.5, -torsoLen, torsoW * 0.5, 0);
     tGrad.addColorStop(0, jacketMain);
     tGrad.addColorStop(1, jacketDark);
@@ -4118,31 +4257,30 @@
     ctx.fillRect(-torsoW * 0.46, -torsoLen * 0.10, torsoW * 0.92, torsoLen * 0.10);
     ctx.restore();
 
-    // 4. Front Leg (Thigh -> Knee -> Ankle -> Sneaker)
+    // 4. Front Leg (Thigh -> Knee -> Ankle -> Sneaker) with smooth knee-lift arc
     const frontStep = stride;
-    const frontKneeX = hipX + facing * (crouching ? u * 0.14 : u * 0.05) + frontStep * u * 0.09;
-    const frontKneeY = crouching ? -u * 0.15 : -u * 0.22;
-    const frontFootX = hipX + facing * u * 0.03 + frontStep * u * 0.14;
-    const frontFootY = -u * 0.025 - (frontStep > 0 ? frontStep * u * 0.03 : 0);
+    const frontLift = Math.max(0, strideCos) * (u * 0.048) * sBlend;
+    const frontKneeX = hipX + facing * u * (0.05 + 0.09 * cLerp) * turnScaleX + frontStep * u * 0.095 * turnScaleX;
+    const frontKneeY = -u * (0.22 - 0.07 * cLerp) - frontLift * 0.55 + diagDepthY * 0.4;
+    const frontFootX = hipX + facing * u * 0.03 * turnScaleX + frontStep * u * 0.145 * turnScaleX;
+    const frontFootY = -u * 0.025 - frontLift + diagDepthY * 0.6;
 
     drawLimbSegment(ctx, hipX, hipY, frontKneeX, frontKneeY, limbR * 1.04, pantsCol, '#0f172a');
     drawLimbSegment(ctx, frontKneeX, frontKneeY, frontFootX, frontFootY, limbR * 0.92, pantsCol, '#0f172a');
 
-    // Front Sneaker with white sole
+    // Front Sneaker with white sole & pitch rotation during stride
     ctx.fillStyle = shoeCol;
     ctx.beginPath();
-    ctx.ellipse(frontFootX + facing * u * 0.035, frontFootY + u * 0.01, u * 0.072, u * 0.036, 0, 0, Math.PI * 2);
+    ctx.ellipse(frontFootX + facing * u * 0.035 * turnScaleX, frontFootY + u * 0.01, u * 0.072, u * 0.036, -frontStep * 0.22 * facing, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = Math.max(1.2, u * 0.018);
     ctx.stroke();
 
     // 5. Human Neck, Head, Ears, Eyes, Hair/Helmet & Respiratory Protection
-    // Neck
     ctx.fillStyle = '#f59e0b';
     ctx.fillRect(headX - u * 0.035, headY + headR * 0.65, u * 0.07, u * 0.065);
 
-    // Head sphere with warm human skin shading
     const skinGrad = ctx.createRadialGradient(
       headX - facing * headR * 0.2, headY - headR * 0.25, headR * 0.15,
       headX, headY, headR
@@ -4164,7 +4302,7 @@
     ctx.arc(headX - facing * headR * 0.78, headY + headR * 0.05, headR * 0.24, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hair or Safety Helmet (drawn around top of head so eyes & eyebrows are 100% visible!)
+    // Hair or Safety Helmet
     if (helmetCol) {
       ctx.fillStyle = helmetCol;
       ctx.beginPath();
@@ -4173,16 +4311,13 @@
       ctx.strokeStyle = '#fde047';
       ctx.lineWidth = Math.max(1.5, u * 0.022);
       ctx.stroke();
-      // Helmet brim
       ctx.fillStyle = '#facc15';
       ctx.fillRect(headX - headR * 1.22, headY - headR * 0.32, headR * 2.44, headR * 0.18);
     } else {
       ctx.fillStyle = hairCol;
-      // Top crown hair cap (stays cleanly above eyebrows & forehead)
       ctx.beginPath();
       ctx.arc(headX - facing * headR * 0.06, headY - headR * 0.14, headR * 1.04, Math.PI * 1.12, Math.PI * 1.92);
       ctx.fill();
-      // Back hair / sideburn on back side of head
       ctx.beginPath();
       ctx.ellipse(headX - facing * headR * 0.78, headY - headR * 0.12, headR * 0.28, headR * 0.52, -facing * 0.18, 0, Math.PI * 2);
       ctx.fill();
@@ -4193,28 +4328,24 @@
     const eyeY = headY - headR * 0.02;
     const eyeOffset = headR * 0.26;
 
-    // White sclera
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.ellipse(eyeCenterX - eyeOffset * 0.5, eyeY, headR * 0.16, headR * 0.19, 0, 0, Math.PI * 2);
     ctx.ellipse(eyeCenterX + eyeOffset * 0.5, eyeY, headR * 0.16, headR * 0.19, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Dark pupils
     ctx.fillStyle = '#0f172a';
     ctx.beginPath();
     ctx.arc(eyeCenterX - eyeOffset * 0.5 + facing * headR * 0.04, eyeY, headR * 0.095, 0, Math.PI * 2);
     ctx.arc(eyeCenterX + eyeOffset * 0.5 + facing * headR * 0.04, eyeY, headR * 0.095, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eye catchlights
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(eyeCenterX - eyeOffset * 0.5 - headR * 0.02, eyeY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
     ctx.arc(eyeCenterX + eyeOffset * 0.5 - headR * 0.02, eyeY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyebrows
     ctx.strokeStyle = hairCol;
     ctx.lineWidth = Math.max(1.3, u * 0.020);
     ctx.beginPath();
@@ -4224,7 +4355,6 @@
     ctx.lineTo(eyeCenterX + eyeOffset * 0.9, eyeY - headR * 0.24);
     ctx.stroke();
 
-    // Blush, Nose & Mouth (visible when not covered by towel/mask)
     if (!wetTowel && !hasTowel && !hasMask) {
       ctx.fillStyle = 'rgba(244, 63, 94, 0.32)';
       ctx.beginPath();
@@ -4238,7 +4368,6 @@
       ctx.stroke();
     }
 
-    // 3D Gas Mask worn on face
     if (hasMask) {
       const mx = headX + facing * headR * 0.36;
       const my = headY + headR * 0.32;
@@ -4249,7 +4378,6 @@
       ctx.strokeStyle = '#5eead4';
       ctx.lineWidth = Math.max(1.2, u * 0.018);
       ctx.stroke();
-      // Filter cartridge
       ctx.fillStyle = '#facc15';
       ctx.beginPath();
       ctx.arc(mx + facing * headR * 0.35, my + headR * 0.08, headR * 0.22, 0, Math.PI * 2);
@@ -4259,23 +4387,21 @@
     // 6. Front Arm + Held Wet Towel on Mouth/Nose OR Held Rescue Tool
     let frontElbowX, frontElbowY, frontHandX, frontHandY;
     if ((wetTowel || hasTowel) && !hasMask) {
-      // Realistic Fire-Safety Posture: Front hand holds the Wet Towel right over nose & mouth!
-      frontElbowX = shoulderX + facing * u * 0.13;
+      frontElbowX = shoulderX + facing * u * 0.13 * turnScaleX;
       frontElbowY = shoulderY + u * 0.06;
       frontHandX = headX + facing * headR * 0.48;
       frontHandY = headY + headR * 0.34;
     } else {
-      const frontSwing = -stride * 0.45;
-      frontElbowX = shoulderX + facing * u * 0.06 + Math.sin(frontSwing) * u * 0.10;
+      const frontSwing = -stride * 0.48;
+      frontElbowX = shoulderX + facing * u * 0.06 * turnScaleX + Math.sin(frontSwing) * u * 0.10 * turnScaleX;
       frontElbowY = shoulderY + u * 0.12;
-      frontHandX = frontElbowX + facing * u * 0.11 + Math.sin(frontSwing) * u * 0.08;
-      frontHandY = frontElbowY + u * 0.06;
+      frontHandX = frontElbowX + facing * u * 0.11 * turnScaleX + Math.sin(frontSwing) * u * 0.08 * turnScaleX;
+      frontHandY = frontElbowY + u * 0.06 - Math.abs(Math.sin(frontSwing)) * u * 0.025;
     }
 
     drawLimbSegment(ctx, shoulderX, shoulderY + u * 0.03, frontElbowX, frontElbowY, limbR * 0.88, jacketMain, '#0f172a');
     drawLimbSegment(ctx, frontElbowX, frontElbowY, frontHandX, frontHandY, limbR * 0.78, jacketMain, '#0f172a');
 
-    // Folded Cloth Towel held across nose & mouth
     if ((wetTowel || hasTowel) && !hasMask) {
       ctx.fillStyle = wetTowel ? '#38bdf8' : '#facc15';
       ctx.strokeStyle = wetTowel ? '#bae6fd' : '#fef08a';
@@ -4292,7 +4418,6 @@
       }
     }
 
-    // Human Hand
     ctx.fillStyle = '#fed7aa';
     ctx.strokeStyle = '#7c2d12';
     ctx.lineWidth = 1;
@@ -4356,13 +4481,16 @@
     ctx.restore();
   }
 
-  // --- Helper: 3D Over-the-Shoulder / Back-3/4 Articulated Human Renderer for 1st-Person 3D Walkthrough ---
+  // --- Helper: 3D Back-3/4 & Front-3/4 Articulated Human Renderer (Used in FPS_3D, North Walk & South Walk) ---
   function drawHumanCharacter3DWalk(ctx, footX, footY, charHeight, opts = {}) {
     const {
       crouching = false,
+      crouchLerp = crouching ? 1 : 0,
       moving = false,
+      strideBlend: rawStrideBlend,
       walkPhase = 0,
       turnBias = 0,
+      viewMode = 'back',
       skinId = 'student',
       wetTowel = false,
       hasTowel = false,
@@ -4371,12 +4499,16 @@
       onFire = false
     } = opts;
 
+    const isFrontView = viewMode === 'front';
+    const cLerp = Math.max(0, Math.min(1, typeof crouchLerp === 'number' ? crouchLerp : (crouching ? 1 : 0)));
+    const sBlend = Math.max(0, Math.min(1, typeof rawStrideBlend === 'number' ? rawStrideBlend : (moving ? 1 : 0)));
+
     const u = Math.max(28, charHeight);
-    const stride = moving ? Math.sin(walkPhase) : Math.sin(walkPhase) * 0.08;
-    const strideCos = moving ? Math.cos(walkPhase) : 0;
-    const bounce = moving ? Math.abs(stride) * (u * 0.042) : 0;
-    const hipSwayX = strideCos * (u * 0.028) + turnBias * (u * 0.035);
-    const shoulderTwistX = -stride * (u * 0.032) + turnBias * (u * 0.065);
+    const stride = Math.sin(walkPhase) * (0.08 + 0.92 * sBlend);
+    const strideCos = Math.cos(walkPhase) * sBlend;
+    const bounce = Math.abs(Math.sin(walkPhase)) * (u * 0.042) * sBlend + Math.sin(walkPhase) * (u * 0.008) * (1 - sBlend);
+    const hipSwayX = strideCos * (u * 0.026) + turnBias * (u * 0.032);
+    const shoulderTwistX = -stride * (u * 0.030) + turnBias * (u * 0.060);
 
     let jacketMain = '#2563eb';
     let jacketDark = '#1d4ed8';
@@ -4415,47 +4547,55 @@
       shoeCol = '#38bdf8';
       hairCol = '#3f2314';
       helmetCol = null;
+    } else if (skinId === 'p2') {
+      jacketMain = '#ec4899';
+      jacketDark = '#be185d';
+      stripeCol = '#fbcfe8';
+      pantsCol = '#1e293b';
+      shoeCol = '#f43f5e';
+      helmetCol = null;
     }
 
     ctx.save();
     ctx.translate(footX, footY);
 
     const hipSpan = u * 0.082;
-    const hipCenterY = (crouching ? -u * 0.31 : -u * 0.45) - bounce;
-    const torsoLen = crouching ? u * 0.24 : u * 0.29;
+    const hipCenterY = -u * (0.45 - 0.14 * cLerp) - bounce;
+    const torsoLen = u * (0.29 - 0.05 * cLerp);
     const shoulderCenterX = hipSwayX + shoulderTwistX;
     const shoulderCenterY = hipCenterY - torsoLen;
     const shoulderSpan = u * 0.135;
     const limbR = Math.max(2.6, u * 0.052);
 
-    // 1. Left & Right Legs Stepping Into 3D Depth (leftDepth > 0 means stepping forward into the corridor)
+    // 1. Left & Right Legs Stepping Into 3D Depth
     const leftDepth = stride;
     const rightDepth = -stride;
 
     function computeLeg3D(sideSign, depthVal) {
       const hipX = hipSwayX + sideSign * hipSpan;
       const hipY = hipCenterY;
-      // Forward step (depthVal > 0) moves foot UP into the 3D floor (negative Y) and slightly inward in perspective
-      const fX = hipX + sideSign * (crouching ? u * 0.03 : u * 0.01) + turnBias * depthVal * (u * 0.05);
-      const liftY = depthVal < 0 ? Math.abs(depthVal) * (u * 0.055) : 0;
-      const depthShiftY = -depthVal * (u * 0.11);
+      const fX = hipX + sideSign * u * (0.01 + 0.025 * cLerp) + turnBias * depthVal * (u * 0.048);
+      const liftY = isFrontView
+        ? (depthVal > 0 ? depthVal * (u * 0.048) * sBlend : 0)
+        : (depthVal < 0 ? Math.abs(depthVal) * (u * 0.055) * sBlend : 0);
+      const depthShiftY = isFrontView ? depthVal * (u * 0.095) : -depthVal * (u * 0.11);
       const fY = depthShiftY - liftY;
-      const kneeX = (hipX + fX) * 0.5 + sideSign * (crouching ? u * 0.055 : u * 0.018);
-      const kneeY = (hipY + fY) * 0.5 + (crouching ? u * 0.04 : 0) - (depthVal > 0 ? depthVal * u * 0.04 : 0);
-      return { sideSign, depthVal, hipX, hipY, kneeX, kneeY, fX, fY, liftY };
+      const kneeX = (hipX + fX) * 0.5 + sideSign * u * (0.018 + 0.04 * cLerp);
+      const kneeY = (hipY + fY) * 0.5 + u * (0.04 * cLerp) - Math.abs(depthVal) * (u * 0.035);
+      return { sideSign, depthVal, hipX, hipY, kneeX, kneeY, fX, fY, liftY, depthShiftY };
     }
 
     const leftLeg = computeLeg3D(-1, leftDepth);
     const rightLeg = computeLeg3D(1, rightDepth);
 
-    // Draw natural 3D floor contact shadow directly under each individual shoe on the floor tile
+    // Draw natural 3D floor contact shadow directly under each individual shoe
     for (const lg of [leftLeg, rightLeg]) {
       const shadowScale = Math.max(0.55, 1 - lg.liftY / (u * 0.12));
       ctx.fillStyle = 'rgba(2, 6, 23, 0.52)';
       ctx.beginPath();
       ctx.ellipse(
         lg.fX,
-        -lg.depthVal * (u * 0.11) + u * 0.02,
+        lg.depthShiftY + u * 0.02,
         u * 0.075 * shadowScale,
         u * 0.032 * shadowScale,
         0, 0, Math.PI * 2
@@ -4463,25 +4603,27 @@
       ctx.fill();
     }
 
-    // Sort legs back-to-front (farther leg in 3D corridor drawn first, closer leg drawn second)
-    const legsSorted = leftLeg.depthVal >= rightLeg.depthVal ? [leftLeg, rightLeg] : [rightLeg, leftLeg];
+    // Sort legs back-to-front in 3D depth
+    const legsSorted = isFrontView
+      ? (leftLeg.depthVal <= rightLeg.depthVal ? [leftLeg, rightLeg] : [rightLeg, leftLeg])
+      : (leftLeg.depthVal >= rightLeg.depthVal ? [leftLeg, rightLeg] : [rightLeg, leftLeg]);
+
     for (const lg of legsSorted) {
-      const legCol = lg.depthVal > 0.15 ? pantsBackCol : pantsCol;
-      const scalePersp = 1 - lg.depthVal * 0.08;
+      const isFarLeg = isFrontView ? (lg.depthVal < -0.1) : (lg.depthVal > 0.15);
+      const legCol = isFarLeg ? pantsBackCol : pantsCol;
+      const scalePersp = isFrontView ? (1 + lg.depthVal * 0.07) : (1 - lg.depthVal * 0.08);
       drawLimbSegment(ctx, lg.hipX, lg.hipY, lg.kneeX, lg.kneeY, limbR * scalePersp, legCol, '#020617');
       drawLimbSegment(ctx, lg.kneeX, lg.kneeY, lg.fX, lg.fY, limbR * 0.90 * scalePersp, legCol, '#020617');
 
-      // 3D Sneaker (shows white rubber sole tread when foot kicks back toward camera!)
       ctx.fillStyle = shoeCol;
       ctx.beginPath();
-      ctx.ellipse(lg.fX + turnBias * u * 0.018, lg.fY + u * 0.01, u * 0.066 * scalePersp, u * 0.036 * scalePersp, 0, 0, Math.PI * 2);
+      ctx.ellipse(lg.fX + turnBias * u * 0.018, lg.fY + u * 0.01, u * 0.068 * scalePersp, u * 0.036 * scalePersp, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = Math.max(1.3, u * 0.018);
       ctx.stroke();
 
-      if (lg.depthVal < -0.15 && moving) {
-        // Raised sneaker sole facing the camera during push-off stride
+      if (!isFrontView && lg.depthVal < -0.15 && sBlend > 0.25) {
         ctx.fillStyle = '#f8fafc';
         ctx.beginPath();
         ctx.ellipse(lg.fX, lg.fY + u * 0.018, u * 0.052, u * 0.026, 0, 0, Math.PI * 2);
@@ -4489,17 +4631,16 @@
       }
     }
 
-    // 2. Forward-Swinging Arm (drawn behind torso in 3D depth)
+    // Helper to draw 3D Arms
     function drawArm3D(sideSign, armDepth) {
       const shX = shoulderCenterX + sideSign * shoulderSpan;
       const shY = shoulderCenterY + u * 0.03;
       let elX, elY, hdX, hdY;
       if (sideSign === -1 && (wetTowel || hasTowel) && !hasMask) {
-        // Left hand holds wet towel up to mouth/nose
-        elX = shX - u * 0.06;
-        elY = shY + u * 0.07;
-        hdX = shoulderCenterX + (turnBias < 0 ? -u * 0.08 : u * 0.04);
-        hdY = shoulderCenterY - u * 0.08;
+        elX = shX - u * 0.065;
+        elY = shY + u * 0.065;
+        hdX = shoulderCenterX + (isFrontView ? -u * 0.02 : (turnBias < 0 ? -u * 0.08 : u * 0.04));
+        hdY = shoulderCenterY - u * (isFrontView ? 0.095 : 0.08);
       } else {
         elX = shX + sideSign * u * 0.03 + turnBias * armDepth * u * 0.04;
         elY = shY + u * 0.11 - armDepth * u * 0.05;
@@ -4519,13 +4660,21 @@
       return { hdX, hdY };
     }
 
-    const leftArmDepth = -leftDepth;
-    const rightArmDepth = -rightDepth;
+    const leftArmDepth = isFrontView ? leftDepth : -leftDepth;
+    const rightArmDepth = isFrontView ? rightDepth : -rightDepth;
     if (leftArmDepth >= 0) drawArm3D(-1, leftArmDepth);
     if (rightArmDepth >= 0) drawArm3D(1, rightArmDepth);
 
     // 3. 3D Torso, Safety Vest Reflective H-Stripes & Contoured Backpack
     ctx.save();
+    if (isFrontView) {
+      // In Front-3/4 view, backpack silhouette peeks slightly behind shoulders before torso is drawn
+      const packW = shoulderSpan * 1.65;
+      const packH = torsoLen * 0.68;
+      ctx.fillStyle = skinId === 'firefighter' ? '#d97706' : '#1e293b';
+      ctx.fillRect(shoulderCenterX - packW * 0.5 - turnBias * u * 0.03, shoulderCenterY - u * 0.01, packW, packH);
+    }
+
     const torsoGrad = ctx.createLinearGradient(shoulderCenterX - shoulderSpan, shoulderCenterY, shoulderCenterX + shoulderSpan, hipCenterY);
     torsoGrad.addColorStop(0, jacketMain);
     torsoGrad.addColorStop(1, jacketDark);
@@ -4541,7 +4690,7 @@
     ctx.lineWidth = Math.max(1.3, u * 0.018);
     ctx.stroke();
 
-    // High-visibility safety vest reflective stripes across back & shoulders
+    // High-visibility safety vest reflective stripes
     ctx.fillStyle = stripeCol;
     const midTorsoX = (hipSwayX + shoulderCenterX) * 0.5;
     const midTorsoY = (hipCenterY + shoulderCenterY) * 0.5;
@@ -4549,22 +4698,28 @@
     ctx.fillRect(shoulderCenterX - shoulderSpan * 0.55, shoulderCenterY + u * 0.02, u * 0.032, torsoLen * 0.55);
     ctx.fillRect(shoulderCenterX + shoulderSpan * 0.55 - u * 0.032, shoulderCenterY + u * 0.02, u * 0.032, torsoLen * 0.55);
 
-    // Contoured 3D Backpack / Oxygen Tank on back (shifts oppositely to turnBias for 3D parallax!)
-    const packX = midTorsoX - turnBias * u * 0.035;
-    const packY = midTorsoY - u * 0.02;
-    const packW = u * 0.16;
-    const packH = torsoLen * 0.68;
-    ctx.fillStyle = skinId === 'firefighter' ? '#f59e0b' : '#1e293b';
-    ctx.strokeStyle = skinId === 'firefighter' ? '#fef08a' : '#475569';
-    ctx.lineWidth = 1.4;
-    ctx.fillRect(packX - packW * 0.5, packY - packH * 0.45, packW, packH);
-    ctx.strokeRect(packX - packW * 0.5, packY - packH * 0.45, packW, packH);
-    ctx.fillStyle = stripeCol;
-    ctx.fillRect(packX - packW * 0.36, packY - packH * 0.12, packW * 0.72, u * 0.024);
+    if (isFrontView) {
+      // Front zipper & belt buckle
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(midTorsoX - u * 0.01, shoulderCenterY + u * 0.02, u * 0.02, torsoLen * 0.94);
+      ctx.fillRect(hipSwayX - hipSpan * 1.12, hipCenterY - u * 0.025, hipSpan * 2.24, u * 0.035);
+    } else {
+      // Contoured 3D Backpack / Oxygen Tank on back (shifts oppositely to turnBias for 3D parallax!)
+      const packX = midTorsoX - turnBias * u * 0.035;
+      const packY = midTorsoY - u * 0.02;
+      const packW = u * 0.16;
+      const packH = torsoLen * 0.68;
+      ctx.fillStyle = skinId === 'firefighter' ? '#f59e0b' : '#1e293b';
+      ctx.strokeStyle = skinId === 'firefighter' ? '#fef08a' : '#475569';
+      ctx.lineWidth = 1.4;
+      ctx.fillRect(packX - packW * 0.5, packY - packH * 0.45, packW, packH);
+      ctx.strokeRect(packX - packW * 0.5, packY - packH * 0.45, packW, packH);
+      ctx.fillStyle = stripeCol;
+      ctx.fillRect(packX - packW * 0.36, packY - packH * 0.12, packW * 0.72, u * 0.024);
+    }
     ctx.restore();
 
-    // 4. Backward-Swinging Arm (closer to camera, drawn in front of torso) + Equipped 3D Tool
-    if (leftArmDepth < 0) drawArm3D(-1, leftArmDepth);
+    // 4. Closer-to-camera Arm + Equipped 3D Tool
     let rightHandPos = { hdX: shoulderCenterX + shoulderSpan, hdY: shoulderCenterY + u * 0.18 };
     if (rightArmDepth < 0) {
       rightHandPos = drawArm3D(1, rightArmDepth);
@@ -4575,25 +4730,21 @@
       const ty = rightHandPos.hdY - u * 0.04;
       const tw = u * 0.096;
       const th = u * 0.19;
-      // Metallic Valve & Lever Handle on Top
       ctx.fillStyle = '#cbd5e1';
       ctx.fillRect(tx + tw * 0.32, ty - u * 0.038, tw * 0.36, u * 0.04);
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(tx + tw * 0.15, ty - u * 0.048, tw * 0.72, u * 0.018);
-      // Black Discharge Hose
       ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = Math.max(1.5, u * 0.022);
       ctx.beginPath();
       ctx.moveTo(tx + tw * 0.75, ty - u * 0.02);
       ctx.lineTo(tx + tw * 1.12, ty + th * 0.45);
       ctx.stroke();
-      // Red Cylinder Body
       ctx.fillStyle = '#dc2626';
       ctx.strokeStyle = '#7f1d1d';
       ctx.lineWidth = 1.2;
       ctx.fillRect(tx, ty, tw, th);
       ctx.strokeRect(tx, ty, tw, th);
-      // White Safety Instruction Label Band
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(tx + tw * 0.12, ty + th * 0.28, tw * 0.76, th * 0.34);
     } else if (rightTool === 'axe') {
@@ -4621,23 +4772,20 @@
       ctx.fillRect(rightHandPos.hdX - u * 0.032, rightHandPos.hdY - u * 0.068, u * 0.064, u * 0.022);
     }
 
-    // 5. Neck, Head, Ears, Hair/Safety Helmet & 3/4 Turn Facial Profile
+    // 5. Neck, Head, Ears, Hair/Safety Helmet & Facial Features
     const headX = shoulderCenterX + turnBias * u * 0.035;
     const headY = shoulderCenterY - u * 0.135;
-    const headR = u * 0.122;
+    const headR = u * 0.124;
 
-    // Neck
     ctx.fillStyle = '#f59e0b';
     ctx.fillRect(headX - u * 0.035, headY + headR * 0.62, u * 0.07, u * 0.065);
 
-    // Left & Right Ears
     ctx.fillStyle = '#fdba74';
     ctx.beginPath();
     ctx.arc(headX - headR * 0.92, headY + headR * 0.06, headR * 0.22, 0, Math.PI * 2);
     ctx.arc(headX + headR * 0.92, headY + headR * 0.06, headR * 0.22, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head Sphere
     ctx.fillStyle = '#fed7aa';
     ctx.strokeStyle = '#7c2d12';
     ctx.lineWidth = Math.max(1.1, u * 0.016);
@@ -4646,51 +4794,92 @@
     ctx.fill();
     ctx.stroke();
 
-    // When turning left or right (or holding wet towel), show 3/4 cheek, eye & towel/mask on the turned side!
-    const profileDir = Math.abs(turnBias) > 0.12 ? Math.sign(turnBias) : 1;
-    const profileAmount = Math.max(0.35, Math.min(1, Math.abs(turnBias) + 0.35));
-    const eyeX = headX + profileDir * headR * (0.52 * profileAmount + 0.22);
-    const eyeY = headY - headR * 0.04;
+    if (isFrontView) {
+      // Front-3/4 Face: Crown hair/helmet + both eyes + eyebrows + front mask/towel
+      if (helmetCol) {
+        ctx.fillStyle = helmetCol;
+        ctx.beginPath();
+        ctx.arc(headX, headY - headR * 0.24, headR * 1.08, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(headX - headR * 1.15, headY - headR * 0.30, headR * 2.30, headR * 0.17);
+      } else {
+        ctx.fillStyle = hairCol;
+        ctx.beginPath();
+        ctx.arc(headX, headY - headR * 0.18, headR * 1.04, Math.PI * 1.06, Math.PI * 1.94);
+        ctx.fill();
+      }
 
-    // Back/Crown Hair or Safety Helmet (leaves side 3/4 face visible when turning)
-    if (helmetCol) {
-      ctx.fillStyle = helmetCol;
+      const eyeShiftX = turnBias * headR * 0.22;
+      const eyeY = headY - headR * 0.02;
+      const eyeSpan = headR * 0.34;
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(headX, headY - headR * 0.12, headR * 1.08, Math.PI * 0.85, Math.PI * 2.15);
+      ctx.ellipse(headX - eyeSpan + eyeShiftX, eyeY, headR * 0.15, headR * 0.18, 0, 0, Math.PI * 2);
+      ctx.ellipse(headX + eyeSpan + eyeShiftX, eyeY, headR * 0.15, headR * 0.18, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#facc15';
-      ctx.fillRect(headX - headR * 1.12, headY - headR * 0.18, headR * 2.24, headR * 0.16);
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(headX - eyeSpan + eyeShiftX, eyeY, headR * 0.09, 0, Math.PI * 2);
+      ctx.arc(headX + eyeSpan + eyeShiftX, eyeY, headR * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (hasMask || wetTowel || hasTowel) {
+        ctx.fillStyle = hasMask ? '#0f766e' : (wetTowel ? '#38bdf8' : '#facc15');
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = 1.3;
+        ctx.fillRect(headX - headR * 0.52 + eyeShiftX, headY + headR * 0.10, headR * 1.04, headR * 0.56);
+        ctx.strokeRect(headX - headR * 0.52 + eyeShiftX, headY + headR * 0.10, headR * 1.04, headR * 0.56);
+      } else {
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(headX + eyeShiftX, headY + headR * 0.28, headR * 0.16, 0.15, Math.PI - 0.15);
+        ctx.stroke();
+      }
+      if (leftArmDepth < 0) drawArm3D(-1, leftArmDepth);
     } else {
-      ctx.fillStyle = hairCol;
-      ctx.beginPath();
-      // Full natural hair on back of head, shifted slightly away from the turned face side
-      ctx.arc(headX - profileDir * headR * 0.16, headY - headR * 0.06, headR * 0.96, 0, Math.PI * 2);
-      ctx.fill();
-      // Top hair crown
-      ctx.beginPath();
-      ctx.arc(headX, headY - headR * 0.18, headR * 1.02, Math.PI * 1.05, Math.PI * 1.95);
-      ctx.fill();
-    }
+      if (leftArmDepth < 0) drawArm3D(-1, leftArmDepth);
+      const profileDir = Math.abs(turnBias) > 0.12 ? Math.sign(turnBias) : 1;
+      const profileAmount = Math.max(0.35, Math.min(1, Math.abs(turnBias) + 0.35));
+      const eyeX = headX + profileDir * headR * (0.52 * profileAmount + 0.22);
+      const eyeY = headY - headR * 0.04;
 
-    // 3/4 Profile Eye & Eyebrow on the side the character is looking toward
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.ellipse(eyeX, eyeY, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(eyeX + profileDir * headR * 0.04, eyeY, headR * 0.085, 0, Math.PI * 2);
-    ctx.fill();
+      if (helmetCol) {
+        ctx.fillStyle = helmetCol;
+        ctx.beginPath();
+        ctx.arc(headX, headY - headR * 0.12, headR * 1.08, Math.PI * 0.85, Math.PI * 2.15);
+        ctx.fill();
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(headX - headR * 1.12, headY - headR * 0.18, headR * 2.24, headR * 0.16);
+      } else {
+        ctx.fillStyle = hairCol;
+        ctx.beginPath();
+        ctx.arc(headX - profileDir * headR * 0.16, headY - headR * 0.06, headR * 0.96, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(headX, headY - headR * 0.18, headR * 1.02, Math.PI * 1.05, Math.PI * 1.95);
+        ctx.fill();
+      }
 
-    // Wet Towel or Mask visible on the 3/4 cheek/mouth
-    if (wetTowel || hasTowel || hasMask) {
-      ctx.fillStyle = hasMask ? '#0f766e' : (wetTowel ? '#38bdf8' : '#facc15');
-      ctx.strokeStyle = '#e0f2fe';
-      ctx.lineWidth = 1.2;
-      const maskX = headX + profileDir * headR * 0.55;
-      const maskY = headY + headR * 0.28;
-      ctx.fillRect(maskX - headR * 0.36, maskY - headR * 0.24, headR * 0.72, headR * 0.48);
-      ctx.strokeRect(maskX - headR * 0.36, maskY - headR * 0.24, headR * 0.72, headR * 0.48);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(eyeX, eyeY, headR * 0.14, headR * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(eyeX + profileDir * headR * 0.04, eyeY, headR * 0.085, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (wetTowel || hasTowel || hasMask) {
+        ctx.fillStyle = hasMask ? '#0f766e' : (wetTowel ? '#38bdf8' : '#facc15');
+        ctx.strokeStyle = '#e0f2fe';
+        ctx.lineWidth = 1.2;
+        const maskX = headX + profileDir * headR * 0.55;
+        const maskY = headY + headR * 0.28;
+        ctx.fillRect(maskX - headR * 0.36, maskY - headR * 0.24, headR * 0.72, headR * 0.48);
+        ctx.strokeRect(maskX - headR * 0.36, maskY - headR * 0.24, headR * 0.72, headR * 0.48);
+      }
     }
 
     if (onFire) {
@@ -4959,7 +5148,7 @@
     const mapW = Math.min(165, Math.max(115, width * 0.22));
     const mapH = mapW * (ROWS / COLS);
     const mapX = width - mapW - 10;
-    const mapY = 10;
+    const mapY = cameraMode3D === 'DIORAMA_3D' ? 38 : 10;
     const mtw = mapW / COLS;
     const mth = mapH / ROWS;
 
@@ -5016,13 +5205,14 @@
     ctx.fillText('🗺️ 3D 레이더 지도 (터치이동)', mapX + mapW / 2, mapY + mapH + 12);
     ctx.restore();
 
-    // Bottom-Left 1st-Person 3D Walkthrough Status Badge (Never overlaps top toast banner!)
+    // Bottom-Left 3D Walkthrough Status Badge (Never overlaps top toast banner!)
     const gearSummary = player.hasMask
       ? '😷방연마스크 착용'
       : (player.wetTowel ? '🧣젖은수건 착용' : (player.hasTowel ? '🧣수건 보유' : 'Space:반응 · Shift:숙이기'));
     ctx.save();
     const badgeY = height - 34;
-    const badgeText = `👁️ 1인칭 3D 뷰 (${player.crouching ? '🧎낮은자세[Shift]' : '🚶서있음[Shift]'} · ${gearSummary})`;
+    const modePrefix = cameraMode3D === 'FPS_3D' ? '👁️ 1인칭 3D 뷰' : '🔍 3D 근접 추적뷰';
+    const badgeText = `${modePrefix} (${player.crouching ? '🧎낮은자세[Shift]' : '🚶서있음[Shift]'} · ${gearSummary})`;
     ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     const badgeW = Math.ceil(ctx.measureText(badgeText).width) + 18;
     ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
@@ -5074,27 +5264,18 @@
     const cosYaw = Math.cos(fpsCamYaw);
     const sinYaw = Math.sin(fpsCamYaw);
 
-    // Position 3D camera eye slightly behind the player inside open room space (never inside a wall)
-    let camWorldX = player.x;
-    let camWorldY = player.y;
-    for (let d = 0.06; d <= 0.54; d += 0.06) {
-      const tx = player.x - cosYaw * d;
-      const ty = player.y - sinYaw * d;
-      if (canMoveTo(tx, ty, 0.16)) {
-        camWorldX = tx;
-        camWorldY = ty;
-      } else {
-        break;
-      }
-    }
+    // Smoothly damped 3D camera eye position using continuous pullback (zero discrete step stutter!)
+    const camWorldX = fpsCamX - cosYaw * fpsCamPullback;
+    const camWorldY = fpsCamY - sinYaw * fpsCamPullback;
 
     const reduceMot = !!(appSettings && appSettings.reduceMotion);
     const brightMul = Math.max(0.75, Math.min(1.85, ((appSettings && appSettings.brightness) || 100) / 100));
     const camEyeZ = fpsCamEyeZ;
-    const walkBobY = reduceMot ? 0 : Math.sin(fpsWalkPhase * 2) * (fpsForwardSurge * 0.45);
+    const walkBobY = reduceMot ? 0 : Math.abs(Math.sin(fpsWalkPhase)) * (fpsForwardSurge * 4.2);
+    const walkSwayX = reduceMot ? 0 : Math.cos(fpsWalkPhase) * (fpsForwardSurge * 2.6) - fpsTurnBias * 7.0;
     const horizon = height * fpsHorizonRatio + walkBobY;
     const vertScale = height * 0.74;
-    const halfW = width * 0.5;
+    const halfW = width * 0.5 + walkSwayX * 0.35;
 
     // Pre-compute fire light pulse & exit light coordinates ONCE per frame (eliminates thousands of Math.sin calls)
     const activeFireLights = [];
@@ -5985,8 +6166,10 @@
       }
     }
 
-    // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints, Archive Bookshelves & Fire Hydrants)
-    for (const wf of visibleWallFixtures.values()) {
+    // Draw Crisp Badges on Visible Escape-Room Wall Fixtures (Blueprints, Archive Bookshelves & Fire Hydrants) with De-Overlapping
+    const placed3DLabels = [];
+    const sortedWallFixtures = Array.from(visibleWallFixtures.values()).sort((a, b) => a.depth - b.depth);
+    for (const wf of sortedWallFixtures) {
       ctx.save();
       ctx.font = `bold ${Math.max(10, Math.min(13, Math.floor(18 / wf.depth)))}px "Noto Sans KR", sans-serif`;
       const tw = ctx.measureText(wf.label).width + 12;
@@ -5995,6 +6178,14 @@
         ctx.restore();
         continue;
       }
+      const overlapsExisting = placed3DLabels.some(
+        (b) => Math.abs(clampedWfX - b.x) < (tw + b.w) * 0.52 && Math.abs(wf.y - b.y) < 22
+      );
+      if (overlapsExisting) {
+        ctx.restore();
+        continue;
+      }
+      placed3DLabels.push({ x: clampedWfX, y: wf.y, w: tw, h: 18 });
       ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 1.1;
@@ -6185,10 +6376,17 @@
             draw3DPerspectiveBox(c + 0.28, r + 0.30, c + 0.72, r + 0.56, 0.32, 0.54, '#0284c7', '#0369a1', '#0f172a', '#38bdf8');
             const sp = project3DPoint(c + 0.5, r + 0.5, 0.60);
             if (sp && sp.depth < 6.0 && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
-              ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              const lbl = safeSolved ? '🔓금고(해제됨)' : '🔐비상금고(614)';
+              ctx.font = `bold ${Math.max(10, Math.min(15, Math.floor(20 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              const tw = ctx.measureText(lbl).width + 10;
+              const ly = placed3DLabels.some(b => Math.abs(sp.x - b.x) < (tw + b.w) * 0.5 && Math.abs(sp.y - b.y) < 20) ? sp.y + 22 : sp.y;
+              placed3DLabels.push({ x: sp.x, y: ly, w: tw, h: 18 });
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
+              ctx.fillRect(sp.x - tw * 0.5, ly - 9, tw, 18);
               ctx.fillStyle = safeSolved ? '#6ee7b7' : '#fde047';
               ctx.textAlign = 'center';
-              ctx.fillText(safeSolved ? '🔓금고(해제됨)' : '🔐비상금고(614)', sp.x, sp.y);
+              ctx.textBaseline = 'middle';
+              ctx.fillText(lbl, sp.x, ly);
             }
           } else {
             // 3D Escape-Room Archive Bookshelf & Direction-Lock Cabinet
@@ -6196,10 +6394,17 @@
             draw3DPerspectiveBox(c + 0.24, r + 0.24, c + 0.76, r + 0.76, 0.30, 0.52, '#0f172a', '#1e293b', '#090d16', '#22d3ee');
             const sp = project3DPoint(c + 0.5, r + 0.5, 0.60);
             if (sp && sp.depth < 6.0 && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
-              ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              const lbl = (bookSortSolved && dirLockSolved) ? '📚보관함(해제됨)' : '📚서가·🧭자물쇠';
+              ctx.font = `bold ${Math.max(10, Math.min(15, Math.floor(20 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+              const tw = ctx.measureText(lbl).width + 10;
+              const ly = placed3DLabels.some(b => Math.abs(sp.x - b.x) < (tw + b.w) * 0.5 && Math.abs(sp.y - b.y) < 20) ? sp.y + 22 : sp.y;
+              placed3DLabels.push({ x: sp.x, y: ly, w: tw, h: 18 });
+              ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
+              ctx.fillRect(sp.x - tw * 0.5, ly - 9, tw, 18);
               ctx.fillStyle = (bookSortSolved && dirLockSolved) ? '#6ee7b7' : '#c4b5fd';
               ctx.textAlign = 'center';
-              ctx.fillText((bookSortSolved && dirLockSolved) ? '📚보관함(해제됨)' : '📚서가·🧭자물쇠', sp.x, sp.y);
+              ctx.textBaseline = 'middle';
+              ctx.fillText(lbl, sp.x, ly);
             }
           }
         } else if (t === TILE.SINK) {
@@ -6208,12 +6413,23 @@
           draw3DPerspectiveBox(c + 0.24, r + 0.28, c + 0.76, r + 0.74, 0.36, 0.42, '#38bdf8', '#0284c7', '#0369a1', '#ffffff');
           draw3DPerspectiveBox(c + 0.45, r + 0.20, c + 0.55, r + 0.32, 0.42, 0.52, '#f8fafc', '#cbd5e1', '#94a3b8', '#ffffff');
           draw3DPerspectiveBox(c + 0.22, r + 0.14, c + 0.78, r + 0.20, 0.44, 0.80, '#bae6fd', '#38bdf8', '#0284c7', '#e0f2fe');
-          const sp = project3DPoint(c + 0.5, r + 0.5, 0.58);
+          const sp = project3DPoint(c + 0.5, r + 0.5, 0.54);
           if (sp && isPointVisibleInZBuffer(sp.x, sp.depth - 0.15)) {
-            ctx.font = `bold ${Math.max(11, Math.min(20, Math.floor(26 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+            const lbl = '🚰세면대(수건적시기)';
+            ctx.font = `bold ${Math.max(10, Math.min(16, Math.floor(22 / sp.depth)))}px "Noto Sans KR", sans-serif`;
+            const tw = ctx.measureText(lbl).width + 10;
+            const clampedX = Math.max(tw * 0.5 + 8, Math.min(width - tw * 0.5 - 8, sp.x));
+            const ly = placed3DLabels.some(b => Math.abs(clampedX - b.x) < (tw + b.w) * 0.52 && Math.abs(sp.y - b.y) < 22) ? sp.y + 22 : sp.y;
+            placed3DLabels.push({ x: clampedX, y: ly, w: tw, h: 18 });
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.1;
+            ctx.fillRect(clampedX - tw * 0.5, ly - 9, tw, 18);
+            ctx.strokeRect(clampedX - tw * 0.5, ly - 9, tw, 18);
             ctx.fillStyle = '#bae6fd';
             ctx.textAlign = 'center';
-            ctx.fillText('🚰세면대(수건적시기)', sp.x, sp.y);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(lbl, clampedX, ly);
           }
         } else if (t === TILE.OPEN_DOOR) {
           // Wall-Orientation-Aware 3D Open Doorway (Jambs hug actual wall edges; 90°-swung door leaf rests flat against side wall; center 100% open!)
@@ -6561,16 +6777,19 @@
     else if (player.waterCharges > 0) rightTool = 'bucket';
     else if (player.hasFlashlight) rightTool = 'flashlight';
 
-    const isMovingNow = Math.abs(fpsForwardSurge) > 0.08 || Math.abs(fpsTurnBias) > 0.08;
-    const charFootX = width * 0.5 + fpsTurnBias * (width * 0.045);
-    const charFootY = height * 0.91 - fpsForwardSurge * (height * 0.025);
-    const charHeight = Math.min(width, height) * (player.crouching ? 0.19 : 0.23);
+    const isMovingNow = strideBlend > 0.08 || Math.abs(fpsForwardSurge) > 0.08 || Math.abs(fpsTurnBias) > 0.08;
+    const charFootX = width * 0.5 + fpsTurnBias * (width * 0.042);
+    const charFootY = height * 0.91 - fpsForwardSurge * (height * 0.022);
+    const charHeight = Math.min(width, height) * (0.23 - 0.04 * crouchVisualLerp);
 
     drawHumanCharacter3DWalk(ctx, charFootX, charFootY, charHeight, {
       crouching: player.crouching,
+      crouchLerp: crouchVisualLerp,
       moving: isMovingNow,
+      strideBlend: Math.max(strideBlend, Math.min(1, Math.abs(fpsForwardSurge) * 1.4)),
       walkPhase: fpsWalkPhase,
       turnBias: fpsTurnBias,
+      viewMode: 'back',
       skinId: activeSkin.id || 'student',
       wetTowel: player.wetTowel,
       hasTowel: player.hasTowel,
@@ -6579,7 +6798,7 @@
       onFire: player.onFire
     });
 
-    const headTopY = charFootY - (player.crouching ? charHeight * 0.74 : charHeight * 0.94);
+    const headTopY = charFootY - charHeight * (0.94 - 0.20 * crouchVisualLerp);
     ctx.save();
     const pBadgeText = player.crouching ? '나 (🧎낮은자세 · 신선한 공기층)' : '나 (🚶서있음)';
     ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
@@ -6849,6 +7068,7 @@
     const pRow = Math.min(ROWS - 1, Math.max(0, Math.floor(player.y)));
     const p2Row = Math.min(ROWS - 1, Math.max(0, Math.floor(player2.y)));
     const activelyMoving = (
+      strideBlend > 0.08 ||
       keysPressed.up || keysPressed.down || keysPressed.left || keysPressed.right ||
       pointerMoveTarget !== null
     );
@@ -6877,6 +7097,15 @@
           const hasBottomWall = r < ROWS - 1 && grid[r + 1][c] === TILE.WALL;
           const bX = Math.max(3, tileSize * 0.14);
 
+          // Check dynamic firelight warmth on nearby 3D walls
+          let wallFireWarmth = 0;
+          for (let fk = 0; fk < fires.length; fk++) {
+            const fdSq = (fires[fk].c - c) * (fires[fk].c - c) + (fires[fk].r - r) * (fires[fk].r - r);
+            if (fdSq <= 6.5) {
+              wallFireWarmth = Math.max(wallFireWarmth, (1 - fdSq / 6.5) * 0.35);
+            }
+          }
+
           ctx.save();
           if (isSouthOfPlayer && r !== ROWS - 1) {
             ctx.globalAlpha = 0.72;
@@ -6902,6 +7131,11 @@
             ctx.fillStyle = '#5c2809';
             ctx.fillRect(x, wallTopY + upperH, tileSize, totalFrontH - upperH);
 
+            if (wallFireWarmth > 0.04) {
+              ctx.fillStyle = `rgba(251, 146, 60, ${wallFireWarmth.toFixed(2)})`;
+              ctx.fillRect(x, wallTopY, tileSize, totalFrontH);
+            }
+
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -6919,6 +7153,10 @@
           const roofH = hasBottomWall ? tileSize : tileSize * 0.76;
           ctx.fillStyle = isCutawayWall ? '#64748b' : '#cbd5e1';
           ctx.fillRect(x, y - curWallH, tileSize, roofH);
+          if (wallFireWarmth > 0.04 && !isCutawayWall) {
+            ctx.fillStyle = `rgba(253, 186, 116, ${(wallFireWarmth * 0.65).toFixed(2)})`;
+            ctx.fillRect(x, y - curWallH, tileSize, roofH);
+          }
           ctx.fillStyle = '#f1f5f9';
           ctx.fillRect(x + 2, y - curWallH + 2, tileSize - 4, Math.max(3, tileSize * 0.13));
           ctx.strokeStyle = 'rgba(15, 23, 42, 0.50)';
@@ -7138,7 +7376,9 @@
           ctx.stroke();
           drawHumanCharacter(ctx, ix, baseY + tileSize * 0.08, tileSize * 0.88, {
             crouching: true,
+            crouchLerp: 1.0,
             moving: false,
+            strideBlend: 0,
             now: now + it.c,
             dirX: -1,
             dirY: 0,
@@ -7208,7 +7448,7 @@
 
         if (flashlightSpotEnabled && player.hasFlashlight) {
           ctx.save();
-          const fAngle = Math.atan2(player.dirY || 0, player.dirX || 1);
+          const fAngle = Math.atan2(visualDirY || player.dirY || 0, visualDirX || player.dirX || 1);
           const coneLen = tileSize * (player.hasFlashlight ? 2.6 : 1.9);
           ctx.fillStyle = 'rgba(253, 224, 71, 0.22)';
           ctx.beginPath();
@@ -7240,8 +7480,8 @@
         if (player.rescuedDog || player.rescuedNpcs > 0 || rescuedCompanions.length > 0) {
           const dogComp = rescuedCompanions.find(c => c.type === 'dog');
           if (player.rescuedDog || dogComp) {
-            const dogX = dogComp ? dogComp.x * tileSize : (px - player.dirX * tileSize * 0.55);
-            const dogY = dogComp ? (dogComp.y * tileSize - tileSize * 0.12) : (py - player.dirY * tileSize * 0.55 - tileSize * 0.14);
+            const dogX = dogComp ? dogComp.x * tileSize : (px - visualDirX * tileSize * 0.55);
+            const dogY = dogComp ? (dogComp.y * tileSize - tileSize * 0.12) : (py - visualDirY * tileSize * 0.55 - tileSize * 0.14);
             ctx.font = `${Math.floor(tileSize * 0.38)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -7249,21 +7489,25 @@
           }
           const npcComp = rescuedCompanions.find(c => c.type === 'npc');
           if (player.rescuedNpcs > 0 || npcComp) {
-            const npcX = npcComp ? npcComp.x * tileSize : (px - player.dirX * tileSize * 0.78);
-            const npcY = npcComp ? (npcComp.y * tileSize + tileSize * 0.12) : (footY - player.dirY * tileSize * 0.65);
+            const npcX = npcComp ? npcComp.x * tileSize : (px - visualDirX * tileSize * 0.78);
+            const npcY = npcComp ? (npcComp.y * tileSize + tileSize * 0.12) : (footY - visualDirY * tileSize * 0.65);
             drawHumanCharacter(ctx, npcX, npcY, tileSize * 0.85, {
               crouching: player.crouching,
+              crouchLerp: crouchVisualLerp,
               moving: activelyMoving,
+              strideBlend,
+              walkPhase: walkCyclePhase - 1.2,
               now: now + 0.6,
-              dirX: player.dirX,
-              dirY: player.dirY,
+              dirX: visualDirX,
+              dirY: visualDirY,
+              facingX: visualFacingX,
               skinId: 'npc',
               wetTowel: player.wetTowel
             });
           }
           const bubbleComp = rescuedCompanions[0] || {
-            x: player.x - player.dirX * 0.68,
-            y: player.y - player.dirY * 0.68,
+            x: player.x - visualDirX * 0.68,
+            y: player.y - visualDirY * 0.68,
             icon: player.rescuedDog ? '🐶' : '🧒'
           };
           const bx = bubbleComp.x * tileSize;
@@ -7293,10 +7537,14 @@
         const humanH = tileSize * 1.06;
         drawHumanCharacter(ctx, px, footY, humanH, {
           crouching: player.crouching,
+          crouchLerp: crouchVisualLerp,
           moving: activelyMoving,
+          strideBlend,
+          walkPhase: walkCyclePhase,
           now,
-          dirX: player.dirX,
-          dirY: player.dirY,
+          dirX: visualDirX,
+          dirY: visualDirY,
+          facingX: visualFacingX,
           skinId: activeSkin.id || 'student',
           wetTowel: player.wetTowel,
           hasTowel: player.hasTowel,
@@ -7315,7 +7563,7 @@
         ctx.textBaseline = 'middle';
         const mw = ctx.measureText(meTag).width + 10;
         const mh = Math.max(14, Math.floor(tileSize * 0.26));
-        const headTopY = footY - (player.crouching ? humanH * 0.78 : humanH * 0.96);
+        const headTopY = footY - humanH * (0.96 - 0.18 * crouchVisualLerp);
         const my = Math.max(mh / 2 - wallH, headTopY - mh / 2 - 4);
         ctx.fillStyle = autoGuideTimer > 0 ? '#d97706' : (player.crouching ? '#059669' : '#2563eb');
         ctx.fillRect(px - mw / 2, my - mh / 2, mw, mh);
@@ -7340,33 +7588,46 @@
         });
       }
 
-      // 2E. 3D Elevated Ceiling Smoke Plumes in Row r (Fast layered circles instead of per-tile radial gradient)
+      // 2E. 3D Stratified Volumetric Ceiling Smoke Plumes in Row r
       for (const s of smokes) {
         if (s.r !== r) continue;
         const sx = (s.c + 0.5) * tileSize;
-        const floorY = (s.r + 0.52) * tileSize;
-        const sy = (s.r + 0.5) * tileSize - wallH * (player.crouching ? 0.68 : 0.55);
-        const wobble = Math.sin(now + s.phase) * tileSize * 0.06;
+        const floorY = (s.r + 0.54) * tileSize;
+        const smokeLift = 0.56 + 0.14 * crouchVisualLerp;
+        const sy = (s.r + 0.5) * tileSize - wallH * smokeLift;
+        const wobble = Math.sin(now * 1.1 + s.phase) * tileSize * 0.065;
 
-        ctx.fillStyle = player.crouching ? 'rgba(16, 185, 129, 0.14)' : 'rgba(2, 6, 23, 0.32)';
+        // Floor shadow / fresh-air breathing zone indicator
+        ctx.fillStyle = crouchVisualLerp > 0.3 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(2, 6, 23, 0.34)';
         ctx.beginPath();
-        ctx.ellipse(sx + wobble * 0.4, floorY, tileSize * 0.38, tileSize * 0.22, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx + wobble * 0.4, floorY, tileSize * 0.38, tileSize * 0.20, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = player.crouching ? 'rgba(51, 65, 85, 0.34)' : 'rgba(71, 85, 105, 0.52)';
+        // 3D Vertical rising smoke stem connecting floor shadow to ceiling cloud
+        ctx.fillStyle = crouchVisualLerp > 0.3 ? 'rgba(51, 65, 85, 0.18)' : 'rgba(51, 65, 85, 0.30)';
         ctx.beginPath();
-        ctx.arc(sx, sy, tileSize * 0.60, 0, Math.PI * 2);
+        ctx.ellipse(sx + wobble * 0.5, (floorY + sy) * 0.5, tileSize * 0.22, Math.max(4, (floorY - sy) * 0.42), 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = player.crouching ? 'rgba(71, 85, 105, 0.42)' : 'rgba(100, 116, 139, 0.68)';
+        // Outer 3D ceiling smoke billow
+        const outerAlpha = (0.52 - 0.18 * crouchVisualLerp).toFixed(2);
+        ctx.fillStyle = `rgba(51, 65, 85, ${outerAlpha})`;
         ctx.beginPath();
-        ctx.arc(sx + wobble, sy, tileSize * 0.36, 0, Math.PI * 2);
+        ctx.arc(sx - tileSize * 0.12, sy + tileSize * 0.04, tileSize * 0.50, 0, Math.PI * 2);
+        ctx.arc(sx + tileSize * 0.14, sy - tileSize * 0.03, tileSize * 0.46, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.font = `${Math.floor(tileSize * 0.34)}px sans-serif`;
+        // Inner dense ceiling smoke core
+        const innerAlpha = (0.68 - 0.24 * crouchVisualLerp).toFixed(2);
+        ctx.fillStyle = `rgba(100, 116, 139, ${innerAlpha})`;
+        ctx.beginPath();
+        ctx.arc(sx + wobble, sy - tileSize * 0.04, tileSize * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = `${Math.floor(tileSize * 0.32)}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('💨', sx + wobble, sy);
+        ctx.fillText('💨', sx + wobble, sy - tileSize * 0.02);
       }
     }
 
