@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=16" />
+  <link rel="stylesheet" href="./style.css?v=17" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -396,7 +396,7 @@
                   <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
                     <span class="text-[9px] text-slate-400">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
                     <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
-                    <button id="btnReplayAnim" type="button" class="w-full py-1 px-2 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition">▶️ 3초 타임랩스 애니메이션 재생</button>
+                    <div class="flex gap-1 w-full"><button id="btnReplayAnim" type="button" class="flex-1 py-1 px-1.5 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition whitespace-nowrap">▶️ 미니맵 재생</button><button id="btnReplay3DCinematic" type="button" class="flex-1 py-1 px-1.5 rounded bg-sky-600 hover:bg-sky-500 text-[10px] font-extrabold text-white transition whitespace-nowrap">🎥 3D 건물 다시보기</button></div>
                   </div>
                 </div>
 
@@ -615,11 +615,7 @@
           <div class="pointer-events-none"></div>
         </div>
 
-        <div class="hidden lg:flex flex-col text-xs text-slate-400 space-y-1">
-          <div class="font-bold text-slate-200">🕹️ 손쉬운 이동 & 단축키</div>
-          <div>• 십자키/방향키로 이동 · <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-orange-400/50 text-yellow-200 font-mono text-[10px]">Space</kbd> <strong>반응하기</strong> · <kbd class="px-1 py-0.5 rounded bg-slate-800 border border-amber-400/50 text-amber-200 font-mono text-[10px]">Shift</kbd> <strong>숙이기</strong></div>
-          <div>• 맵의 <strong>🎯 노란 화살표 목표</strong>를 직접 터치해도 이동!</div>
-        </div>
+        <div id="dpadCompactBadge" class="px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[9.5px] text-slate-300 font-extrabold whitespace-nowrap text-center">🕹️ 360° 패드 · WASD</div>
       </div>
 
       <!-- Smart Context-Sensitive Action Buttons (✋ 행동하기 placed at the very bottom for natural right-thumb ergonomics) -->
@@ -675,10 +671,10 @@
           <button id="btnTplHouse" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white font-bold transition">🏡 단독·빌라 주택형</button>
           <button id="btnTplSchool" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white font-bold transition">🏫 우리 학교 교실형</button>
         </div>
-        <button id="btnDownloadMapPng" type="button" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold shadow transition flex items-center gap-1">
+        <div class="flex flex-wrap items-center gap-1.5"><button id="btnToggleEditor3D" type="button" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold shadow transition">🧊 3D 실시간 입체뷰: 켜짐</button><button id="btnDownloadMapPng" type="button" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold shadow transition flex items-center gap-1">
           <span>🖼️</span>
           <span>내가 만든 대피도 이미지(PNG) 저장</span>
-        </button>
+        </button></div>
       </div>
 
       <!-- Idea 10: Photo Tracing Floor-Plan Background Uploader -->
@@ -698,6 +694,7 @@
       <!-- Expanded Palette Buttons -->
       <div id="editorPalette" class="flex flex-wrap gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs">
         <button type="button" data-brush="floor" class="editor-brush px-2 py-1 rounded bg-orange-600 text-white font-bold">⬜ 바닥(지우개)</button>
+        <button type="button" data-brush="stamp_room" class="editor-brush px-2 py-1 rounded bg-slate-800 text-indigo-200 font-bold">🏠 3x3 방+문 스탬프</button>
         <button type="button" data-brush="wall" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🧱 벽</button>
         <button type="button" data-brush="furniture" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🪑 가구</button>
         <button type="button" data-brush="door" class="editor-brush px-2 py-1 rounded bg-slate-800 text-slate-200">🚪 방화문</button>
@@ -1592,10 +1589,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=16"></script>
-  <script src="./stages.js?v=16"></script>
-  <script src="./editor.js?v=16"></script>
-  <script src="./tactical-3d.js?v=16"></script>
-  <script src="./game.js?v=16"></script>
+  <script src="./sound.js?v=17"></script>
+  <script src="./stages.js?v=17"></script>
+  <script src="./editor.js?v=17"></script>
+  <script src="./tactical-3d.js?v=17"></script>
+  <script src="./game.js?v=17"></script>
 </body>
 </html>

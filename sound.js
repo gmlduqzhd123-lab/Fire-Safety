@@ -3,10 +3,13 @@
 
   window.FireEscape = window.FireEscape || {};
 
-  // --- Web Audio API Synthesizer ---
+  // --- Web Audio API Synthesizer & 3D Spatial Audio Engine ---
   const SoundFX = {
     ctx: null,
     muted: false,
+    spatialCrackleTimer: 0,
+    lastSpatialPan: 0,
+    lastSpatialGain: 0,
     init() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -19,6 +22,78 @@
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
       }
+    },
+    // Idea #5: 3D Spatial Audio & Crouch Low-Pass Filter for Nearby Fires
+    updateSpatialFireAudio(listenerX, listenerY, listenerYaw, fires, isCrouching, dt = 0.016) {
+      if (this.muted || !Array.isArray(fires) || fires.length === 0) {
+        this.lastSpatialGain = 0;
+        return;
+      }
+      let nearest = null;
+      let minDist = Infinity;
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const d = Math.hypot((f.c + 0.5) - listenerX, (f.r + 0.5) - listenerY);
+        if (d < minDist) {
+          minDist = d;
+          nearest = f;
+        }
+      }
+      if (!nearest || minDist > 7.5) {
+        this.lastSpatialGain = 0;
+        return;
+      }
+      const dx = (nearest.c + 0.5) - listenerX;
+      const dy = (nearest.r + 0.5) - listenerY;
+      const angleToFire = Math.atan2(dy, dx);
+      const relAngle = angleToFire - (Number.isFinite(listenerYaw) ? listenerYaw : 0);
+      const pan = Math.max(-0.95, Math.min(0.95, Math.sin(relAngle)));
+      const proximity = Math.max(0, 1 - minDist / 7.5);
+      const vol = proximity * proximity * (isCrouching ? 0.07 : 0.13);
+
+      this.lastSpatialPan = pan;
+      this.lastSpatialGain = vol;
+
+      this.spatialCrackleTimer -= dt;
+      if (this.spatialCrackleTimer <= 0 && this.ctx) {
+        this.spatialCrackleTimer = 0.14 + Math.random() * 0.14;
+        try {
+          const dur = 0.09 + Math.random() * 0.07;
+          const bufferSize = Math.floor(this.ctx.sampleRate * dur);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (Math.random() > 0.25 ? 1 : 0.2);
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = isCrouching ? 'lowpass' : 'bandpass';
+          filter.frequency.value = isCrouching ? 380 : (720 + Math.random() * 480);
+
+          const gain = this.ctx.createGain();
+          const now = this.ctx.currentTime;
+          gain.gain.setValueAtTime(Math.max(0.005, vol), now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+          noise.connect(filter);
+          if (typeof this.ctx.createStereoPanner === 'function') {
+            const panner = this.ctx.createStereoPanner();
+            panner.pan.setValueAtTime(pan, now);
+            filter.connect(panner);
+            panner.connect(gain);
+          } else {
+            filter.connect(gain);
+          }
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (e) {}
+      }
+    },
+    stopSpatialAudio() {
+      this.lastSpatialGain = 0;
+      this.lastSpatialPan = 0;
     },
     playTone(freq, type, duration, vol = 0.12, slideTo = null) {
       if (this.muted || !this.ctx) return;
@@ -73,6 +148,30 @@
     },
     spray() {
       this.playNoise(0.32, 0.22);
+    },
+    foamPulse(progress = 0.5) {
+      this.playNoise(0.14, 0.18);
+      this.playTone(320 + progress * 260, 'sine', 0.10, 0.09, 480 + progress * 300);
+    },
+    doorSwing(isOpen = true) {
+      if (this.muted) return;
+      if (isOpen) {
+        this.playTone(210, 'triangle', 0.16, 0.14, 340);
+      } else {
+        this.playTone(155, 'triangle', 0.12, 0.18, 62);
+        this.playNoise(0.08, 0.12);
+      }
+    },
+    debrisBreak() {
+      if (this.muted) return;
+      this.playNoise(0.26, 0.24);
+      this.playTone(190, 'sawtooth', 0.18, 0.16, 75);
+      setTimeout(() => this.playTone(140, 'triangle', 0.14, 0.14, 58), 90);
+    },
+    lifelineDescent() {
+      if (this.muted) return;
+      this.playTone(480, 'sine', 0.45, 0.13, 210);
+      setTimeout(() => this.playTone(523.25, 'triangle', 0.25, 0.15, 783.99), 380);
     },
     unlock() {
       this.playTone(440, 'triangle', 0.1, 0.15);

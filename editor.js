@@ -189,6 +189,7 @@
     const editorBgImageInput = document.getElementById('editorBgImageInput');
     const btnClearEditorBg = document.getElementById('btnClearEditorBg');
     const editorBgOpacityRange = document.getElementById('editorBgOpacityRange');
+    const btnToggleEditor3D = document.getElementById('btnToggleEditor3D');
 
     let editorBrush = 'floor';
     let editorGrid = [];
@@ -197,6 +198,17 @@
     let editorItems = [];
     let editorBgImg = null;
     let editorBgOpacity = 0.45;
+    let isEditor3DPreview = true; // Idea #8: Live 3D Isometric/Diorama Preview in Editor
+
+    if (btnToggleEditor3D) {
+      btnToggleEditor3D.addEventListener('click', () => {
+        isEditor3DPreview = !isEditor3DPreview;
+        btnToggleEditor3D.textContent = isEditor3DPreview
+          ? '🧊 3D 실시간 입체뷰: 켜짐'
+          : '🗺️ 2D 도면 뷰: 켜짐';
+        drawEditorCanvas();
+      });
+    }
 
     if (editorBgImageInput) {
       editorBgImageInput.addEventListener('change', (e) => {
@@ -267,9 +279,34 @@
           else if (t === TILE.EXIT) editorCtx.fillStyle = '#059669';
           else if (t === TILE.HOT_DOOR) editorCtx.fillStyle = '#991b1b';
           else if (t === TILE.PHONE_119) editorCtx.fillStyle = '#581c87';
-          else editorCtx.fillStyle = editorBgImg ? 'rgba(30, 41, 59, 0.55)' : '#1e293b';
+          else editorCtx.fillStyle = editorBgImg ? 'rgba(30, 41, 59, 0.55)' : (((r + c) & 1) ? '#1e293b' : '#172033');
 
-          editorCtx.fillRect(x, y, tw - 1, th - 1);
+          editorCtx.fillRect(x, y, tw - 0.8, th - 0.8);
+
+          // Idea #8: Live 3D Extruded Isometric Preview for Walls, Furniture, Doors & Exits
+          if (isEditor3DPreview) {
+            if (t === TILE.WALL) {
+              const ext = Math.max(4, th * 0.28);
+              editorCtx.fillStyle = 'rgba(2, 6, 23, 0.45)';
+              editorCtx.fillRect(x + 2, y + th - 2, tw, 4);
+              editorCtx.fillStyle = '#64748b';
+              editorCtx.fillRect(x, y - ext, tw - 0.8, th - ext * 0.35);
+              editorCtx.fillStyle = '#334155';
+              editorCtx.fillRect(x, y + th - ext * 1.35, tw - 0.8, ext * 1.35);
+              editorCtx.strokeStyle = 'rgba(226, 232, 240, 0.35)';
+              editorCtx.lineWidth = 1;
+              editorCtx.strokeRect(x + 0.5, y - ext + 0.5, tw - 1.8, th - ext * 0.35 - 1);
+            } else if (t === TILE.FURNITURE || t === TILE.SINK || t === TILE.DEBRIS) {
+              const ext = Math.max(3, th * 0.2);
+              editorCtx.fillStyle = t === TILE.SINK ? '#38bdf8' : '#92400e';
+              editorCtx.fillRect(x + 2, y - ext + 2, tw - 4, th - 4);
+            } else if (t === TILE.EXIT) {
+              editorCtx.strokeStyle = '#34d399';
+              editorCtx.lineWidth = 2;
+              editorCtx.strokeRect(x + 1.5, y + 1.5, tw - 3, th - 3);
+            }
+          }
+
           editorCtx.font = '13px sans-serif';
           editorCtx.textAlign = 'center';
           editorCtx.textBaseline = 'middle';
@@ -291,9 +328,21 @@
         }
       }
       for (const s of editorSmokes) {
+        if (isEditor3DPreview) {
+          editorCtx.fillStyle = 'rgba(148, 163, 184, 0.32)';
+          editorCtx.beginPath();
+          editorCtx.arc((s.c + 0.5) * tw, (s.r + 0.5) * th, tw * 0.42, 0, Math.PI * 2);
+          editorCtx.fill();
+        }
         editorCtx.fillText('💨', (s.c + 0.5) * tw, (s.r + 0.5) * th);
       }
       for (const f of editorFires) {
+        if (isEditor3DPreview) {
+          editorCtx.fillStyle = 'rgba(249, 115, 22, 0.28)';
+          editorCtx.beginPath();
+          editorCtx.arc((f.c + 0.5) * tw, (f.r + 0.5) * th, tw * 0.48, 0, Math.PI * 2);
+          editorCtx.fill();
+        }
         const icon = f.fireType === 'oil' ? '🍳' : (f.fireType === 'electric' ? '⚡' : '🔥');
         editorCtx.fillText(icon, (sOrFCoord(f.c)) * tw, (sOrFCoord(f.r)) * th);
       }
@@ -359,6 +408,24 @@
       if (c === lastPaintC && r === lastPaintR) return;
       lastPaintC = c;
       lastPaintR = r;
+
+      // Idea #8: One-Click 3x3 Room + Fire Door Stamp Brush
+      if (editorBrush === 'stamp_room') {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr;
+            const nc = c + dc;
+            if (nr <= 0 || nr >= ROWS - 1 || nc <= 0 || nc >= COLS - 1) continue;
+            if (nr === 1 && nc === 1) continue;
+            const isBorder = Math.abs(dr) === 1 || Math.abs(dc) === 1;
+            const isSouthDoor = dr === 1 && dc === 0;
+            editorGrid[nr][nc] = isSouthDoor ? TILE.DOOR : (isBorder ? TILE.WALL : TILE.FLOOR);
+          }
+        }
+        syncEditorCode();
+        drawEditorCanvas();
+        return;
+      }
 
       editorFires = editorFires.filter(f => !(f.c === c && f.r === r));
       editorSmokes = editorSmokes.filter(s => !(s.c === c && s.r === r));

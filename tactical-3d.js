@@ -10,6 +10,429 @@
     return diff;
   }
 
+  // --- Idea #2: 3D Door Swing & Thermal Ripple Animation Registry ---
+  const doorAnims = new Map(); // key: "r,c" -> { r, c, type: 'open'|'close'|'hot_wave'|'cool_wave', progress: 0..1, timer: 0..1 }
+  let lifelineAnim = null; // { active: true, timer: 0, duration: 1.4, r, c }
+
+  function triggerDoorAnim(r, c, type = 'open') {
+    doorAnims.set(`${r},${c}`, {
+      r,
+      c,
+      type,
+      progress: 0,
+      timer: 0,
+      duration: type === 'hot_wave' || type === 'cool_wave' ? 0.95 : 0.48
+    });
+  }
+
+  function getDoorSwingRatio(r, c, isOpenTile) {
+    const entry = doorAnims.get(`${r},${c}`);
+    if (!entry) return isOpenTile ? 1 : 0;
+    const t = Math.min(1, Math.max(0, entry.progress));
+    // Smooth ease-out cubic
+    const eased = 1 - Math.pow(1 - t, 3);
+    if (entry.type === 'open') return eased;
+    if (entry.type === 'close') return 1 - eased;
+    return isOpenTile ? 1 : 0;
+  }
+
+  function triggerLifelineDescent(r, c) {
+    lifelineAnim = {
+      active: true,
+      timer: 0,
+      duration: 1.35,
+      r,
+      c
+    };
+  }
+
+  function updateAnimations(dt) {
+    for (const [key, anim] of doorAnims.entries()) {
+      anim.timer += dt;
+      anim.progress = Math.min(1, anim.timer / (anim.duration || 0.5));
+      if (anim.timer >= (anim.duration || 0.5) + 0.25) {
+        doorAnims.delete(key);
+      }
+    }
+    if (lifelineAnim && lifelineAnim.active) {
+      lifelineAnim.timer += dt;
+      if (lifelineAnim.timer >= lifelineAnim.duration) {
+        lifelineAnim.active = false;
+      }
+    }
+  }
+
+  function drawDoorEffectsDiorama(ctx, tileSize, now) {
+    if (doorAnims.size === 0) return;
+    ctx.save();
+    for (const anim of doorAnims.values()) {
+      const cx = (anim.c + 0.5) * tileSize;
+      const cy = (anim.r + 0.5) * tileSize;
+      const p = anim.progress;
+      if (anim.type === 'hot_wave' || anim.type === 'cool_wave') {
+        const isHot = anim.type === 'hot_wave';
+        const rad = tileSize * (0.28 + p * 0.65);
+        ctx.strokeStyle = isHot
+          ? `rgba(239, 68, 68, ${(1 - p) * 0.92})`
+          : `rgba(56, 189, 248, ${(1 - p) * 0.88})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.22))}px "Noto Sans KR", sans-serif`;
+        ctx.fillStyle = isHot ? '#fca5a5' : '#bae6fd';
+        ctx.textAlign = 'center';
+        ctx.fillText(isHot ? '🔥고열 감지!' : '❄️안전 확인!', cx, cy - tileSize * (0.4 + p * 0.25));
+      } else {
+        // Door swing arc indicator
+        const startAng = anim.type === 'open' ? 0 : -Math.PI * 0.5;
+        const endAng = anim.type === 'open' ? -Math.PI * 0.5 * p : -Math.PI * 0.5 * (1 - p);
+        ctx.strokeStyle = `rgba(250, 204, 21, ${(1 - p * 0.7) * 0.8})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 2]);
+        ctx.beginPath();
+        ctx.arc(cx - tileSize * 0.35, cy, tileSize * 0.65, Math.min(startAng, endAng), Math.max(startAng, endAng));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawDoorEffectsFPS(ctx, project3DPoint, isPointVisibleInZBuffer) {
+    if (doorAnims.size === 0) return;
+    ctx.save();
+    for (const anim of doorAnims.values()) {
+      const pt = project3DPoint(anim.c + 0.5, anim.r + 0.5, 0.52);
+      if (!pt || pt.depth > 7.5) continue;
+      if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.15)) continue;
+      const p = anim.progress;
+      const isHot = anim.type === 'hot_wave';
+      const isWave = anim.type === 'hot_wave' || anim.type === 'cool_wave';
+      const rad = Math.max(12, (36 / pt.depth) * (0.45 + p * 0.9));
+      ctx.strokeStyle = isWave
+        ? (isHot ? `rgba(239, 68, 68, ${(1 - p) * 0.9})` : `rgba(56, 189, 248, ${(1 - p) * 0.9})`)
+        : `rgba(250, 204, 21, ${(1 - p) * 0.8})`;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      if (isWave) {
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        ctx.fillStyle = isHot ? '#fecaca' : '#bae6fd';
+        ctx.textAlign = 'center';
+        ctx.fillText(isHot ? '🔥 손잡이 고열 감지!' : '❄️ 온도 정상 확인!', pt.x, pt.y - rad - 6);
+      }
+    }
+    ctx.restore();
+  }
+
+  // Idea #2: 3D Exterior Building Descent Overlay for Lifeline (완강기)
+  function drawLifelineDescentOverlay(ctx, width, height) {
+    if (!lifelineAnim || !lifelineAnim.active) return;
+    const p = Math.min(1, lifelineAnim.timer / lifelineAnim.duration);
+    const altitudeM = Math.max(0, (1 - p) * 9.0);
+    ctx.save();
+    const boxW = Math.min(260, width * 0.42);
+    const boxH = Math.min(165, height * 0.42);
+    const bx = width - boxW - 14;
+    const by = 42;
+
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.92)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeRect(bx, by, boxW, boxH);
+
+    // Building exterior wall & scrolling windows
+    const wallX = bx + 20;
+    const wallW = boxW * 0.45;
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(wallX, by + 26, wallW, boxH - 36);
+    const scrollOffset = (p * 120) % 36;
+    ctx.fillStyle = '#fde047';
+    for (let wy = by + 32 - scrollOffset; wy < by + boxH - 18; wy += 36) {
+      if (wy > by + 26) {
+        ctx.fillRect(wallX + 12, wy, wallW - 24, 16);
+      }
+    }
+
+    // Lifeline cable & descending player silhouette
+    const cableX = wallX + wallW + 24;
+    const charY = by + 38 + p * (boxH - 68);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cableX, by + 26);
+    ctx.lineTo(cableX, charY);
+    ctx.stroke();
+
+    // Pulley wheel
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(cableX, by + 28, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Player in safety belt
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(cableX, charY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(cableX - 7, charY - 3, 14, 6);
+
+    // Ground pad
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(wallX, by + boxH - 12, boxW - 36, 4);
+
+    // Labels
+    ctx.fillStyle = '#bae6fd';
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🪢 3D 완강기 외벽 하강 중', bx + 10, by + 16);
+    ctx.fillStyle = '#fef08a';
+    ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+    ctx.fillText(`남은 높이: ${altitudeM.toFixed(1)}m`, cableX + 16, by + boxH * 0.55);
+
+    ctx.restore();
+  }
+
+  // --- Idea #4: 3D Floor Neon Breadcrumb Path & Smoke-Reactive Guide Sign Bloom ---
+  function drawNeonBreadcrumbPathDiorama(ctx, escapePath, player, tileSize, now) {
+    if (!Array.isArray(escapePath) || escapePath.length === 0 || !player) return;
+    ctx.save();
+    const maxNodes = Math.min(escapePath.length, 10);
+    for (let i = 0; i < maxNodes; i++) {
+      const node = escapePath[i];
+      const prevC = i === 0 ? player.x : escapePath[i - 1].c + 0.5;
+      const prevR = i === 0 ? player.y : escapePath[i - 1].r + 0.5;
+      const cx = (node.c + 0.5) * tileSize;
+      const cy = (node.r + 0.5) * tileSize;
+      const ang = Math.atan2((node.r + 0.5) - prevR, (node.c + 0.5) - prevC);
+      const wave = 0.45 + 0.55 * Math.sin(now * 6.5 - i * 0.7);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+      ctx.strokeStyle = `rgba(16, 185, 129, ${(0.25 + 0.5 * wave) * (1 - i / (maxNodes + 2))})`;
+      ctx.lineWidth = Math.max(2, tileSize * 0.06);
+      const s = tileSize * 0.16;
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.7, -s);
+      ctx.lineTo(s * 0.6, 0);
+      ctx.lineTo(-s * 0.7, s);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawNeonBreadcrumbPathFPS(ctx, escapePath, player, smokes, guideSigns, grid, TILE, projectClipped3DPolygon, project3DPoint, isPointVisibleInZBuffer, now) {
+    ctx.save();
+    // 1. Floor Neon Chevron Breadcrumbs along shortest escape route
+    if (Array.isArray(escapePath) && escapePath.length > 0 && player && projectClipped3DPolygon) {
+      const maxSteps = Math.min(escapePath.length, 7);
+      for (let i = 0; i < maxSteps; i++) {
+        const node = escapePath[i];
+        const prevX = i === 0 ? player.x : escapePath[i - 1].c + 0.5;
+        const prevY = i === 0 ? player.y : escapePath[i - 1].r + 0.5;
+        const nx = node.c + 0.5;
+        const ny = node.r + 0.5;
+        const dx = nx - prevX;
+        const dy = ny - prevY;
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len;
+        const uy = dy / len;
+        const px = -uy;
+        const py = ux;
+
+        const wave = 0.4 + 0.6 * Math.sin(now * 7.0 - i * 0.85);
+        const alpha = (0.28 + 0.48 * wave) * (1 - i / (maxSteps + 1));
+
+        // 3D Chevron polygon on floor (z = 0.018)
+        const tipX = nx + ux * 0.18;
+        const tipY = ny + uy * 0.18;
+        const leftX = nx - ux * 0.12 + px * 0.22;
+        const leftY = ny - uy * 0.12 + py * 0.22;
+        const rightX = nx - ux * 0.12 - px * 0.22;
+        const rightY = ny - uy * 0.12 - py * 0.22;
+        const backX = nx - ux * 0.02;
+        const backY = ny - uy * 0.02;
+
+        const poly = projectClipped3DPolygon(
+          [
+            [leftX, leftY, 0.018],
+            [tipX, tipY, 0.018],
+            [rightX, rightY, 0.018],
+            [backX, backY, 0.018]
+          ],
+          0.16
+        );
+        if (poly) {
+          ctx.fillStyle = `rgba(52, 211, 153, ${alpha.toFixed(3)})`;
+          ctx.strokeStyle = `rgba(167, 243, 208, ${(alpha * 1.15).toFixed(3)})`;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(poly[0].x, poly[0].y);
+          for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 2. Smoke-Reactive Emerald Exit / Guide Sign Volumetric Bloom
+    if (project3DPoint && Array.isArray(guideSigns)) {
+      const hasSmoke = Array.isArray(smokes) && smokes.length > 0;
+      const bloomBoost = hasSmoke ? 1.35 : 1.0;
+      for (let i = 0; i < guideSigns.length; i++) {
+        const gs = guideSigns[i];
+        const pt = project3DPoint(gs.c + 0.5, gs.r + 0.5, 0.72);
+        if (!pt || pt.depth > 8.5) continue;
+        if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.2)) continue;
+        const r = Math.max(16, (54 / pt.depth) * bloomBoost);
+        const grad = ctx.createRadialGradient(pt.x, pt.y, 2, pt.x, pt.y, r);
+        grad.addColorStop(0, 'rgba(110, 231, 183, 0.55)');
+        grad.addColorStop(0.45, 'rgba(16, 185, 129, 0.22)');
+        grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Idea #6: Progressive Fire Base-Aim (화원 조준) & Foam Accumulation Renderer ---
+  function drawFireBaseAimDiorama(ctx, fires, player, hasExtinguisher, tileSize, now) {
+    if (!Array.isArray(fires) || fires.length === 0 || !player) return;
+    ctx.save();
+    for (let i = 0; i < fires.length; i++) {
+      const f = fires[i];
+      const dist = Math.hypot((f.c + 0.5) - player.x, (f.r + 0.5) - player.y);
+      const prog = f.extinguishProgress || 0;
+      if (prog <= 0 && (!hasExtinguisher || dist > 2.35)) continue;
+
+      const cx = (f.c + 0.5) * tileSize;
+      const baseY = (f.r + 0.78) * tileSize;
+
+      // White foam accumulation at base of fire when being sprayed
+      if (prog > 0) {
+        ctx.fillStyle = `rgba(241, 245, 249, ${0.45 + prog * 0.45})`;
+        ctx.beginPath();
+        ctx.ellipse(cx, baseY, tileSize * (0.18 + prog * 0.22), tileSize * (0.09 + prog * 0.1), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Base-aim target reticle at bottom of flame
+      if (f.fireType !== 'oil') {
+        const pulse = 0.65 + 0.35 * Math.sin(now * 10);
+        ctx.strokeStyle = prog > 0 ? '#38bdf8' : `rgba(56, 189, 248, ${0.55 + 0.35 * pulse})`;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(cx, baseY, tileSize * 0.28, tileSize * 0.13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (prog > 0) {
+          const bw = tileSize * 0.76;
+          const bh = 6;
+          const bx = cx - bw * 0.5;
+          const by = (f.r + 0.08) * tileSize;
+          ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.fillStyle = '#38bdf8';
+          ctx.fillRect(bx + 1, by + 1, (bw - 2) * Math.min(1, prog), bh - 2);
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawFireBaseAimFPS(ctx, fires, player, hasExtinguisher, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (!Array.isArray(fires) || fires.length === 0 || !player || !project3DPoint) return;
+    ctx.save();
+    for (let i = 0; i < fires.length; i++) {
+      const f = fires[i];
+      const dist = Math.hypot((f.c + 0.5) - player.x, (f.r + 0.5) - player.y);
+      const prog = f.extinguishProgress || 0;
+      if (prog <= 0 && (!hasExtinguisher || dist > 2.45)) continue;
+      if (f.fireType === 'oil') continue;
+
+      const basePt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.08);
+      if (!basePt || basePt.depth > 5.5) continue;
+      if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(basePt.x, basePt.depth - 0.15)) continue;
+
+      const rad = Math.max(10, 26 / basePt.depth);
+      // Foam accumulation at fire base
+      if (prog > 0) {
+        ctx.fillStyle = `rgba(248, 250, 252, ${0.5 + prog * 0.45})`;
+        ctx.beginPath();
+        ctx.ellipse(basePt.x, basePt.y, rad * (0.6 + prog * 0.6), rad * (0.28 + prog * 0.25), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Base-aim target ring
+      const pulse = 0.6 + 0.4 * Math.sin(now * 10);
+      ctx.strokeStyle = prog > 0 ? '#38bdf8' : `rgba(56, 189, 248, ${0.65 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(basePt.x, basePt.y, rad, rad * 0.42, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = '#bae6fd';
+      ctx.textAlign = 'center';
+      ctx.fillText(prog > 0 ? `🎯화원 진압 ${Math.round(prog * 100)}%` : '🎯화원(바닥) 조준 [Space]', basePt.x, basePt.y + rad * 0.45 + 11);
+    }
+    ctx.restore();
+  }
+
+  // --- Idea #9: 3D Cinematic Replay HUD Overlay ---
+  function drawCinematicReplayHUD(ctx, width, height, replayState) {
+    if (!replayState || !replayState.active) return;
+    ctx.save();
+    const padX = Math.max(16, width * 0.06);
+    const barW = width - padX * 2;
+    const barH = 44;
+    const barX = padX;
+    const barY = height - barH - 12;
+
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.8;
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    // Progress bar track
+    const prog = Math.min(1, Math.max(0, replayState.progress || 0));
+    const trackX = barX + 14;
+    const trackY = barY + 28;
+    const trackW = barW - 130;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(trackX, trackY, trackW, 6);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(trackX, trackY, trackW * prog, 6);
+
+    // Commentary text
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 11.5px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`🎥 3D 대피 리플레이 (3x): ${replayState.commentary || '이동 경로를 재생 중입니다...'}`, trackX, barY + 14);
+
+    // Stop / Return button hint on right
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('⏹ 클릭 시 결과창 복귀', barX + barW - 12, barY + 22);
+
+    ctx.restore();
+  }
+
   // Improvement #4: 3-Second Floor Warning Renderer for DIORAMA_3D
   function drawPendingHazardsDiorama(ctx, pendingHazards, tileSize, now) {
     if (!Array.isArray(pendingHazards) || pendingHazards.length === 0) return;
@@ -364,6 +787,18 @@
   }
 
   window.FireEscape.Tactical3D = {
+    triggerDoorAnim,
+    getDoorSwingRatio,
+    triggerLifelineDescent,
+    updateAnimations,
+    drawDoorEffectsDiorama,
+    drawDoorEffectsFPS,
+    drawLifelineDescentOverlay,
+    drawNeonBreadcrumbPathDiorama,
+    drawNeonBreadcrumbPathFPS,
+    drawFireBaseAimDiorama,
+    drawFireBaseAimFPS,
+    drawCinematicReplayHUD,
     drawPendingHazardsDiorama,
     drawPendingHazardsFPS,
     draw3DCompassBar,

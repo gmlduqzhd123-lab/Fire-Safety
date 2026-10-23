@@ -252,18 +252,23 @@ body.landscape-console #dpadWrapper {
   grid-column: 1 !important;
   grid-row: 2 !important;
   display: flex !important;
+  flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
+  gap: 4px !important;
   background: rgba(15, 23, 42, 0.92) !important;
   border: 1px solid #1e293b !important;
   border-radius: 0.65rem !important;
-  padding: 2px !important;
+  padding: 4px 2px !important;
   min-height: 0 !important;
 }
 
 body.landscape-console #dpadPad {
-  width: 110px !important;
-  height: 110px !important;
+  width: 118px !important;
+  height: 118px !important;
+  border-radius: 9999px !important;
+  background: radial-gradient(circle at center, rgba(30, 41, 59, 0.95) 0%, rgba(2, 6, 23, 0.98) 72%, rgba(56, 189, 248, 0.22) 100%) !important;
+  box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.22), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
 }
 
 body.landscape-console #canvasContainer {
@@ -606,3 +611,81 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
 .ys-credit { margin: 0; font-size: 11px; color: #94a3b8; }
 .ys-credit a { color: #fdba74; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 520px) { .ys-wide { display: none; } }
+
+
+/* Idea #7 & #10: Unified Compact Banner & Offline Utility Fallback */
+#toastBanner {
+  top: 4px !important;
+  padding: 2px 10px !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+  background: rgba(2, 6, 23, 0.86) !important;
+  backdrop-filter: blur(4px);
+}
+
+#contextPrompt {
+  bottom: 4px !important;
+  padding: 2px 10px !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+}
+
+/* Idea #9: When 3D Cinematic Replay is running, make #gameOverlay pass-through & transparent */
+#gameOverlay.cinematic-replay-active {
+  background: transparent !important;
+  pointer-events: none !important;
+}
+#gameOverlay.cinematic-replay-active #overlayCard {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Idea #10: Essential Offline Utility CSS Fallback (School Intranet / Offline Mode) */
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.grid { display: grid; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.flex-1 { flex: 1 1 0%; }
+.shrink-0 { flex-shrink: 0; }
+.min-w-0 { min-width: 0px; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whitespace-nowrap { white-space: nowrap; }
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+.font-bold { font-weight: 700; }
+.font-extrabold { font-weight: 800; }
+.font-black { font-weight: 900; }
+.rounded-lg { border-radius: 0.5rem; }
+.rounded-xl { border-radius: 0.75rem; }
+.rounded-2xl { border-radius: 1rem; }
+.rounded-3xl { border-radius: 1.5rem; }
+.rounded-full { border-radius: 9999px; }
+.bg-slate-950 { background-color: #020617; }
+.bg-slate-900 { background-color: #0f172a; }
+.bg-slate-800 { background-color: #1e293b; }
+.text-white { color: #ffffff; }
+.text-slate-100 { color: #f1f5f9; }
+.text-slate-200 { color: #e2e8f0; }
+.text-slate-300 { color: #cbd5e1; }
+.text-slate-400 { color: #94a3b8; }
+.text-amber-200 { color: #fde68a; }
+.text-amber-300 { color: #fcd34d; }
+.text-amber-400 { color: #fbbf24; }
+.text-orange-300 { color: #fdba74; }
+.text-emerald-300 { color: #6ee7b7; }
+.text-emerald-400 { color: #34d399; }
+.text-sky-200 { color: #bae6fd; }
+.text-sky-300 { color: #7dd3fc; }
+.text-sky-400 { color: #38bdf8; }
+.text-rose-200 { color: #fecdd3; }

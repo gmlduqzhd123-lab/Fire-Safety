@@ -497,15 +497,15 @@
     if (document.hidden) clearAllInputStates();
   });
 
-  // --- Toast Notification ---
+  // --- Idea #7: Unified Compact Toast Notification (Synchronized with Top Step Banner, Minimized 3D Occlusion) ---
   function showToast(msg, borderClass = 'border-amber-500/60') {
     toastBanner.textContent = msg;
-    toastBanner.className = `pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 z-20 px-3 py-0.5 rounded-full bg-slate-950/90 border ${borderClass} text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-md transition-all duration-300 opacity-100 translate-y-0 max-w-[94%] truncate text-center`;
+    toastBanner.className = `pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 z-20 px-2.5 py-0.5 rounded-full bg-slate-950/88 border ${borderClass} text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-md transition-all duration-200 opacity-100 translate-y-0 max-w-[88%] truncate text-center`;
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
       toastBanner.classList.remove('opacity-100', 'translate-y-0');
       toastBanner.classList.add('opacity-0', '-translate-y-2');
-    }, 2800);
+    }, 2100);
   }
 
   function addFloatText(gridX, gridY, text, color = '#fde047') {
@@ -1646,6 +1646,8 @@
         const dot = (dx * actor.dirX + dy * actor.dirY) / (dist || 1);
         if (dot > 0.35 || dist < 1.25) {
           const isSpec = (f.fireType === 'oil' || f.fireType === 'electric');
+          f.extinguishProgress = 1.0;
+          if (typeof SoundFX.foamPulse === 'function') SoundFX.foamPulse(1.0);
           fires.splice(i, 1);
           extinguishedCount++;
           metrics.correctExtinguishCount++;
@@ -1807,6 +1809,10 @@
               onSelect: () => {
                 metrics.usedLifeline = true;
                 score += 500;
+                if (typeof SoundFX.lifelineDescent === 'function') SoundFX.lifelineDescent();
+                if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerLifelineDescent === 'function') {
+                  window.FireEscape.Tactical3D.triggerLifelineDescent(Math.floor(player.y), Math.floor(player.x));
+                }
                 closeEduModal();
                 handleStageClear();
               }
@@ -1844,7 +1850,22 @@
             metrics.usedPartition = true;
             unlockBadge('partition');
             score += 400;
-            SoundFX.unlock();
+            if (typeof SoundFX.debrisBreak === 'function') SoundFX.debrisBreak();
+            else SoundFX.unlock();
+            for (let k = 0; k < 20; k++) {
+              const ang = Math.random() * Math.PI * 2;
+              const spd = 1.6 + Math.random() * 2.8;
+              particles.push({
+                x: c + 0.5,
+                y: r + 0.5,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 0.45,
+                maxLife: 0.5,
+                size: 4 + Math.random() * 4,
+                color: '#f8fafc'
+              });
+            }
             closeEduModal();
             handleStageClear();
           }
@@ -2163,7 +2184,12 @@
         }
       } else if (tile === TILE.DOOR) {
         grid[r][c] = TILE.OPEN_DOOR;
-        SoundFX.unlock();
+        if (typeof SoundFX.doorSwing === 'function') SoundFX.doorSwing(true);
+        else SoundFX.unlock();
+        if (window.FireEscape && window.FireEscape.Tactical3D) {
+          window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'open');
+          window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'cool_wave');
+        }
         const openKey = `open:${r},${c}`;
         if (!interactedDoors.has(openKey)) {
           interactedDoors.add(openKey);
@@ -2182,6 +2208,9 @@
       } else if (tile === TILE.OPEN_DOOR) {
         grid[r][c] = TILE.DOOR;
         nudgePlayerOutOfSolidTile(c, r);
+        if (window.FireEscape && window.FireEscape.Tactical3D) {
+          window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'close');
+        }
         if (typeof SoundFX.doorShut === 'function') {
           SoundFX.doorShut();
         } else {
@@ -2207,6 +2236,9 @@
         }
       } else if (tile === TILE.HOT_DOOR) {
         const hotKey = `hot:${r},${c}`;
+        if (window.FireEscape && window.FireEscape.Tactical3D) {
+          window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'hot_wave');
+        }
         openEduModal(
           '범교과 안전 · 열전도와 백드래프트 예방',
           '🤚🌡️ 문 손잡이 온도 확인 결과: 매우 뜨거움!',
@@ -2253,6 +2285,9 @@
           player.keys--;
           metrics.doorHeatChecked++;
           grid[r][c] = TILE.OPEN_DOOR;
+          if (window.FireEscape && window.FireEscape.Tactical3D) {
+            window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'open');
+          }
           interactedDoors.add(`open:${r},${c}`);
           SoundFX.unlock();
           score += 100;
@@ -2335,7 +2370,22 @@
       } else if (tile === TILE.DEBRIS) {
         if (player.hasAxe) {
           grid[r][c] = TILE.FLOOR;
-          SoundFX.unlock();
+          if (typeof SoundFX.debrisBreak === 'function') SoundFX.debrisBreak();
+          else SoundFX.unlock();
+          for (let k = 0; k < 18; k++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 1.5 + Math.random() * 2.5;
+            particles.push({
+              x: c + 0.5,
+              y: r + 0.5,
+              vx: Math.cos(ang) * spd,
+              vy: Math.sin(ang) * spd,
+              life: 0.42,
+              maxLife: 0.45,
+              size: 4 + Math.random() * 4,
+              color: '#fb923c'
+            });
+          }
           score += 200;
           addFloatText(c + 0.5, r + 0.5, '장애물 파괴! +200', '#fb923c');
           showToast('🪓 소방 도끼로 무너진 나무 잔해를 부수고 비상 탈출로를 열었습니다!');
@@ -2469,11 +2519,112 @@
     replayAnimId = requestAnimationFrame(step);
   }
 
+  let cinematicReplayState = {
+    active: false,
+    progress: 0,
+    commentary: '',
+    savedX: 1.5,
+    savedY: 1.5,
+    savedCrouch: false,
+    rafId: null
+  };
+
+  function stop3DCinematicReplay() {
+    if (!cinematicReplayState.active) return;
+    if (cinematicReplayState.rafId) {
+      cancelAnimationFrame(cinematicReplayState.rafId);
+      cinematicReplayState.rafId = null;
+    }
+    cinematicReplayState.active = false;
+    player.x = cinematicReplayState.savedX;
+    player.y = cinematicReplayState.savedY;
+    player.crouching = cinematicReplayState.savedCrouch;
+    if (gameOverlay) gameOverlay.classList.remove('cinematic-replay-active');
+    const btn3d = document.getElementById('btnReplay3DCinematic');
+    if (btn3d) btn3d.textContent = '🎥 3D 건물 다시보기';
+    renderCanvas();
+  }
+
+  function start3DCinematicReplay() {
+    if (!pathHistory || pathHistory.length === 0) return;
+    stop3DCinematicReplay();
+    cinematicReplayState.active = true;
+    cinematicReplayState.progress = 0;
+    cinematicReplayState.savedX = player.x;
+    cinematicReplayState.savedY = player.y;
+    cinematicReplayState.savedCrouch = player.crouching;
+    if (gameOverlay) gameOverlay.classList.add('cinematic-replay-active');
+    const btn3d = document.getElementById('btnReplay3DCinematic');
+    if (btn3d) btn3d.textContent = '⏳ 3D 재생 중...';
+
+    const startTime = performance.now();
+    const duration = Math.max(2200, Math.min(4200, pathHistory.length * 160));
+
+    function step3DReplay(now) {
+      if (!cinematicReplayState.active) return;
+      const p = Math.min(1, (now - startTime) / duration);
+      cinematicReplayState.progress = p;
+      const exactIdx = p * Math.max(0, pathHistory.length - 1);
+      const i0 = Math.floor(exactIdx);
+      const i1 = Math.min(pathHistory.length - 1, i0 + 1);
+      const frac = exactIdx - i0;
+      const pt0 = pathHistory[i0] || pathHistory[0];
+      const pt1 = pathHistory[i1] || pt0;
+
+      player.x = pt0.x + (pt1.x - pt0.x) * frac;
+      player.y = pt0.y + (pt1.y - pt0.y) * frac;
+      player.crouching = pt1.state === 'crouch';
+      const dx = pt1.x - pt0.x;
+      const dy = pt1.y - pt0.y;
+      if (Math.hypot(dx, dy) > 0.01) {
+        player.dirX = dx / Math.hypot(dx, dy);
+        player.dirY = dy / Math.hypot(dx, dy);
+        visualDirX = player.dirX;
+        visualDirY = player.dirY;
+        fpsCamYaw = Math.atan2(player.dirY, player.dirX);
+      }
+      fpsCamX = player.x;
+      fpsCamY = player.y;
+      dioramaCamX = player.x;
+      dioramaCamY = player.y;
+      strideBlend = p < 0.98 ? 0.85 : 0;
+      walkCyclePhase += 0.22;
+      fpsWalkPhase += 0.22;
+
+      if (pt1.state === 'hurt') {
+        cinematicReplayState.commentary = '⚠️ 화염/연기 피해 발생 구간! (낮은 자세 및 우회 필요)';
+      } else if (pt1.state === 'crouch') {
+        cinematicReplayState.commentary = '✅ 낮은 자세(Shift)로 신선한 하층 공기 호흡 이동 중';
+      } else {
+        cinematicReplayState.commentary = '🏃 안전 구역 신속 대피 이동 중';
+      }
+
+      renderReplayMinimap(i1 + 1);
+      renderCanvas();
+
+      if (p < 1) {
+        cinematicReplayState.rafId = requestAnimationFrame(step3DReplay);
+      } else {
+        setTimeout(() => stop3DCinematicReplay(), 450);
+      }
+    }
+    cinematicReplayState.rafId = requestAnimationFrame(step3DReplay);
+  }
+
   if (btnReplayAnim) {
     btnReplayAnim.addEventListener('click', () => {
       SoundFX.init();
       SoundFX.pickup();
       animateReplayMinimap();
+    });
+  }
+
+  const btnReplay3DCinematic = document.getElementById('btnReplay3DCinematic');
+  if (btnReplay3DCinematic) {
+    btnReplay3DCinematic.addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.pickup();
+      start3DCinematicReplay();
     });
   }
 
@@ -2868,6 +3019,9 @@
   let autoInteractCooldown = 0;
   let footsteps3D = [];
   let lastContextPrompt = '';
+  let analogVecX = 0;
+  let analogVecY = 0;
+  let analogMag = 0;
 
   // --- Update Loop ---
   function updateGame(dt) {
@@ -2901,6 +3055,26 @@
     if (typeof updateSafeLockUI === 'function') updateSafeLockUI();
     if (player.hurtCooldown > 0) player.hurtCooldown -= dt;
     if (autoInteractCooldown > 0) autoInteractCooldown -= dt;
+
+    // Idea #2 & #5: Update 3D Door/Lifeline Animations & 3D Spatial Fire Audio
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.updateAnimations === 'function') {
+      window.FireEscape.Tactical3D.updateAnimations(dt);
+    }
+    if (typeof SoundFX.updateSpatialFireAudio === 'function') {
+      SoundFX.updateSpatialFireAudio(player.x, player.y, fpsCamYaw, fires, player.crouching, dt);
+    }
+    // Idea #6: Passive Fire Base-Aim Progress Indicator when aiming extinguisher at a nearby fire
+    if (player.extinguisherCharges > 0 && fires.length > 0) {
+      for (let fi = 0; fi < fires.length; fi++) {
+        const f = fires[fi];
+        const dist = Math.hypot((f.c + 0.5) - player.x, (f.r + 0.5) - player.y);
+        if (dist <= 2.35 && f.fireType !== 'oil') {
+          f.extinguishProgress = Math.min(0.35, (f.extinguishProgress || 0) + dt * 0.45);
+        } else if ((f.extinguishProgress || 0) > 0 && f.extinguishProgress < 0.5) {
+          f.extinguishProgress = Math.max(0, f.extinguishProgress - dt * 0.6);
+        }
+      }
+    }
 
     // Idea 8: 4-Player Group Relay Mode Baton-Pass Check
     if (isRelayMode) {
@@ -3101,14 +3275,19 @@
       player.dirX = Math.cos(fpsCamYaw);
       player.dirY = Math.sin(fpsCamYaw);
     } else {
-      // Full-Building 3D Cutaway ('DIORAMA_3D') 4/8-Way Movement with Smooth Inertia
-      if (keysPressed.up) mvY -= 1;
-      if (keysPressed.down) mvY += 1;
-      if (keysPressed.left) mvX -= 1;
-      if (keysPressed.right) mvX += 1;
-      if (mvX === 0 && mvY === 0 && (gpAxesX !== 0 || gpAxesY !== 0)) {
-        mvX = gpAxesX;
-        mvY = gpAxesY;
+      // Full-Building 3D Cutaway ('DIORAMA_3D') 360° Analog + 4/8-Way Movement with Smooth Inertia
+      if (analogMag > 0.08) {
+        mvX = analogVecX * analogMag;
+        mvY = analogVecY * analogMag;
+      } else {
+        if (keysPressed.up) mvY -= 1;
+        if (keysPressed.down) mvY += 1;
+        if (keysPressed.left) mvX -= 1;
+        if (keysPressed.right) mvX += 1;
+        if (mvX === 0 && mvY === 0 && (gpAxesX !== 0 || gpAxesY !== 0)) {
+          mvX = gpAxesX;
+          mvY = gpAxesY;
+        }
       }
 
       if (mvX !== 0 || mvY !== 0) {
@@ -3238,8 +3417,8 @@
         }
       }
 
-      // Gentle 3D Corridor & Doorway Slide Assist in FPS_3D (glides position without hijacking camera yaw!)
-      if (cameraMode3D === 'FPS_3D' && keysPressed.up && !movedX && !movedY) {
+      // Idea #1: Smart 3D Corridor & Corner Auto-Steer Assist in FPS_3D when walking into a corner/wall
+      if (cameraMode3D === 'FPS_3D' && (keysPressed.up || analogVecY < -0.25) && !movedX && !movedY) {
         const nextObj = getNextStepObjective();
         if (nextObj) {
           const route = computeShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r);
@@ -3248,10 +3427,16 @@
             const wdx = (wp.c + 0.5) - player.x;
             const wdy = (wp.r + 0.5) - player.y;
             const wlen = Math.hypot(wdx, wdy) || 1;
-            const slideX = (wdx / wlen) * baseSpeed * 0.72 * dt;
-            const slideY = (wdy / wlen) * baseSpeed * 0.72 * dt;
+            const slideX = (wdx / wlen) * baseSpeed * 0.76 * dt;
+            const slideY = (wdy / wlen) * baseSpeed * 0.76 * dt;
             if (canMoveTo(player.x + slideX, player.y, player.radius)) player.x += slideX;
             if (canMoveTo(player.x, player.y + slideY, player.radius)) player.y += slideY;
+            // Smoothly auto-steer camera yaw toward open escape corridor when blocked at a corner
+            const openYaw = Math.atan2(wdy, wdx);
+            let cDiff = openYaw - fpsCamYaw;
+            while (cDiff > Math.PI) cDiff -= Math.PI * 2;
+            while (cDiff < -Math.PI) cDiff += Math.PI * 2;
+            fpsCamYaw += cDiff * Math.min(1, dt * 2.6);
           }
         }
       }
@@ -6814,14 +6999,30 @@
     ctx.fillText(pBadgeText, charFootX, headTopY - 11.5);
     ctx.restore();
 
-    // Improvement #4 & #5: Draw 3-Second Pending Floor Hazards & 3D Top Compass Bar in FPS_3D
+    // Improvement #2, #4, #5, #6, #9: Draw 3D Neon Breadcrumbs, Smoke Exit Bloom, Door Ripples, Base-Aim & Compass Bar in FPS_3D
     const Tac3D = window.FireEscape && window.FireEscape.Tactical3D;
     if (Tac3D) {
+      const escapePathFPS = nextObj ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r) : [];
+      if (typeof Tac3D.drawNeonBreadcrumbPathFPS === 'function') {
+        Tac3D.drawNeonBreadcrumbPathFPS(ctx, escapePathFPS, player, smokes, guideSigns, grid, TILE, projectClipped3DPolygon, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.drawDoorEffectsFPS === 'function') {
+        Tac3D.drawDoorEffectsFPS(ctx, project3DPoint, isPointVisibleInZBuffer);
+      }
+      if (typeof Tac3D.drawFireBaseAimFPS === 'function') {
+        Tac3D.drawFireBaseAimFPS(ctx, fires, player, player.extinguisherCharges > 0, project3DPoint, isPointVisibleInZBuffer, now);
+      }
       if (pendingHazards && pendingHazards.length > 0 && typeof Tac3D.drawPendingHazardsFPS === 'function') {
         Tac3D.drawPendingHazardsFPS(ctx, pendingHazards, projectClipped3DPolygon, project3DPoint, isPointVisibleInZBuffer, now);
       }
+      if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
+        Tac3D.drawLifelineDescentOverlay(ctx, width, height);
+      }
       if (typeof Tac3D.draw3DCompassBar === 'function') {
         Tac3D.draw3DCompassBar(ctx, width, height, { player, fpsCamYaw, nextObj });
+      }
+      if (cinematicReplayState && cinematicReplayState.active && typeof Tac3D.drawCinematicReplayHUD === 'function') {
+        Tac3D.drawCinematicReplayHUD(ctx, width, height, cinematicReplayState);
       }
     }
 
@@ -6977,9 +7178,16 @@
       ctx.drawImage(floorCache, 0, 0, boardW, boardH);
     }
 
-    // Improvement #4: Draw 3-Second Floor Hazard Warnings in DIORAMA_3D
-    if (pendingHazards && pendingHazards.length > 0 && window.FireEscape && window.FireEscape.Tactical3D) {
-      window.FireEscape.Tactical3D.drawPendingHazardsDiorama(ctx, pendingHazards, tileSize, now);
+    // Improvement #4: Draw 3-Second Floor Hazard Warnings & 3D Neon Breadcrumb Path in DIORAMA_3D
+    if (window.FireEscape && window.FireEscape.Tactical3D) {
+      const Tac3D = window.FireEscape.Tactical3D;
+      if (pendingHazards && pendingHazards.length > 0 && typeof Tac3D.drawPendingHazardsDiorama === 'function') {
+        Tac3D.drawPendingHazardsDiorama(ctx, pendingHazards, tileSize, now);
+      }
+      if (nextObj && !player.onFire && typeof Tac3D.drawNeonBreadcrumbPathDiorama === 'function') {
+        const escapePathDio = getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r);
+        Tac3D.drawNeonBreadcrumbPathDiorama(ctx, escapePathDio, player, tileSize, now);
+      }
     }
 
     // 1.2 Dynamic 3D Firelight & Emergency Exit Floor Illumination Pools
@@ -7725,6 +7933,17 @@
       ctx.restore();
     }
 
+    // Idea #2 & #6: Draw 3D Door Swing / Thermal Ripple Effects & Fire Base-Aim Reticle in DIORAMA_3D
+    if (window.FireEscape && window.FireEscape.Tactical3D) {
+      const Tac3D = window.FireEscape.Tactical3D;
+      if (typeof Tac3D.drawDoorEffectsDiorama === 'function') {
+        Tac3D.drawDoorEffectsDiorama(ctx, tileSize, now);
+      }
+      if (typeof Tac3D.drawFireBaseAimDiorama === 'function') {
+        Tac3D.drawFireBaseAimDiorama(ctx, fires, player, player.extinguisherCharges > 0, tileSize, now);
+      }
+    }
+
     // 7. Floating 3D Combat/Score Texts
     for (const ft of floatTexts) {
       ctx.save();
@@ -7737,6 +7956,16 @@
     }
 
     ctx.restore();
+
+    if (window.FireEscape && window.FireEscape.Tactical3D) {
+      const Tac3D = window.FireEscape.Tactical3D;
+      if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
+        Tac3D.drawLifelineDescentOverlay(ctx, width, height);
+      }
+      if (cinematicReplayState && cinematicReplayState.active && typeof Tac3D.drawCinematicReplayHUD === 'function') {
+        Tac3D.drawCinematicReplayHUD(ctx, width, height, cinematicReplayState);
+      }
+    }
 
     // 8. When in Close-Up 3D Interior Follow-Cam ('FPS_3D'), draw the Top-Right Building Radar Minimap & Status Pill
     if (isCloseUp) {
@@ -8130,6 +8359,11 @@
   }
 
   canvas.addEventListener('pointerdown', (e) => {
+    if (cinematicReplayState && cinematicReplayState.active) {
+      e.preventDefault();
+      stop3DCinematicReplay();
+      return;
+    }
     e.preventDefault();
     canvasPointerDown = true;
     canvasDragStartX = e.clientX;
@@ -8650,8 +8884,12 @@
     btnLeft.classList.toggle('is-pressed', !!keysPressed.left);
     btnRight.classList.toggle('is-pressed', !!keysPressed.right);
     if (dpadKnob) {
-      const kx = (keysPressed.right ? 10 : 0) - (keysPressed.left ? 10 : 0);
-      const ky = (keysPressed.down ? 10 : 0) - (keysPressed.up ? 10 : 0);
+      const kx = analogMag > 0.05
+        ? Math.round(analogVecX * analogMag * 18)
+        : ((keysPressed.right ? 10 : 0) - (keysPressed.left ? 10 : 0));
+      const ky = analogMag > 0.05
+        ? Math.round(analogVecY * analogMag * 18)
+        : ((keysPressed.down ? 10 : 0) - (keysPressed.up ? 10 : 0));
       dpadKnob.style.transform = `translate(${kx}px, ${ky}px)`;
     }
   }
@@ -8661,6 +8899,9 @@
     keysPressed.down = false;
     keysPressed.left = false;
     keysPressed.right = false;
+    analogVecX = 0;
+    analogVecY = 0;
+    analogMag = 0;
     updateDpadVisuals();
   }
 
@@ -8674,16 +8915,18 @@
       const dy = local.y - cy;
       const dist = Math.hypot(dx, dy);
       pointerMoveTarget = null;
-      if (dist < 8) {
+      if (dist < 7) {
         clearDpadSlideState();
         return;
       }
-      const nx = dx / dist;
-      const ny = dy / dist;
-      keysPressed.right = nx > 0.36;
-      keysPressed.left = nx < -0.36;
-      keysPressed.down = ny > 0.36;
-      keysPressed.up = ny < -0.36;
+      const maxR = Math.max(24, Math.min(cx, cy) * 0.82);
+      analogVecX = dx / dist;
+      analogVecY = dy / dist;
+      analogMag = Math.min(1, (dist - 6) / maxR);
+      keysPressed.right = analogVecX > 0.34;
+      keysPressed.left = analogVecX < -0.34;
+      keysPressed.down = analogVecY > 0.34;
+      keysPressed.up = analogVecY < -0.34;
       updateDpadVisuals();
     };
 
