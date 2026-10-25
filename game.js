@@ -275,7 +275,7 @@
     crouching: false,
     hasTowel: false,
     wetTowel: false,
-    towelWetness: 0,
+    towelWetness: 100,
     sprinklerActive: false,
     sealedDoorsCount: 0,
     hasMask: false,
@@ -671,6 +671,7 @@
       document.getElementById('puzzleModal'),
       document.getElementById('settingsModal'),
       document.getElementById('exitGameModal'),
+      document.getElementById('codexModal'),
       document.getElementById('moreToolsDrawer')
     ];
     list.forEach((m) => {
@@ -693,7 +694,8 @@
       document.getElementById('notebookModal'),
       document.getElementById('puzzleModal'),
       document.getElementById('settingsModal'),
-      document.getElementById('exitGameModal')
+      document.getElementById('exitGameModal'),
+      document.getElementById('codexModal')
     ];
     const allHidden = blockingModals.every((m) => !m || m.classList.contains('hidden'));
     if (gameState === 'PAUSED' && allHidden) {
@@ -776,7 +778,7 @@
     player.crouching = false;
     player.hasTowel = false;
     player.wetTowel = false;
-    player.towelWetness = 0;
+    player.towelWetness = 100;
     player.sprinklerActive = false;
     player.sealedDoorsCount = 0;
     shelterInPlaceState = { active: false, timer: 0, duration: 3.5 };
@@ -2107,6 +2109,7 @@
       } else if (it.type === 'mask') {
         player.hasMask = true;
         player.wetTowel = true;
+        player.towelWetness = 100;
         unlockBadge('mask_light');
         score += 300;
         addFloatText(it.c + 0.5, it.r + 0.5, '습식 방연마스크 착용! +300', '#2dd4bf');
@@ -2212,8 +2215,11 @@
       const { c, r, tile } = target;
 
       if (tile === TILE.SINK) {
-        if (player.hasTowel && !player.wetTowel) {
+        if (player.hasTowel && (!player.wetTowel || (player.towelWetness || 100) < 92)) {
+          const isRefill = player.wetTowel;
           player.wetTowel = true;
+          player.towelWetness = 100;
+          if (isRefill) score += 80;
           player.waterCharges = Math.min(5, player.waterCharges + 2);
           unlockBadge('wet_towel');
           SoundFX.water();
@@ -3743,7 +3749,7 @@
       player.towelWetness = Math.max(0, (typeof player.towelWetness === 'number' ? player.towelWetness : 100) - evapRate * dt);
       if (player.towelWetness <= 0) {
         player.wetTowel = false;
-        player.towelWetness = 0;
+        player.towelWetness = 100;
         showToast('💧 젖은 수건의 수분이 뜨거운 열기에 모두 말랐습니다! 세면대(🚰)에서 다시 적시거나 신속히 탈출하세요!', 'border-amber-400');
       }
     }
@@ -8079,6 +8085,12 @@
 
     if (window.FireEscape && window.FireEscape.Tactical3D) {
       const Tac3D = window.FireEscape.Tactical3D;
+      if (typeof Tac3D.drawShelterInPlaceOverlay === 'function') {
+        Tac3D.drawShelterInPlaceOverlay(ctx, width, height, shelterInPlaceState);
+      }
+      if (typeof Tac3D.drawCriticalVitalsShaderOverlay === 'function') {
+        Tac3D.drawCriticalVitalsShaderOverlay(ctx, width, height, player.hp, player.o2, now, appSettings && appSettings.reduceMotion);
+      }
       if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
         Tac3D.drawLifelineDescentOverlay(ctx, width, height);
       }
@@ -8643,6 +8655,16 @@
       if (e.code === 'Escape' && !e.repeat) {
         e.preventDefault();
         closeMapEditorModal();
+      }
+      return;
+    }
+
+    const codexModalEl = document.getElementById('codexModal');
+    if (codexModalEl && !codexModalEl.classList.contains('hidden')) {
+      if ((e.code === 'Escape' || e.code === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        const closeCodexBtn = document.getElementById('btnCloseCodexModal');
+        if (closeCodexBtn) closeCodexBtn.click();
       }
       return;
     }
@@ -9990,6 +10012,7 @@
       };
     }
     Object.assign(player, saved.player);
+    if (player.wetTowel && !(player.towelWetness > 0)) player.towelWetness = 100;
     grid = saved.grid.map(row => [...row]);
     items = saved.items.map(it => ({ ...it }));
     fires = saved.fires.map(f => ({ ...f, phase: f.phase || 0 }));
@@ -12328,12 +12351,13 @@
       if (!codexModal) return;
       SoundFX.init();
       SoundFX.pickup();
-      if (certModal && !certModal.classList.contains('hidden')) {
-        certModal.classList.add('hidden');
-        certModal.classList.remove('flex');
+      clearAllInputStates();
+      closeOtherModalsExcept(codexModal);
+      if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        pauseIcon.textContent = '▶️';
+        pauseText.textContent = '계속하기';
       }
-      const moreDrawerEl = document.getElementById('moreToolsDrawer');
-      if (moreDrawerEl) moreDrawerEl.classList.add('hidden');
       codexModal.classList.remove('hidden');
       codexModal.classList.add('flex');
       renderCodexSelection();
@@ -12342,12 +12366,15 @@
 
     function closeCodexModal() {
       if (!codexModal) return;
+      clearAllInputStates();
       codexModal.classList.add('hidden');
       codexModal.classList.remove('flex');
       if (codexAnimId) {
         cancelAnimationFrame(codexAnimId);
         codexAnimId = null;
       }
+      resumeIfNoBlockingModalOpen();
+      updateHUD();
     }
 
     if (btnCodexModal) btnCodexModal.addEventListener('click', openCodexModal);
