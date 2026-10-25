@@ -180,7 +180,7 @@ body.landscape-console #gameMain {
   min-height: 0 !important;
   padding: 2px 4px 3px 4px !important;
   display: grid !important;
-  grid-template-columns: 128px minmax(0, 1fr) 104px !important;
+  grid-template-columns: 132px minmax(0, 1fr) 118px !important;
   grid-template-rows: auto minmax(0, 1fr) !important;
   gap: 4px !important;
   align-items: stretch !important;
@@ -378,7 +378,7 @@ body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainIntro
 
 body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainStageSelectBar {
   display: grid !important;
-  grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(9, minmax(0, 1fr)) !important;
 }
 
 /* Result/Debriefing card keeps compact centered modal style */
@@ -387,13 +387,31 @@ body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainStage
 }
 
 body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
-  max-width: 760px !important;
+  max-width: 980px !important;
   max-height: 96% !important;
   height: auto !important;
   border-radius: 1.5rem !important;
   border: 1px solid rgba(51, 65, 85, 0.85) !important;
   margin: auto !important;
-  padding: 16px 24px !important;
+  padding: 14px 24px !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #mainHeroCol,
+#overlayCard:has(#overlayTipsBox.hidden) #overlayStats,
+#overlayCard:has(#overlayTipsBox.hidden) #debriefReportBox {
+  max-width: 930px !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #overlayTitle {
+  font-size: 1.75rem !important;
+  line-height: 2.2rem !important;
+  white-space: nowrap !important;
+}
+
+#overlayCard:has(#overlayTipsBox.hidden) #overlayDesc {
+  font-size: 0.82rem !important;
+  line-height: 1.25rem !important;
+  white-space: nowrap !important;
 }
 
 #overlayCard:has(#overlayTipsBox.hidden) #mainIntroBody {
@@ -689,3 +707,14 @@ body.landscape-console #overlayCard:has(#overlayTipsBox.hidden) {
 .text-sky-300 { color: #7dd3fc; }
 .text-sky-400 { color: #38bdf8; }
 .text-rose-200 { color: #fecdd3; }
+
+/* v21 Single-Line Clean Typography Enforcement */
+body.landscape-console #actionButtonsWrapper button,
+body.landscape-console #actionButtonsWrapper button span,
+#hudSection span,
+#debriefChecklist > div,
+#debriefPrescriptionBox,
+#debriefPrescriptionBox > div,
+#debriefCurriculumNote {
+  white-space: nowrap !important;
+}

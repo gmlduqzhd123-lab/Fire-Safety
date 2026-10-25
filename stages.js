@@ -30,16 +30,16 @@
 
   // --- Badge Encyclopedia Definitions (Idea #9) ---
   const BADGE_DEFS = [
-    { id: 'wet_towel', icon: '💧', name: '젖은수건 마스터', desc: '세면대에서 수건을 적셔 호흡기 보호' },
-    { id: 'pass_ext', icon: '🧯', name: '초기소화 대원', desc: '소화기 PASS 안전핀 뽑기 및 화재 진압' },
-    { id: 'partition', icon: '🧱', name: '경량칸막이 개척자', desc: '베란다 경량칸막이를 부숴 옆집으로 피난' },
-    { id: 'fire_door', icon: '🚪', name: '방화문 지킴이', desc: '열린 방화문을 닫아 연기 확산 차단' },
-    { id: 'stop_roll', icon: '🔄', name: '구르기 달인', desc: '옷에 붙은 불을 멈추고·엎드려·구르기로 진화' },
-    { id: 'mask_light', icon: '😷', name: '특수장비 전문가', desc: '방연마스크 또는 비상 손전등 활용' },
-    { id: 'alarm_npc', icon: '🔔', name: '이타적 영웅', desc: '화재 비상벨을 울리고 이웃/친구 구출' },
-    { id: 'prevention', icon: '🔍', name: '화재예방 보안관', desc: '가정 내 화재 위험요소 사전 점검 완수' },
-    { id: 'school_metro', icon: '🏫', name: '공공안전 마스터', desc: '학교 과학실 또는 지하철 다중시설 탈출' },
-    { id: 'map_creator', icon: '🛠️', name: '대피도 설계사', desc: '나만의 대피도 맵 에디터로 맵 제작·플레이' }
+    { id: 'wet_towel', icon: '💧', name: '젖은수건 마스터', desc: '수건을 적셔 호흡기 보호' },
+    { id: 'pass_ext', icon: '🧯', name: '초기소화 대원', desc: '소화기 PASS 화재 진압' },
+    { id: 'partition', icon: '🧱', name: '경량칸막이 개척자', desc: '경량칸막이 파괴 피난' },
+    { id: 'fire_door', icon: '🚪', name: '방화문 지킴이', desc: '방화문 닫아 연기 차단' },
+    { id: 'stop_roll', icon: '🔄', name: '구르기 달인', desc: '멈추고·엎드려·구르기' },
+    { id: 'mask_light', icon: '😷', name: '특수장비 전문가', desc: '마스크·손전등 활용' },
+    { id: 'alarm_npc', icon: '🔔', name: '이타적 영웅', desc: '비상벨 작동·이웃 구출' },
+    { id: 'prevention', icon: '🔍', name: '화재예방 보안관', desc: '가정 위험요소 5곳 점검' },
+    { id: 'school_metro', icon: '🏫', name: '공공안전 마스터', desc: '과학실·지하철 안전 탈출' },
+    { id: 'map_creator', icon: '🛠️', name: '대피도 설계사', desc: '나만의 대피도 제작' }
   ];
 
   // --- Household Fire Hazard Inspection Quizzes (Idea #6) ---
@@ -529,7 +529,7 @@
       name: '꼬마 소방관',
       icon: '👩‍🚒',
       minBadges: 2,
-      perkDesc: '배지 2개 해금: 스테이지 시작 시 소화기 약제 +2회 기본 보유',
+      perkDesc: '배지 2개 해금: 시작 시 소화기 약제 +2회 기본 보유',
       bonusExtinguisher: 2,
       bonusWater: 0,
       defaultFlashlight: false,
@@ -541,7 +541,7 @@
       name: '119 구조대원',
       icon: '🦺',
       minBadges: 5,
-      perkDesc: '배지 5개 해금: 비상 손전등 기본 장착 + 낮은 자세 이동속도 15% 상승',
+      perkDesc: '배지 5개 해금: 손전등 기본 장착 · 숙이기 속도 +15%',
       bonusExtinguisher: 1,
       bonusWater: 0,
       defaultFlashlight: true,
@@ -553,7 +553,7 @@
       name: '안전 마스터 & 구조견',
       icon: '🐕‍🦺',
       minBadges: 8,
-      perkDesc: '배지 8개 해금: 소화기+2 · 물+2 · 연기 속 산소 소모량 20% 감소',
+      perkDesc: '배지 8개 해금: 소화기+2 · 물+2 · 산소 소모 20% 감소',
       bonusExtinguisher: 2,
       bonusWater: 2,
       defaultFlashlight: true,

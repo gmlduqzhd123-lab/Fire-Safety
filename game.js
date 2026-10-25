@@ -511,7 +511,7 @@
   // --- Idea #7: Unified Compact Toast Notification (Synchronized with Top Step Banner, Minimized 3D Occlusion) ---
   function showToast(msg, borderClass = 'border-amber-500/60') {
     toastBanner.textContent = msg;
-    toastBanner.className = `pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 z-20 px-2.5 py-0.5 rounded-full bg-slate-950/88 border ${borderClass} text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-md transition-all duration-200 opacity-100 translate-y-0 max-w-[88%] truncate text-center`;
+    toastBanner.className = `pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 z-20 px-2.5 py-0.5 rounded-full bg-slate-950/88 border ${borderClass} text-amber-200 text-[10.5px] sm:text-xs font-bold shadow-md transition-all duration-200 opacity-100 translate-y-0 max-w-[96%] whitespace-nowrap text-center`;
     if (toastTimeout) clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => {
       toastBanner.classList.remove('opacity-100', 'translate-y-0');
@@ -873,7 +873,7 @@
     bookSortSolved = false;
     bookSortOrder = ['430', '425.2', '480', '425.12', '450', '440'];
 
-    stageBadge.textContent = st.name;
+    stageBadge.textContent = (st.name || '').split('[')[0].trim();
     missionShort.textContent = st.mission;
 
     const stageButtons = [
@@ -974,7 +974,7 @@
         c: Math.floor(player.x),
         r: Math.floor(player.y),
         label: '🔄 구르기 연타!',
-        bannerText: `🚨 옷에 불이 붙었어요! 우측 [🔄 구르기] 버튼을 연타하세요! (${player.rollNeeded}회)`
+        bannerText: `🚨 옷에 불! 우측 [🔄구르기] 버튼을 연타하세요! (${player.rollNeeded}회)`
       };
     }
 
@@ -986,7 +986,7 @@
           c: haz.c,
           r: haz.r,
           label: '🎯 위험요소 점검',
-          bannerText: `🎯 방탈출 미션: 노란 화살표의 ⚠️ 위험요소(${rem}곳 남음)로 가서 [✋ 점검하기]를 누르세요!`
+          bannerText: `🎯 노란 화살표의 ⚠️위험요소(${rem}곳)로 가서 [✋점검]을 누르세요!`
         };
       }
       const ex = findNearestTileOfTypes([TILE.EXIT]);
@@ -1011,8 +1011,8 @@
         r: exitTile.r,
         label: '🎯 비상구(EXIT) 탈출!',
         bannerText: player.crouching
-          ? '🎯 안전한 대피로로 신속히 탈출하세요! 장비·구조 미션은 탈출 조건이 아닙니다.'
-          : '🎯 연기가 있으면 [🧎 낮은 자세]로 안전한 출구로 대피하세요. 장비를 찾느라 지체하지 마세요!'
+          ? '🎯 [🧎낮은자세] 유지 중! 비상구(EXIT)로 신속히 탈출하세요!'
+          : '🎯 연기가 있으면 [🧎낮은자세(Shift)]로 비상구(EXIT)로 대피하세요!'
       };
     }
     return null;
@@ -1088,7 +1088,7 @@
     if (hudCache.onFireKey !== onFireKey) {
       hudCache.onFireKey = onFireKey;
       if (player.onFire) {
-        rollStatusBadge.textContent = `(${player.rollNeeded}회연타!)`;
+        rollStatusBadge.textContent = `(${player.rollNeeded}회)`;
         btnRoll.classList.remove('hidden');
         btnRoll.classList.add('flex');
       } else {
@@ -1147,7 +1147,17 @@
       actHighlight = true;
       if (target.kind === 'item') {
         actIcon = target.item.icon;
-        actLabel = `${target.item.name} 줍기`;
+        const itType = target.item.type;
+        actLabel = itType === 'npc' ? '동행 구조'
+          : itType === 'dog' ? '초코 구조'
+          : itType === 'mask' ? '마스크 줍기'
+          : itType === 'towel' ? '수건 줍기'
+          : itType === 'extinguisher' ? '소화기 줍기'
+          : itType === 'bucket' || itType === 'water' ? '물양동이'
+          : itType === 'flashlight' ? '손전등 줍기'
+          : itType === 'axe' ? '도끼 줍기'
+          : itType === 'key' ? '열쇠 줍기'
+          : '아이템 줍기';
       } else if (target.tile === TILE.SINK) {
         actIcon = '🚰';
         actLabel = player.hasTowel && !player.wetTowel ? '수건 적시기' : '물 받기';
@@ -1159,7 +1169,7 @@
         actLabel = '방화문 닫기';
       } else if (target.tile === TILE.HOT_DOOR) {
         actIcon = '🌡️';
-        actLabel = '문 온도 확인';
+        actLabel = '문 온도확인';
       } else if (target.tile === TILE.LOCKED_DOOR) {
         actIcon = '🔑';
         actLabel = '잠긴문 열기';
@@ -1168,7 +1178,7 @@
         actLabel = '가스 잠그기';
       } else if (target.tile === TILE.BREAKER) {
         actIcon = '⚡';
-        actLabel = '차단기 내리기';
+        actLabel = '차단기 내림';
       } else if (target.tile === TILE.PHONE_119) {
         actIcon = '📞';
         actLabel = '119 신고';
@@ -1180,16 +1190,16 @@
         actLabel = '칸막이 돌파';
       } else if (target.tile === TILE.HAZARD) {
         actIcon = '🔍';
-        actLabel = '위험요소 점검';
+        actLabel = '위험 점검';
       } else if (target.tile === TILE.ALARM_BELL) {
         actIcon = '🔔';
-        actLabel = '비상벨 누르기';
+        actLabel = '비상벨 작동';
       } else if (target.tile === TILE.DEBRIS) {
         actIcon = '🪓';
         actLabel = '장애물 파괴';
       } else if (target.tile === TILE.FURNITURE) {
         actIcon = '🔐';
-        actLabel = '금고·서가 조사';
+        actLabel = '단서 조사';
       } else if (target.tile === TILE.ELEVATOR) {
         actIcon = '⚠️';
         actLabel = '탑승 금지!';
@@ -1220,17 +1230,17 @@
       hudCache.postureKey = postureKey;
       if (st.isPreventionMode) {
         postureStatus.textContent = player.crouching ? '🧎 하층점검' : '🔍 사전점검';
-        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
+        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 whitespace-nowrap shrink-0';
         convectionMarker.style.top = player.crouching ? '20px' : '12px';
         convectionHint.textContent = '화재 전 쾌적한 실내 공기';
       } else if (player.crouching) {
         postureStatus.textContent = '🧎 낮은자세';
-        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
+        postureStatus.className = 'text-[10px] font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 whitespace-nowrap shrink-0';
         convectionMarker.style.top = '20px';
         convectionHint.textContent = '바닥 신선한 공기 호흡';
       } else {
         postureStatus.textContent = '🚶 서있음';
-        postureStatus.className = 'text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate';
+        postureStatus.className = 'text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 whitespace-nowrap shrink-0';
         convectionMarker.style.top = '3px';
         convectionHint.textContent = '상층 유독가스 주의!';
       }
@@ -2782,13 +2792,13 @@
     const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
     const itemsHtml = [];
     if (st.isPreventionMode) {
-      itemsHtml.push(`<div>${player.hazardsFixed >= player.totalHazards ? '✅' : '⚠️'} <strong>가정 내 화재 위험요소 사전 점검:</strong> 총 <strong>${player.hazardsFixed} / ${player.totalHazards}곳</strong> 안전 조치 완료</div>`);
+      itemsHtml.push(`<div class="whitespace-nowrap truncate">${player.hazardsFixed >= player.totalHazards ? '✅' : '⚠️'} <strong>가정 위험요소 점검:</strong> 총 <strong>${player.hazardsFixed} / ${player.totalHazards}곳</strong> 조치 완료</div>`);
     } else {
-      itemsHtml.push(`<div>${(player.wetTowel || player.hasMask) ? '✅' : '⚠️'} <strong>호흡기 보호 & 낮은 자세:</strong> ${player.hasMask ? '방연마스크 착용' : (player.wetTowel ? '젖은 수건 착용' : '미착용')} · 낮은 자세 유지율 <strong>${crouchPct}%</strong></div>`);
+      itemsHtml.push(`<div class="whitespace-nowrap truncate">${(player.wetTowel || player.hasMask) ? '✅' : '⚠️'} <strong>호흡기·낮은자세:</strong> ${player.hasMask ? '방연마스크' : (player.wetTowel ? '젖은수건' : '미착용')} · 숙이기 <strong>${crouchPct}%</strong></div>`);
     }
-    itemsHtml.push(`<div>${metrics.waterOnSpecialFireMistake === 0 ? '✅' : '❌'} <strong>연소·소화 & 방화문 차단:</strong> 화재 진압 <strong>${metrics.correctExtinguishCount}회</strong> · 방화문 닫기 <strong>${player.fireDoorsClosed}회</strong></div>`);
-    itemsHtml.push(`<div>${metrics.backdraftTriggered === 0 ? '✅' : '❌'} <strong>문 온도 확인 & 특수 피난:</strong> 문 확인 <strong>${metrics.doorHeatChecked}회</strong> ${metrics.usedPartition ? '· 🧱경량칸막이 탈출' : ''} ${metrics.usedLifeline ? '· 🪢완강기 탈출' : ''}</div>`);
-    itemsHtml.push(`<div>${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고·퍼즐:</strong> ${player.alarmRung ? '🔔비상벨 발신 ' : ''}${player.rescuedNpcs > 0 ? `· 🧒이웃구출 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '· 📞119 신고 완료 ' : ''}${safeSolved ? '· 🔐금고해제 ' : ''}${wireSolved ? '· ⚡배선복구 ' : ''}${isCoopMode ? '· 👥2인 협동' : ''} (힌트 ${hintLog.length}회)</div>`);
+    itemsHtml.push(`<div class="whitespace-nowrap truncate">${metrics.waterOnSpecialFireMistake === 0 ? '✅' : '❌'} <strong>연소·방화문 차단:</strong> 화재 진압 <strong>${metrics.correctExtinguishCount}회</strong> · 방화문 <strong>${player.fireDoorsClosed}회</strong></div>`);
+    itemsHtml.push(`<div class="whitespace-nowrap truncate">${metrics.backdraftTriggered === 0 ? '✅' : '❌'} <strong>문 온도·특수피난:</strong> 문 확인 <strong>${metrics.doorHeatChecked}회</strong>${metrics.usedPartition ? ' · 🧱칸막이' : ''}${metrics.usedLifeline ? ' · 🪢완강기' : ''}</div>`);
+    itemsHtml.push(`<div class="whitespace-nowrap truncate">${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고·퍼즐:</strong> ${player.alarmRung ? '🔔비상벨 ' : ''}${player.rescuedNpcs > 0 ? `🧒구조 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '📞119신고 ' : ''}${safeSolved ? '🔐금고 ' : ''}${wireSolved ? '⚡배선 ' : ''}(힌트 ${hintLog.length}회)</div>`);
 
     debriefChecklist.innerHTML = itemsHtml.join('');
 
@@ -2806,22 +2816,22 @@
       debriefGrade.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]';
     }
 
-    debriefCurriculumNote.innerHTML = `<strong>📚 [교과 & 안전 핵심 정리 - ${st.curriculumFocus}]</strong><br/>우측 미니맵에서 나의 실제 이동 궤적(🟢안전 이동, 🔵낮은 자세, 🔴화상·질식 지점)을 복기하고, [🏅 수료증·스킨]에서 배지와 직업 스킨을 확인해 보세요!`;
+    debriefCurriculumNote.innerHTML = `<strong>📚 [교과 핵심 정리]</strong> ${st.curriculumFocus} — 미니맵에서 이동 궤적을 복기하고 [🏅 수료증·도감]에서 배지를 확인하세요!`;
 
     // Feature 5: Tailored 1-line safety prescription based on actual trajectory & behavior metrics
     const prescriptionBox = document.getElementById('debriefPrescriptionBox');
     if (prescriptionBox) {
       let prescHtml = '';
       if (metrics.backdraftTriggered > 0) {
-        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 닫힌 문을 열기 전 손등으로 문손잡이 온도를 확인하지 않아 <strong>백드래프트 폭발(${metrics.backdraftTriggered}회)</strong>이 발생했습니다! 뜨거운 문은 절대 열지 말고 다른 비상구를 찾으세요.`;
+        prescHtml = `<div class="whitespace-nowrap truncate">🩺 <strong>[안전 처방전]</strong> 문 열기 전 손잡이 온도를 확인해 <strong>백드래프트 폭발(${metrics.backdraftTriggered}회)</strong>을 예방하고 다른 비상구를 찾으세요.</div>`;
       } else if (metrics.waterOnSpecialFireMistake > 0) {
-        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 전기·식용유·금속 화재에 물을 뿌려 <strong>역화 위험(${metrics.waterOnSpecialFireMistake}회)</strong>이 발생했습니다! 특수 화재에는 반드시 용도에 맞는 소화기(🧯)나 모래를 사용하세요.`;
+        prescHtml = `<div class="whitespace-nowrap truncate">🩺 <strong>[안전 처방전]</strong> 식용유·전기·금속 화재에는 물을 뿌리지 말고 반드시 <strong>전용 소화기(🧯)</strong>를 사용하세요.</div>`;
       } else if (!st.isPreventionMode && crouchPct < 65) {
-        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 연기 구역에서 <strong>낮은 자세 유지율(${crouchPct}%)</strong>이 낮아 유독가스를 많이 마셨습니다! 연기 속에서는 젖은 수건(😷)을 코와 입에 대고 <strong>[🧎 낮은 자세(C키)]</strong>로 이동하세요.`;
+        prescHtml = `<div class="whitespace-nowrap truncate">🩺 <strong>[안전 처방전]</strong> 연기 구역에서는 젖은 수건(😷)으로 코·입을 가리고 <strong>낮은 자세(Shift, 현재 ${crouchPct}%)</strong>를 유지하세요.</div>`;
       } else if (!st.isPreventionMode && player.fireDoorsClosed === 0) {
-        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 대피 후 <strong>방화문 닫기(🚪)</strong>를 실천하면 연기 확산 속도를 45% 이상 늦춰 뒤따르는 이웃의 생명을 구할 수 있습니다!`;
+        prescHtml = `<div class="whitespace-nowrap truncate">🩺 <strong>[안전 처방전]</strong> 통과한 뒤 <strong>방화문 닫기(🚪)</strong>를 실천하면 연기 확산을 늦춰 이웃의 생명을 구할 수 있습니다!</div>`;
       } else {
-        prescHtml = `🩺 <strong>[맞춤 안전 처방전]</strong> 호흡기 보호, 낮은 자세 유지(${crouchPct}%), 문 온도 확인(${metrics.doorHeatChecked}회)까지 <strong>완벽한 표준 대피 동선</strong>으로 탈출했습니다!`;
+        prescHtml = `<div class="whitespace-nowrap truncate">🩺 <strong>[안전 처방전]</strong> 호흡기 보호 · 낮은 자세(${crouchPct}%) · 문 온도 확인(${metrics.doorHeatChecked}회)까지 완벽한 동선으로 탈출했습니다!</div>`;
       }
       prescriptionBox.innerHTML = prescHtml;
     }
@@ -2859,7 +2869,7 @@
         weakestBadge.textContent = `🕸️ 역량 평균 ${compData.avg}점 (보완: ${compData.weakest.label})`;
       }
       if (prescriptionBox && compData.weakest) {
-        prescriptionBox.innerHTML += `<div class="mt-1 pt-1 border-t border-rose-500/30 text-amber-200">🎯 <strong>[AI 대장님 5대 역량 코칭 - ${compData.weakest.label}(${compData.weakest.score}점)]</strong> ${compData.weakest.tip}</div>`;
+        prescriptionBox.innerHTML += `<div class="mt-0.5 pt-0.5 border-t border-rose-500/30 text-amber-200 whitespace-nowrap truncate">🎯 <strong>[AI 역량 코칭 · ${compData.weakest.label}(${compData.weakest.score}점)]</strong> ${compData.weakest.tip}</div>`;
       }
     }
   }
@@ -2957,7 +2967,7 @@
       overlayIcon.textContent = '🔍';
       overlaySubtitle.textContent = '우리 집 화재 예방 사전 점검 완료!';
       overlayTitle.textContent = '집 안의 위험요소 5곳을 모두 해결했습니다!';
-      overlayDesc.innerHTML = `훌륭합니다! 문어발 콘센트·가스불·적치물·난방기구·소방시설을 모두 안전하게 조치했습니다. (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
+      overlayDesc.innerHTML = `문어발 콘센트·가스불·적치물·난방기구·소방시설을 모두 안전하게 조치했습니다! (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)`;
       btnPrimaryAction.textContent = '1단계 실전 대피 시작 ▶';
       btnSecondaryAction.classList.remove('hidden');
       btnSecondaryAction.textContent = '예방 점검 다시하기';
@@ -2966,7 +2976,7 @@
       overlayIcon.textContent = '🎉';
       overlaySubtitle.textContent = `${activeSt.name} 돌파 성공!`;
       overlayTitle.textContent = '안전하게 구역을 탈출했습니다!';
-      overlayDesc.innerHTML = `침착한 대처로 위기를 넘겼습니다! (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>)<br/>아래 안전 진단표와 동선 리플레이를 확인하고 다음 단계로 이동하세요!`;
+      overlayDesc.innerHTML = `침착한 대처로 위기를 넘겼습니다! (보너스 <strong>+${(timeBonus + vitalsBonus + safetyBonus).toLocaleString()}점</strong>) 아래 안전 진단표를 확인하세요!`;
       btnPrimaryAction.textContent = '다음 단계로 이동 ▶';
       btnSecondaryAction.classList.remove('hidden');
       btnSecondaryAction.textContent = '현재 단계 다시하기';
@@ -2975,7 +2985,7 @@
       overlayIcon.textContent = '🏆';
       overlaySubtitle.textContent = '전 스테이지 마스터 달성!';
       overlayTitle.textContent = '모든 재난 현장에서 완벽히 살아남았습니다!';
-      overlayDesc.innerHTML = `축하합니다! 가정·학교 과학실·다중이용시설(지하철)·캠핑장 배터리 화재 및 사전 예방 점검까지 모든 화재 안전 수칙을 완벽하게 체득했습니다!`;
+      overlayDesc.innerHTML = `가정·학교·지하철·캠핑장·지진 복합 화재까지 모든 재난 대피 안전 수칙을 완벽하게 체득했습니다!`;
       btnPrimaryAction.textContent = '1단계부터 다시 도전';
       btnSecondaryAction.classList.add('hidden');
     }
@@ -3040,12 +3050,12 @@
     overlaySubtitle.textContent = '대피 실패 · 동선 리플레이 분석';
     if (reason === 'exposure') {
       overlayTitle.textContent = `위험 노출 허용 시간(${runOptions.hazardLimitSeconds || 300}초)을 초과했습니다!`;
-      overlayDesc.innerHTML = `화재 현장에 너무 오래 머물러 골든타임을 놓쳤습니다. <strong>[🛡️ 안전 퀴즈 풀고 부활!]</strong> 버튼을 눌러 오답노트를 풀고 이어서 탈출해 보세요!`;
+      overlayDesc.innerHTML = `화재 현장에 오래 머물러 골든타임을 놓쳤습니다. <strong>[🛡️ 안전 퀴즈 풀고 부활!]</strong> 버튼으로 이어서 탈출하세요!`;
     } else {
       overlayTitle.textContent = reason === 'o2' ? '유독가스에 질식했습니다!' : '불길에 큰 화상을 입었습니다!';
       overlayDesc.innerHTML = reason === 'o2'
-        ? '대류 현상으로 뜨거운 연기가 상층부에 가득 차 있습니다. <strong>젖은 수건·방연마스크(😷)</strong>를 쓰고 <strong>낮은 자세(C/Shift)</strong>로 이동하세요.'
-        : '옷에 불이 붙었을 때는 뛰지 말고 즉시 <strong>구르기(🔄 버튼 / F키)</strong>를 연타하여 불을 꺼야 합니다!';
+        ? '상층부에 유독가스가 가득합니다. <strong>젖은 수건·마스크(😷)</strong>를 쓰고 <strong>낮은 자세(Shift)</strong>로 이동하세요!'
+        : '옷에 불이 붙었을 때는 뛰지 말고 즉시 <strong>구르기(🔄 버튼 / F키)</strong>를 연타하여 불을 끄세요!';
     }
 
     btnPrimaryAction.textContent = '이 단계 다시 도전하기';
@@ -9295,7 +9305,7 @@
       SoundFX.siren();
       SoundFX.speak(`${STAGES[idx].name} 대피 훈련을 시작합니다. 낮은 자세로 안전하게 탈출하세요.`);
     }
-    showToast(`🚩 ${STAGES[idx].name} 시작! ${STAGES[idx].mission}`);
+    showToast(`🚩 ${(STAGES[idx].name || '').split('[')[0].trim()} 시작! 안전한 비상구(EXIT)로 신속히 대피하세요!`);
   }
 
   btnStage1.addEventListener('click', () => selectStageManual(0));
@@ -9417,7 +9427,7 @@
                 isEquipped ? '장착중' : (isUnlocked ? '선택가능' : `배지 ${sk.minBadges}개 필요`)
               }</span>
             </div>
-            <div class="text-[10px] text-slate-400 leading-tight mt-0.5">${sk.perkDesc}</div>
+            <div class="text-[10px] text-slate-400 leading-tight mt-0.5 whitespace-nowrap truncate">${sk.perkDesc}</div>
           </div>
         </button>`;
       }).join('');
@@ -9451,7 +9461,7 @@
       return `<div class="p-2 rounded-xl border ${has ? 'bg-slate-950 border-amber-500/50 text-white' : 'bg-slate-950/40 border-slate-800 text-slate-600'} flex flex-col items-center gap-1">
         <span class="text-xl ${has ? '' : 'grayscale opacity-40'}">${b.icon}</span>
         <span class="text-[10px] font-extrabold ${has ? 'text-amber-300' : 'text-slate-500'}">${b.name}</span>
-        <span class="text-[9px] leading-tight text-slate-400">${b.desc}</span>
+        <span class="text-[9px] leading-tight text-slate-400 whitespace-nowrap truncate max-w-full">${b.desc}</span>
       </div>`;
     }).join('');
 
@@ -9463,9 +9473,9 @@
         key: `s${idx}`,
         legacyKey: String(idx),
         icon: ['🏡', '🏢', '🏬', '🏫', '🚇', '🔍', '🏕️', '🌐'][idx] || '🏢',
-        shortName: stItem.name.replace(/^\d+단계:\s*/, '').replace(/^사전예방:\s*/, '예방:').split('[')[0].trim()
+        shortName: ['1단계·침실', '2단계·주방', '3단계·베란다', '4단계·과학실', '5단계·지하철', '예방·우리집', '6단계·캠핑', '7단계·지진'][idx] || stItem.name.split('[')[0].trim()
       })),
-      { key: 'daily', legacyKey: 'daily', icon: '🎲', shortName: '오늘의 119 챌린지' }
+      { key: 'daily', legacyKey: 'daily', icon: '🎲', shortName: '오늘의챌린지' }
     ];
     const clearedCount = stampDefs.reduce((acc, d) => acc + ((clearedStages[d.key] || clearedStages[d.legacyKey]) ? 1 : 0), 0);
     if (stageStampCountBadge) {
@@ -9957,7 +9967,7 @@
       if (typeof saveCampaignState === 'function') saveCampaignState();
       SoundFX.siren();
       SoundFX.speak(`${STAGES[currentStageIdx].name} 대피를 시작합니다.`);
-      showToast(`🚩 ${STAGES[currentStageIdx].name}! ${STAGES[currentStageIdx].mission}`);
+      showToast(`🚩 ${(STAGES[currentStageIdx].name || '').split('[')[0].trim()} 시작! 안전한 비상구(EXIT)로 신속히 대피하세요!`);
     } else if (gameState === 'GAME_OVER') {
       score = stageStartScore;
       loadStage(currentStageIdx, false, activeCustomStage);
@@ -11536,17 +11546,17 @@
     {
       badge: '1 / 4',
       title: '① 연기 대류 현상과 젖은 수건·낮은 자세',
-      body: '화재 연기는 유독하며 낮은 곳도 안전을 보장하지 않습니다. <strong>안전한 대피로로 신속히 이동</strong>하고, 연기를 지나야 한다면 <strong>낮은 자세(🧎)</strong>를 유지하세요. 가까이 있는 수건·옷으로 코와 입을 가릴 수 있지만 <strong>장비를 찾거나 수건을 적시느라 대피를 늦추지 마세요.</strong> 수건과 마스크가 모든 유독가스를 막거나 산소 부족을 해결하지는 못합니다.'
+      body: '연기가 있으면 <strong>낮은 자세(🧎)</strong>로 코와 입을 가리고, 장비를 찾느라 지체하지 말고 <strong>안전한 출구(EXIT)로 즉시 대피</strong>하세요.'
     },
     {
       badge: '2 / 4',
       title: '② 연소의 3요소와 화재 유형별 맞춤 소화 원리',
-      body: '불이 타오르려면 <strong>가연물·산소·발화점 이상의 온도</strong>가 필요합니다. 일반 화재는 물(🪣냉각 소화)로 끄지만, <strong>식용유(K급)·전기 콘센트(C급)·배터리/마그네슘 금속 화재(D급)</strong>에 물을 부으면 폭발·감전 위험이 있으므로 반드시 전용 소화기(🧯질식 소화)나 모래를 사용해야 합니다!'
+      body: '일반 화재는 물(🪣냉각)로 끄지만, <strong>식용유(K급)·전기(C급)·금속(D급) 화재</strong>에는 절대 물을 붓지 말고 <strong>전용 소화기(🧯질식)</strong>를 사용하세요!'
     },
     {
       badge: '3 / 4',
       title: '③ 백드래프트(Backdraft) 예방과 방화문 닫기',
-      body: '실내에 뜨거운 가스가 가득 찬 상태에서 문을 갑자기 열면 산소가 유입되며 화염이 폭발하는 <strong>백드래프트</strong>가 일어납니다! 문을 열기 전 <strong>손등으로 문손잡이 온도를 확인(🌡️)</strong>하고, 대피한 뒤에는 <strong>방화문을 닫아(🚪)</strong> 연기 확산을 차단하세요.'
+      body: '닫힌 문을 열기 전 <strong>손등으로 손잡이 온도를 확인(🌡️)</strong>해 백드래프트를 예방하고, 대피한 뒤에는 <strong>방화문을 닫아(🚪)</strong> 연기를 차단하세요.'
     },
     {
       badge: '4 / 4',
@@ -12491,7 +12501,7 @@
               : 'bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-300 font-semibold'
           }">
             <span class="text-base">${g.icon}</span>
-            <span class="text-[11px] truncate">${g.name}</span>
+            <span class="text-[11px] whitespace-nowrap">${g.shortName || g.name.split('(')[0].trim()}</span>
           </button>`;
         }).join('');
 

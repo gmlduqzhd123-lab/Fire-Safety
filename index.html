@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=20" />
+  <link rel="stylesheet" href="./style.css?v=21" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -68,13 +68,13 @@
           </div>
           <h1 class="text-xs sm:text-sm font-extrabold tracking-tight text-white flex items-center gap-1 min-w-0">
             <span class="hidden lg:inline shrink-0">화재 탈출</span>
-            <span id="stageBadge" class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold truncate max-w-[90px] sm:max-w-[135px] lg:max-w-[260px]">1단계: 2층 침실</span>
+            <span id="stageBadge" class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-orange-500/25 border border-orange-400/50 text-orange-200 font-extrabold whitespace-nowrap shrink-0">1단계: 2층 침실과 복도</span>
             <span id="classBanner" class="hidden text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold shrink-0">🏫 학급 미지정</span>
           </h1>
         </div>
 
         <!-- Center: At-a-Glance Live Objective Guide Pill -->
-        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10px] sm:text-xs font-extrabold text-center truncate shadow-sm">
+        <div id="stepGuideBanner" class="flex-1 min-w-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[10px] sm:text-[11px] font-extrabold text-center whitespace-nowrap shadow-sm">
           🎯 지금 할 일: 안전한 대피로로 신속히 이동하세요!
         </div>
 
@@ -295,7 +295,7 @@
         </div>
 
         <div id="hudStatusScoreRow" class="flex items-center justify-between gap-1 shrink-0 w-full min-w-0">
-          <span id="postureStatus" class="text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 truncate">🚶 서있음</span>
+          <span id="postureStatus" class="text-[10px] font-extrabold text-amber-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 whitespace-nowrap shrink-0">🚶 서있음</span>
           <span class="text-[10px] font-mono font-extrabold text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded-md border border-slate-800 shrink-0 whitespace-nowrap">⭐<span id="scoreDisplay">0</span></span>
         </div>
 
@@ -680,8 +680,8 @@
       <div id="actionButtonsWrapper" class="grid grid-cols-2 gap-2 flex-1 max-w-md ml-auto h-[136px] sm:h-[144px]">
         <button id="btnCrouch" type="button" class="btn-control px-3 py-1.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-0.5 shadow">
           <span id="crouchBtnIcon" class="text-2xl sm:text-3xl leading-none">🧎</span>
-          <span id="crouchBtnText" class="leading-tight text-center">낮은 자세</span>
-          <span id="crouchKeyBadge" class="px-1.5 py-0.5 rounded bg-slate-950/80 border border-amber-400/50 text-[9px] sm:text-[10px] font-mono font-bold text-amber-200 leading-none">Shift · 숙이기</span>
+          <span id="crouchBtnText" class="leading-tight text-center whitespace-nowrap">낮은 자세</span>
+          <span id="crouchKeyBadge" class="px-1.5 py-0.5 rounded bg-slate-950/80 border border-amber-400/50 text-[9.5px] font-mono font-bold text-amber-200 leading-none whitespace-nowrap">Shift·숙이기</span>
         </button>
 
         <button id="btnExtinguish" type="button" class="hidden btn-control px-2 py-1.5 rounded-xl bg-sky-900/80 hover:bg-sky-800 border-2 border-sky-400/60 text-xs sm:text-sm font-extrabold text-sky-100 flex flex-col items-center justify-center gap-0.5 shadow">
@@ -701,8 +701,8 @@
 
         <button id="btnAction" type="button" class="btn-control px-3 py-1.5 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg shadow-orange-600/30">
           <span id="actionBtnIcon" class="text-2xl sm:text-3xl leading-none">✋</span>
-          <span id="actionBtnText" class="leading-tight text-center">반응하기</span>
-          <span id="actionKeyBadge" class="px-1.5 py-0.5 rounded bg-slate-950/80 border border-yellow-200/60 text-[9px] sm:text-[10px] font-mono font-bold text-yellow-200 leading-none">Space · 반응</span>
+          <span id="actionBtnText" class="leading-tight text-center whitespace-nowrap">반응하기</span>
+          <span id="actionKeyBadge" class="px-1.5 py-0.5 rounded bg-slate-950/80 border border-yellow-200/60 text-[9.5px] font-mono font-bold text-yellow-200 leading-none whitespace-nowrap">Space·반응</span>
         </button>
       </div>
     </section>
@@ -719,7 +719,7 @@
         <button id="btnCloseMapEditor" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-slate-300">아래 팔레트에서 타일·화재·장비를 선택한 뒤 격자를 클릭/드래그해 배치하고, <strong>[내 커스텀 맵 플레이하기]</strong>를 눌러 직접 탈출해 보세요! (시작점 🧍에서 출구까지 경로가 자동으로 검증됩니다)</p>
+      <p class="text-xs text-slate-300 whitespace-nowrap overflow-x-auto no-scrollbar">팔레트에서 타일·화재·장비를 선택해 격자에 배치하고 <strong>[내 커스텀 맵 플레이하기]</strong>로 탈출해 보세요!</p>
 
       <!-- Feature 9: Household / Classroom Floor Plan Templates & Homework PNG Export -->
       <div class="p-2.5 rounded-xl bg-slate-950 border border-indigo-500/40 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -824,7 +824,7 @@
 
   <!-- Honorary Junior Firefighter Certificate & Badge Encyclopedia Modal -->
   <div id="certModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-3.5 my-auto max-h-[95vh] overflow-y-auto">
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-3xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <h3 class="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">🏅 어린이 명예 소방관 수료증 · 스킨 · 배지 도감</h3>
         <button id="btnCloseCertModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
@@ -842,9 +842,7 @@
             <span>수료증 이미지(PNG) 저장</span>
           </button>
         </div>
-        <p id="certSummaryText" class="text-xs text-slate-300 leading-relaxed">
-          위 어린이는 2022 개정 초등 교육과정 연계 화재 대피 시뮬레이션을 통해 연소와 소화 원리, 대류 현상 대응, 완강기 및 경량칸막이 피난 요령을 성실히 익혔으므로 명예 소방안전 대원으로 임명합니다.
-        </p>
+        <p id="certSummaryText" class="text-xs text-slate-300 whitespace-nowrap overflow-x-auto no-scrollbar">2022 개정 교육과정 연계 화재 대피 훈련(연소·소화, 낮은 자세, 완강기·방화문)을 성실히 이수하여 명예 대원으로 임명합니다.</p>
         <div class="flex justify-around text-[11px] text-amber-300 font-bold pt-1 border-t border-slate-800">
           <span id="certTotalScore">최고 점수: 0점</span>
           <span id="certBadgeCount">획득 배지: 0 / 10개</span>
@@ -857,7 +855,7 @@
           <span class="font-extrabold text-amber-300">💮 8대 건물 화재 탈출 완주 스탬프 도장판</span>
           <span id="stageStampCountBadge" class="text-[11px] font-bold text-emerald-300">완주 도장: 0 / 8개</span>
         </div>
-        <div id="stageStampGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[11px]"></div>
+        <div id="stageStampGrid" class="grid grid-cols-3 sm:grid-cols-8 gap-1.5 text-center text-[10.5px]"></div>
       </div>
 
       <!-- Character Skin Selection Grid (Feature 6) -->
@@ -921,9 +919,7 @@
         <button id="btnCloseClassModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
       </div>
 
-      <p class="text-xs text-slate-300 leading-relaxed">
-        학교·학급 이름(예: <strong>서울초 5학년 2반</strong>)을 설정하고 공유 링크를 전달하면, 우리 반 친구들이 탈출할 때마다 학급 명예의 전당 보드에 기록이 남습니다!
-      </p>
+      <p class="text-xs text-slate-300 whitespace-nowrap overflow-x-auto no-scrollbar">학교·학급 이름(예: <strong>서울초 5학년 2반</strong>)을 설정하면 우리 반 명예의 전당에 탈출 기록이 등재됩니다!</p>
 
       <div class="flex flex-wrap sm:flex-nowrap gap-1.5">
         <input id="classCodeInput" type="text" placeholder="예: 서울초 5학년 2반" maxlength="24" aria-label="학급 코드 입력" class="flex-1 min-w-[150px] px-3 py-1.5 rounded-lg bg-slate-950 border border-sky-500/50 text-xs text-sky-200 font-bold" />
@@ -947,7 +943,7 @@
 
   <!-- Teacher Smartboard Briefing, Classroom Roles, Spoiler Appendix & Printable Worksheet Modal (PRD Section 11 & 16) -->
   <div id="teacherModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-    <div class="bg-slate-900 border border-purple-500/50 rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+    <div class="bg-slate-900 border border-purple-500/50 rounded-2xl max-w-4xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">수업 지원 키트 · PRD 11장 & 16장 반영</span>
@@ -965,24 +961,22 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
           <div class="p-2 rounded-lg bg-slate-900 border border-slate-800">
             <div class="font-bold text-amber-300">🎮 조작자</div>
-            <div class="text-slate-400 text-[10px]">캐릭터 이동, 낮은 자세, 문·도구 조작 수행</div>
+            <div class="text-slate-400 text-[10px] whitespace-nowrap">이동·낮은자세·문 조작</div>
           </div>
           <div class="p-2 rounded-lg bg-slate-900 border border-slate-800">
             <div class="font-bold text-sky-300">👀 관찰자</div>
-            <div class="text-slate-400 text-[10px]">화재·연기 확산 경로와 3D 레이더 지도 확인</div>
+            <div class="text-slate-400 text-[10px] whitespace-nowrap">화재 경로·3D 지도 확인</div>
           </div>
           <div class="p-2 rounded-lg bg-slate-900 border border-slate-800">
             <div class="font-bold text-emerald-300">📓 기록자</div>
-            <div class="text-slate-400 text-[10px]">수첩(H) 단서·암호 기록 및 단계별 힌트 관리</div>
+            <div class="text-slate-400 text-[10px] whitespace-nowrap">수첩(H) 단서·힌트 관리</div>
           </div>
           <div class="p-2 rounded-lg bg-slate-900 border border-slate-800">
             <div class="font-bold text-pink-300">🗣️ 설명자</div>
-            <div class="text-slate-400 text-[10px]">해결 근거와 바꾼 대피 전략을 정리·발표</div>
+            <div class="text-slate-400 text-[10px] whitespace-nowrap">해결 근거·대피 전략 발표</div>
           </div>
         </div>
-        <div class="text-[11px] text-slate-300 bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
-          ⏱️ <strong>40분 수업 예시:</strong> 도입(5분: 상황·역할·핵심 조작 시연) → 전개(30분: 조작 익히기 5분 + 구역별 탐색·퍼즐 25분, 미완료 시 이어하기·연습모드 활용) → 정리(5분: 단서·해결 근거·성찰 공유)
-        </div>
+        <div class="text-[11px] text-slate-300 bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800 whitespace-nowrap overflow-x-auto no-scrollbar">⏱️ <strong>40분 수업 예시:</strong> 도입(5분: 역할·조작 시연) → 전개(30분: 구역별 대피·퍼즐 실습) → 정리(5분: 진단표·성찰 공유)</div>
       </div>
 
       <div class="space-y-2">
@@ -1046,19 +1040,19 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           <button id="btnSeasonSpring" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-teal-950 border border-teal-500/40 text-left transition">
             <div class="font-extrabold text-emerald-300 text-xs">🌱 봄 (3~5월)</div>
-            <div class="text-[10px] text-slate-300 mt-0.5">과학실 실험·캠핑장 산불·배터리 안전</div>
+            <div class="text-[10px] text-slate-300 mt-0.5 whitespace-nowrap">과학실·캠핑장 안전</div>
           </button>
           <button id="btnSeasonSummer" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-sky-950 border border-sky-500/40 text-left transition">
             <div class="font-extrabold text-sky-300 text-xs">☀️ 여름 (6~8월)</div>
-            <div class="text-[10px] text-slate-300 mt-0.5">냉방기 과부하·지하철 정전 대피</div>
+            <div class="text-[10px] text-slate-300 mt-0.5 whitespace-nowrap">지하철 정전 대피</div>
           </button>
           <button id="btnSeasonAutumn" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-amber-950 border border-amber-500/40 text-left transition">
             <div class="font-extrabold text-amber-300 text-xs">🍁 가을 (9~10월)</div>
-            <div class="text-[10px] text-slate-300 mt-0.5">아파트 완강기·경량칸막이 피난</div>
+            <div class="text-[10px] text-slate-300 mt-0.5 whitespace-nowrap">완강기·경량칸막이</div>
           </button>
           <button id="btnSeasonWinter" type="button" class="p-2 rounded-xl bg-slate-900 hover:bg-rose-950 border border-rose-500/40 text-left transition">
             <div class="font-extrabold text-rose-300 text-xs">❄️ 겨울 (11~2월)</div>
-            <div class="text-[10px] text-slate-300 mt-0.5">난방기·주방 식용유(K급)·문어발 콘센트</div>
+            <div class="text-[10px] text-slate-300 mt-0.5 whitespace-nowrap">주방(K급)·전열기 안전</div>
           </button>
         </div>
         <div id="seasonPackNotice" class="text-[11px] text-teal-200 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800">
@@ -1121,9 +1115,7 @@
         </div>
         <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
           <div id="briefingSlideTitle" class="text-sm sm:text-base font-black text-white">① 연기 대류 현상과 젖은 수건·낮은 자세</div>
-          <p id="briefingSlideDesc" class="text-xs text-slate-200 leading-relaxed">
-            화재 연기는 유독하며 낮은 곳도 안전을 보장하지 않습니다. <strong>안전한 대피로로 신속히 이동</strong>하고, 연기를 지나야 한다면 <strong>낮은 자세(🧎)</strong>를 유지하세요. 가까이 있는 수건·옷으로 코와 입을 가릴 수 있지만 <strong>장비를 찾거나 수건을 적시느라 대피를 늦추지 마세요.</strong> 수건과 마스크가 모든 유독가스를 막거나 산소 부족을 해결하지는 못합니다.
-          </p>
+          <p id="briefingSlideDesc" class="text-xs text-slate-200 whitespace-nowrap overflow-x-auto no-scrollbar">연기가 있으면 <strong>낮은 자세(🧎)</strong>로 코와 입을 가리고, 장비를 찾느라 지체하지 말고 <strong>안전한 출구(EXIT)로 즉시 대피</strong>하세요.</p>
         </div>
         <div class="flex items-center justify-between gap-2">
           <button id="btnBriefingPrev" type="button" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold">◀ 이전 원리</button>
@@ -1157,9 +1149,7 @@
       <details class="bg-slate-950 border border-indigo-500/40 rounded-xl p-2.5 text-xs">
         <summary class="cursor-pointer font-extrabold text-indigo-300 select-none">📊 학생 클리어 인증코드 1초 일괄 집계 & 엑셀(CSV) 다운로드</summary>
         <div class="mt-2.5 pt-2.5 border-t border-slate-800 space-y-2">
-          <p class="text-[11px] text-slate-300 leading-relaxed">
-            학생들이 제출한 클리어 인증코드(예: <code class="text-emerald-300 font-mono">[서울초 5-2] 김안전 · 1단계 · 1450점 · 등급:안전 박사 (S) · #FS-1234</code> 또는 <code class="text-emerald-300 font-mono">119-S1-S1850-42</code>)를 여러 줄 붙여넣으면 1초 만에 통계를 집계하고 엑셀(CSV)로 저장합니다.
-          </p>
+          <p class="text-[11px] text-slate-300 whitespace-nowrap">학생 클리어 인증코드(예: <code class="text-emerald-300 font-mono">[서울초 5-2] 김안전 · 1단계 · #FS-1234</code>)를 여러 줄 붙여넣으면 1초 만에 집계하고 CSV로 저장합니다.</p>
           <textarea id="teacherBatchCodeInput" rows="3" placeholder="여기에 학생들이 복사해 제출한 인증코드 여러 줄을 붙여넣으세요..." aria-label="학생 인증코드 일괄 입력" class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-slate-200 font-mono"></textarea>
           <div class="flex flex-wrap gap-1.5">
             <button id="btnAnalyzeBatchCodes" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold">📊 1초 일괄 분석하기</button>
@@ -1193,10 +1183,10 @@
       <details class="bg-slate-950 border border-amber-500/40 rounded-xl p-2.5 text-xs">
         <summary class="cursor-pointer font-extrabold text-amber-300 select-none">🔐 [교사·검증 전용 스포일러] 방탈출 퍼즐 정답 및 해금 조건 부록 열기 (콘텐츠 버전 v2.5)</summary>
         <div class="mt-2 pt-2 border-t border-slate-800 space-y-1.5 text-[11px] text-slate-300">
-          <div>• <strong>금고 / 비상 보관함 숫자 암호:</strong> <code class="text-amber-300 font-mono">614</code> (비상 금고) / <code class="text-amber-300 font-mono">3322</code> (열쇠 보관함) / <code class="text-amber-300 font-mono">0119</code> (비상출입문, 앞자리 0 문자열 비교 유지, 3회 오답 시 활성경과 30초 잠금)</div>
-          <div>• <strong>배전판 배선 연결 정답:</strong> <code class="text-sky-300 font-mono">빨강=B단자 / 파랑=D단자 / 노랑=A단자 / 초록=C단자</code> (색상 및 영문 기호 병기)</div>
-          <div>• <strong>교구함 / 안전 구호 문자 입력:</strong> <code class="text-emerald-300 font-mono">불이야</code> 또는 <code class="text-emerald-300 font-mono">낮은자세</code> (공백 자동 제거 후 문자열 비교)</div>
-          <div>• <strong>최우선 목표:</strong> 장비 수집·가스밸브 조작·가족·반려동물 구조를 탈출 조건으로 요구하지 않습니다. 안전한 대피로로 신속히 <code class="text-emerald-300 font-mono">EXIT 비상구</code> 도달</div>
+          <div class="whitespace-nowrap">• <strong>금고 숫자 암호:</strong> <code class="text-amber-300 font-mono">614</code> (비상금고) / <code class="text-amber-300 font-mono">3322</code> (열쇠보관함) / <code class="text-amber-300 font-mono">0119</code> (비상문 · 3회 오답 시 30초 잠금)</div>
+          <div class="whitespace-nowrap">• <strong>배전판 배선 정답:</strong> <code class="text-sky-300 font-mono">빨강=B단자 / 파랑=D단자 / 노랑=A단자 / 초록=C단자</code> (색상·영문 기호 병기)</div>
+          <div class="whitespace-nowrap">• <strong>안전 구호 입력:</strong> <code class="text-emerald-300 font-mono">불이야</code> 또는 <code class="text-emerald-300 font-mono">낮은자세</code> (공백 자동 제거 비교)</div>
+          <div class="whitespace-nowrap">• <strong>최우선 목표:</strong> 장비·구조를 탈출 조건으로 강제하지 않으며, 안전한 대피로로 신속히 <code class="text-emerald-300 font-mono">EXIT 비상구</code> 도달</div>
         </div>
       </details>
 
@@ -1319,10 +1309,7 @@
           <span class="font-extrabold text-amber-300">🔢 비상 열쇠 보관함 디지털 잠금장치 (단서 코드: 614 / 3322 / 0119)</span>
           <span id="safeWrongBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px]">오답: 0 / 3회</span>
         </div>
-        <p class="text-slate-300 text-[11px] leading-relaxed">
-          단서 메모: <em>"안전 대피소 호실 번호는 <strong>6층 14호(614)</strong>, 열쇠 보관함은 <strong>3322</strong>, 긴급 직통번호는 <strong>0119</strong>입니다."</em><br/>
-          <span class="text-slate-400">※ 빈 입력이나 자릿수 부족은 오답 횟수에 포함되지 않으며, 3회 오답 시 활성 플레이 시간 30초 동안 잠깁니다.</span>
-        </p>
+        <p class="text-slate-300 text-[11px] whitespace-nowrap overflow-x-auto no-scrollbar">단서: <strong>6층 14호(614) · 보관함(3322) · 직통번호(0119)</strong> (빈 입력 제외, 3회 오답 시 30초 잠금)</p>
         <div class="flex items-center gap-2">
           <input id="safeCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="암호 숫자 입력 (예: 614)" aria-label="금고 암호 입력" class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-cyan-500/50 text-cyan-200 font-mono font-black text-base text-center tracking-widest" />
           <button id="btnSubmitSafeCode" type="button" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs sm:text-sm transition">잠금 해제</button>
@@ -1446,9 +1433,7 @@
           <button id="btnModeRelaxed" type="button" class="py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">긴장 완화 (480초)</button>
           <button id="btnModePractice" type="button" class="py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">수업 연습 (실패없음)</button>
         </div>
-        <p id="tensionPolicyNotice" class="text-[11px] text-slate-300 leading-snug">
-          ※ 한도 확대(300→480초)는 현재 회차에 즉시 적용되며, 한도 축소(480→300초)는 현재 회차를 즉시 실패시키지 않고 <strong>다음 새 게임부터 적용</strong>됩니다.
-        </p>
+        <p id="tensionPolicyNotice" class="text-[11px] text-slate-300 leading-snug whitespace-nowrap overflow-x-auto no-scrollbar">※ 한도 확대(300→480초)는 현재 판에 즉시 적용되며, 축소(480→300초)는 다음 새 게임부터 적용됩니다.</p>
       </div>
 
       <!-- Feature 2: Grade-Level Difficulty Presets (Low / Standard / Advanced) -->
@@ -1462,9 +1447,7 @@
           <button id="btnGradeStandard" type="button" class="py-1.5 px-2 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">🏫 초등 3~6학년 (표준)</button>
           <button id="btnGradeAdvanced" type="button" class="py-1.5 px-2 rounded-lg bg-slate-800 text-slate-300 font-bold text-[11px]">🔥 중등·심화 (도전)</button>
         </div>
-        <p id="gradePresetNotice" class="text-[11px] text-slate-300 leading-snug">
-          • <strong>초등 3~6학년(표준)</strong>: 기본 화염 확산 속도 및 4종 방탈출 퍼즐 표준 난이도가 적용됩니다.
-        </p>
+        <p id="gradePresetNotice" class="text-[11px] text-slate-300 leading-snug whitespace-nowrap overflow-x-auto no-scrollbar">• <strong>초등 3~6학년(표준)</strong>: 기본 화염 확산 속도 및 4종 방탈출 퍼즐 표준 난이도가 적용됩니다.</p>
       </div>
 
       <!-- PRD Section 9 & Feature 6: Graphics Quality, Brightness, Sensitivity, Motion Reduction & Voice TTS -->
@@ -1472,7 +1455,7 @@
         <div class="font-extrabold text-sky-300">🖥️ 화면 화질 · 밝기 · 감도 · 음성 읽어주기(TTS)</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div class="flex items-center justify-between gap-2">
-            <label for="selectGraphicsQuality" class="text-slate-300 font-bold">3D 렌더링 화질:</label>
+            <label for="selectGraphicsQuality" class="text-slate-300 font-bold whitespace-nowrap shrink-0">3D 렌더링 화질:</label>
             <select id="selectGraphicsQuality" class="px-2 py-1 rounded bg-slate-900 border border-slate-700 text-white font-bold">
               <option value="auto">자동 조절</option>
               <option value="high">고화질 (480 레이)</option>
@@ -1481,15 +1464,15 @@
             </select>
           </div>
           <div class="flex items-center justify-between gap-2">
-            <label for="chkReduceMotion" class="text-slate-300 font-bold">화면 흔들림 완화:</label>
+            <label for="chkReduceMotion" class="text-slate-300 font-bold whitespace-nowrap shrink-0">화면 흔들림 완화:</label>
             <input id="chkReduceMotion" type="checkbox" class="w-4 h-4 accent-sky-500" />
           </div>
           <div class="flex items-center justify-between gap-2">
-            <label for="rangeBrightness" class="text-slate-300 font-bold">화면 밝기 (<span id="lblBrightness">1.0</span>):</label>
+            <label for="rangeBrightness" class="text-slate-300 font-bold whitespace-nowrap shrink-0">화면 밝기 (<span id="lblBrightness">1.0</span>):</label>
             <input id="rangeBrightness" type="range" min="0.8" max="1.8" step="0.1" value="1.0" class="w-28 accent-amber-400" />
           </div>
           <div class="flex items-center justify-between gap-2">
-            <label for="rangeSensitivity" class="text-slate-300 font-bold">회전 감도 (<span id="lblSensitivity">1.0</span>):</label>
+            <label for="rangeSensitivity" class="text-slate-300 font-bold whitespace-nowrap shrink-0">회전 감도 (<span id="lblSensitivity">1.0</span>):</label>
             <input id="rangeSensitivity" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-28 accent-sky-400" />
           </div>
           <div class="sm:col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
@@ -1524,7 +1507,7 @@
             <button id="btnCancelImportSave" type="button" class="px-3 py-1 rounded bg-slate-800 text-slate-300 font-bold">취소</button>
           </div>
         </div>
-        <div id="saveActionFeedback" class="text-[11px] text-slate-400">핵심 진행 변경 시 즉시 저장되며, 위치·시간은 5초 주기로 스냅샷 저장됩니다.</div>
+        <div id="saveActionFeedback" class="text-[11px] text-slate-400 whitespace-nowrap overflow-x-auto no-scrollbar">핵심 진행 변경 시 즉시 저장되며, 위치·시간은 5초 주기로 자동 저장됩니다.</div>
       </div>
 
       <!-- PRD F12: Save & Exit to Main Portal or Resume -->
@@ -1547,7 +1530,7 @@
 
   <!-- New Idea #7: Safety Gear 3D Codex (소방 안전 장비 3D 도감) Modal -->
   <div id="codexModal" class="fixed inset-0 z-50 hidden bg-slate-950/88 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-    <div class="bg-slate-900 border border-sky-500/50 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+    <div class="bg-slate-900 border border-sky-500/50 rounded-2xl max-w-4xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">소방청 안전 설비 원리 · 360° 입체 도감 (아이디어 7)</span>
@@ -1568,12 +1551,12 @@
         <div class="sm:col-span-7 flex flex-col justify-between gap-2.5">
           <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
             <div class="font-extrabold text-amber-300">🔬 과학적 작동 원리 (연소·소화·피난 공학)</div>
-            <p id="codexGearPrinciple" class="text-slate-200 leading-relaxed">인산암모늄 분말로 화원을 덮어 산소를 차단(질식)하고 연쇄반응을 억제합니다.</p>
+            <p id="codexGearPrinciple" class="text-slate-200 whitespace-nowrap overflow-x-auto no-scrollbar">인산암모늄 분말로 화원을 덮어 산소를 차단(질식)하고 연쇄반응을 억제합니다.</p>
             <div class="font-extrabold text-emerald-300 pt-1 border-t border-slate-800/80">✅ 실전 사용 핵심 수칙</div>
-            <p id="codexGearUsage" class="text-slate-300 leading-relaxed">안전핀(P) 뽑기 → 화원 바닥 조준(A) → 손잡이 움켜쥐기(S) → 빗자루처럼 쓸어 분사(S)</p>
+            <p id="codexGearUsage" class="text-slate-300 whitespace-nowrap overflow-x-auto no-scrollbar">안전핀(P) 뽑기 → 화원 바닥 조준(A) → 손잡이 움켜쥐기(S) → 빗자루처럼 쓸어 분사(S)</p>
           </div>
 
-          <div id="codexGearGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs"></div>
+          <div id="codexGearGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-xs"></div>
         </div>
       </div>
 
@@ -1745,10 +1728,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=20"></script>
-  <script src="./stages.js?v=20"></script>
-  <script src="./editor.js?v=20"></script>
-  <script src="./tactical-3d.js?v=20"></script>
-  <script src="./game.js?v=20"></script>
+  <script src="./sound.js?v=21"></script>
+  <script src="./stages.js?v=21"></script>
+  <script src="./editor.js?v=21"></script>
+  <script src="./tactical-3d.js?v=21"></script>
+  <script src="./game.js?v=21"></script>
 </body>
 </html>
