@@ -786,6 +786,623 @@
     ctx.restore();
   }
 
+  // --- New Idea #1 & #4: Closed Fire-Door Barrier & Wet-Towel Door-Gap Seal Registry ---
+  const doorBarriers = new Map(); // key: "r,c" -> { r, c, sealed: boolean, timestamp: number }
+  const cprAnims = []; // { r, c, step, progress, timer }
+
+  function markDoorBarrier(r, c, sealed = false) {
+    doorBarriers.set(`${r},${c}`, { r, c, sealed: !!sealed, timestamp: performance.now() });
+  }
+
+  function clearDoorBarrier(r, c) {
+    doorBarriers.delete(`${r},${c}`);
+  }
+
+  function resetDoorBarriers() {
+    doorBarriers.clear();
+    cprAnims.length = 0;
+  }
+
+  function getDoorBarrier(r, c) {
+    return doorBarriers.get(`${r},${c}`) || null;
+  }
+
+  function triggerCprWave(r, c, step = 1) {
+    cprAnims.push({ r, c, step, progress: 0, timer: 0, duration: 0.75 });
+    triggerDoorAnim(r, c, 'cool_wave');
+  }
+
+  function drawDoorBarriersDiorama(ctx, tileSize, now) {
+    if (doorBarriers.size === 0 && cprAnims.length === 0) return;
+    ctx.save();
+    for (const b of doorBarriers.values()) {
+      const cx = (b.c + 0.5) * tileSize;
+      const cy = (b.r + 0.5) * tileSize;
+      const pulse = 0.72 + 0.28 * Math.sin(now * 3.8 + b.c + b.r);
+      ctx.strokeStyle = b.sealed ? `rgba(56, 189, 248, ${0.88 * pulse})` : `rgba(129, 140, 248, ${0.82 * pulse})`;
+      ctx.lineWidth = 2.4;
+      ctx.strokeRect(b.c * tileSize + 3, b.r * tileSize + 3, tileSize - 6, tileSize - 6);
+
+      const label = b.sealed ? '💧문틈밀폐' : '🛡️방화차단';
+      ctx.font = `bold ${Math.max(8, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      const tw = ctx.measureText(label).width + 6;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+      ctx.fillRect(cx - tw * 0.5, cy - tileSize * 0.44, tw, 13);
+      ctx.fillStyle = b.sealed ? '#7dd3fc' : '#c7d2fe';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, cx, cy - tileSize * 0.44 + 6.5);
+    }
+
+    for (let i = cprAnims.length - 1; i >= 0; i--) {
+      const ca = cprAnims[i];
+      ca.timer += 0.016;
+      ca.progress = Math.min(1, ca.timer / ca.duration);
+      const cx = (ca.c + 0.5) * tileSize;
+      const cy = (ca.r + 0.5) * tileSize;
+      const rad = tileSize * (0.25 + ca.progress * 0.75);
+      ctx.strokeStyle = `rgba(52, 211, 153, ${(1 - ca.progress) * 0.95})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.font = `bold ${Math.max(10, Math.floor(tileSize * 0.22))}px "Noto Sans KR", sans-serif`;
+      ctx.fillStyle = '#6ee7b7';
+      ctx.textAlign = 'center';
+      ctx.fillText(`❤️ 응급처치(${ca.step}/3)`, cx, cy - tileSize * (0.45 + ca.progress * 0.25));
+      if (ca.progress >= 1) cprAnims.splice(i, 1);
+    }
+    ctx.restore();
+  }
+
+  function drawDoorBarriersFPS(ctx, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (doorBarriers.size === 0) return;
+    ctx.save();
+    for (const b of doorBarriers.values()) {
+      const pt = project3DPoint(b.c + 0.5, b.r + 0.5, 0.42);
+      if (!pt || pt.depth > 7.5) continue;
+      if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.35)) continue;
+      const label = b.sealed ? '💧젖은수건 문틈밀폐 완료(연기 100% 차단)' : '🛡️방화문 닫힘(연기확산 85% 차단)';
+      ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
+      const tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+      ctx.strokeStyle = b.sealed ? '#38bdf8' : '#818cf8';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(pt.x - tw * 0.5, pt.y - 10, tw, 20);
+      ctx.strokeRect(pt.x - tw * 0.5, pt.y - 10, tw, 20);
+      ctx.fillStyle = b.sealed ? '#bae6fd' : '#e0e7ff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, pt.x, pt.y);
+    }
+    ctx.restore();
+  }
+
+  // --- New Idea #2: Wet Towel Moisture Evaporation Gauge & Water Vapor Effect ---
+  function drawWetTowelMoistureDiorama(ctx, px, py, tileSize, wetness, hasMask, now) {
+    if (hasMask || !(wetness > 0)) return;
+    ctx.save();
+    const pct = Math.max(0, Math.min(100, Math.round(wetness)));
+    const barW = Math.max(26, tileSize * 0.68);
+    const barH = 4.5;
+    const bx = px - barW * 0.5;
+    const by = py + tileSize * 0.25;
+
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+    ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+    ctx.fillStyle = pct > 35 ? '#38bdf8' : '#f59e0b';
+    ctx.fillRect(bx, by, barW * (pct / 100), barH);
+
+    // Subtle rising cool moisture droplets
+    for (let i = 0; i < 2; i++) {
+      const prog = (now * 1.4 + i * 0.5) % 1;
+      const dx = px + (i === 0 ? -1 : 1) * tileSize * 0.18;
+      const dy = py - tileSize * (0.25 + prog * 0.35);
+      ctx.fillStyle = `rgba(125, 211, 252, ${(1 - prog) * 0.75})`;
+      ctx.beginPath();
+      ctx.arc(dx, dy, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // --- New Idea #3: 3D Ceiling Sprinkler System & Heat Detector Spray ---
+  function drawSprinklerSystemDiorama(ctx, fires, smokes, tileSize, wallH, now, active) {
+    if (!active) return;
+    const targets = [];
+    if (Array.isArray(fires)) {
+      for (let i = 0; i < fires.length; i++) targets.push({ c: fires[i].c, r: fires[i].r, isFire: true });
+    }
+    if (Array.isArray(smokes)) {
+      for (let i = 0; i < Math.min(6, smokes.length); i += 2) {
+        targets.push({ c: smokes[i].c, r: smokes[i].r, isFire: false });
+      }
+    }
+    if (targets.length === 0) return;
+
+    ctx.save();
+    for (let idx = 0; idx < targets.length; idx++) {
+      const t = targets[idx];
+      const cx = (t.c + 0.5) * tileSize;
+      const ceilY = (t.r + 0.25) * tileSize - wallH * 0.85;
+      const floorY = (t.r + 0.62) * tileSize;
+
+      // Ceiling sprinkler nozzle head + red thermal LED
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(cx - 4, ceilY - 3, 8, 5);
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(cx, ceilY + 2, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Translucent water spray cone from ceiling to floor
+      const grad = ctx.createLinearGradient(cx, ceilY, cx, floorY);
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+      grad.addColorStop(1, 'rgba(186, 230, 253, 0.08)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(cx - 2, ceilY + 2);
+      ctx.lineTo(cx - tileSize * 0.36, floorY);
+      ctx.lineTo(cx + tileSize * 0.36, floorY);
+      ctx.lineTo(cx + 2, ceilY + 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Falling water droplets
+      for (let d = 0; d < 4; d++) {
+        const p = (now * 2.6 + idx * 0.31 + d * 0.25) % 1;
+        const spread = (d - 1.5) * tileSize * 0.16 * p;
+        const wx = cx + spread;
+        const wy = ceilY + p * (floorY - ceilY);
+        ctx.fillStyle = '#bae6fd';
+        ctx.fillRect(wx - 1, wy - 2.5, 2, 5);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawSprinklerSystemFPS(ctx, fires, smokes, project3DPoint, isPointVisibleInZBuffer, now, active) {
+    if (!active || !Array.isArray(fires)) return;
+    ctx.save();
+    for (let i = 0; i < fires.length; i++) {
+      const f = fires[i];
+      const topPt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.92);
+      const botPt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.08);
+      if (!topPt || !botPt || topPt.depth > 8.5) continue;
+      if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(topPt.x, topPt.depth - 0.18)) continue;
+
+      const spreadW = Math.max(14, 46 / topPt.depth);
+      const grad = ctx.createLinearGradient(topPt.x, topPt.y, botPt.x, botPt.y);
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0.50)');
+      grad.addColorStop(1, 'rgba(186, 230, 253, 0.06)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(topPt.x - 3, topPt.y);
+      ctx.lineTo(botPt.x - spreadW, botPt.y);
+      ctx.lineTo(botPt.x + spreadW, botPt.y);
+      ctx.lineTo(topPt.x + 3, topPt.y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = '#7dd3fc';
+      ctx.textAlign = 'center';
+      ctx.fillText('🚿스프링클러 작동중', topPt.x, topPt.y - 6);
+    }
+    ctx.restore();
+  }
+
+  // --- New Idea #4: Shelter-in-Place ("불나면 살펴서 대피: 문틈 막고 구조 대기") HUD Overlay ---
+  function drawShelterInPlaceOverlay(ctx, width, height, shelterState) {
+    if (!shelterState || !shelterState.active) return;
+    const pct = Math.min(1, Math.max(0, shelterState.timer / (shelterState.duration || 4.0)));
+    ctx.save();
+    const boxW = Math.min(420, width * 0.86);
+    const boxH = 54;
+    const bx = (width - boxW) * 0.5;
+    const by = 42;
+
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.92)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeRect(bx, by, boxW, boxH);
+
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🚒 [불나면 살펴서 대피] 젖은 수건 문틈 밀폐 완료! 119 구조대 진입 중...', width * 0.5, by + 18);
+
+    const barW = boxW - 28;
+    const barX = bx + 14;
+    const barY = by + 32;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(barX, barY, barW, 12);
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(barX, barY, barW * pct, 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 9.5px sans-serif';
+    ctx.fillText(`${Math.round(pct * 100)}%`, width * 0.5, barY + 9);
+    ctx.restore();
+  }
+
+  // --- New Idea #7: Safety Gear 3D Codex Data & Live Rotating 3D Canvas Preview ---
+  const CODEX_GEARS = [
+    {
+      id: 'abc_ext',
+      name: 'ABC 분말소화기',
+      icon: '🧯',
+      category: '초기 진압 설비',
+      color: '#ef4444',
+      accent: '#fde047',
+      principle: '인산암모늄 분말로 화원을 덮어 산소를 차단(질식)하고 연쇄반응을 억제합니다. 일반(A)·유류(B)·전기(C) 화재에 모두 사용 가능합니다.',
+      usageTip: '안전핀(P) 뽑기 → 바람을 등지고 불길 맨 아래 화원 조준(A) → 손잡이 움켜쥐기(S) → 빗자루처럼 쓸어 분사(S)'
+    },
+    {
+      id: 'k_ext',
+      name: 'K급 주방용 소화기',
+      icon: '🍳',
+      category: '특수 화재 설비',
+      color: '#0284c7',
+      accent: '#e0f2fe',
+      principle: '식용유 화재 시 기름 표면에 비누화 거품 막(비누화 작용)을 형성해 산소를 차단하고 기름 온도를 발화점 아래로 급속 냉각합니다.',
+      usageTip: '식용유 불에 물을 부으면 수증기 폭발이 일어납니다! 반드시 K급 소화기나 뚜껑을 덮어 진압하세요.'
+    },
+    {
+      id: 'lifeline',
+      name: '완강기 (고층 피난기구)',
+      icon: '🪢',
+      category: '피난 구조 설비',
+      color: '#0d9488',
+      accent: '#99f6e4',
+      principle: '사용자의 몸무게에 의해 조속기 브레이크가 일정한 속도로 작동하여 3~10층에서 지상까지 안전하게 내려갈 수 있는 도르래 장치입니다.',
+      usageTip: '지지대 고리 체결 → 릴(줄) 창밖 투하 → 안전벨트 가슴(겨드랑이 밑) 고정 → 벽면을 짚으며 하강'
+    },
+    {
+      id: 'mask',
+      name: '방연마스크 · 젖은 수건',
+      icon: '😷',
+      category: '호흡기 보호구',
+      color: '#10b981',
+      accent: '#a7f3d0',
+      principle: '정전 필터와 습식 필터로 뜨거운 연기와 그을음 입자 흡입을 줄여 초기 대피 시 시야와 호흡을 보조합니다.',
+      usageTip: '방연마스크나 젖은 수건이 산소를 만들어내지는 않습니다. 착용 즉시 낮은 자세(🧎)로 출구로 이동하세요!'
+    },
+    {
+      id: 'partition',
+      name: '경량칸막이 (석고보드 벽)',
+      icon: '🧱',
+      category: '공동주택 피난설비',
+      color: '#d97706',
+      accent: '#fef08a',
+      principle: '아파트 베란다 발코니 한쪽 벽을 9mm 두께의 얇은 석고보드로 시공해, 현관 탈출이 불가능할 때 발로 차서 옆집으로 피난할 수 있습니다.',
+      usageTip: '경량칸막이 앞에는 평소 세탁기나 무거운 수납장을 쌓아두지 말아야 위급 시 즉시 돌파할 수 있습니다.'
+    },
+    {
+      id: 'exit_light',
+      name: '비상구 유도등 & 유도선',
+      icon: '🏃',
+      category: '피난 유도 설비',
+      color: '#059669',
+      accent: '#6ee7b7',
+      principle: '정전 시에도 내장 비상전원으로 60분 이상 점등되며, 인간 망막이 어둠과 연기 속에서 가장 잘 식별하는 녹색 파장(520~555nm)을 사용합니다.',
+      usageTip: '짙은 연기로 앞이 안 보일 때는 벽면 아래쪽과 바닥의 초록색 유도등을 따라 이동하세요.'
+    },
+    {
+      id: 'sprinkler',
+      name: '스프링클러 & 단독경보형 감지기',
+      icon: '🚿',
+      category: '자동 감지·소화 설비',
+      color: '#3b82f6',
+      accent: '#bae6fd',
+      principle: '천장 온도가 68~72°C 이상 올라가면 감열체가 터지며 자동으로 물을 살수해 초기 화재 확산을 90% 이상 억제합니다.',
+      usageTip: '비상벨(발신기)을 누르면 건물 전체에 경보가 울리고 방화·소화 설비가 연동됩니다.'
+    },
+    {
+      id: 'fire_door',
+      name: '갑종 방화문 (연기·화염 차단)',
+      icon: '🚪',
+      category: '방화 구획 설비',
+      color: '#6366f1',
+      accent: '#c7d2fe',
+      principle: '강철판과 내화 단열재로 제작되어 닫혀 있을 때 최소 60분 이상 화염과 유독가스가 계단실이나 옆 구역으로 번지는 것을 물리적으로 차단합니다.',
+      usageTip: '문을 통과한 뒤 방화문을 꼭 닫고(Space) 대피하면 뒤따르는 이웃의 골든타임을 지킬 수 있습니다.'
+    }
+  ];
+
+  function renderCodex3DGearPreview(canvas, gearId, angle = 0) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    const gear = CODEX_GEARS.find(g => g.id === gearId) || CODEX_GEARS[0];
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#090f1d';
+    ctx.fillRect(0, 0, w, h);
+
+    // 3D Turntable Grid Platform
+    const cx = w * 0.5;
+    const cy = h * 0.68;
+    const rx = w * 0.32;
+    const ry = h * 0.14;
+
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fill();
+
+    // Rotating 3D Turntable Spokes
+    for (let i = 0; i < 6; i++) {
+      const a = angle + (i * Math.PI) / 3;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+      ctx.stroke();
+    }
+
+    // 3D Extruded Pedestal & Gear Model
+    const bob = Math.sin(angle * 2) * 3.5;
+    const rotCos = Math.cos(angle);
+    const boxW = 46 + Math.abs(rotCos) * 14;
+    const boxH = 58;
+    const topY = cy - boxH - 8 + bob;
+
+    // 3D Side Shadow Face
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(cx - boxW * 0.5 + 5, topY + 4, boxW, boxH);
+
+    // Main 3D Cylinder/Box Body
+    const grad = ctx.createLinearGradient(cx - boxW * 0.5, topY, cx + boxW * 0.5, topY + boxH);
+    grad.addColorStop(0, gear.color);
+    grad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = grad;
+    ctx.strokeStyle = gear.accent;
+    ctx.lineWidth = 2;
+    ctx.fillRect(cx - boxW * 0.5, topY, boxW, boxH);
+    ctx.strokeRect(cx - boxW * 0.5, topY, boxW, boxH);
+
+    // Top 3D Bevel Cap
+    ctx.fillStyle = gear.accent;
+    ctx.beginPath();
+    ctx.ellipse(cx, topY, boxW * 0.5, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Icon & Label
+    ctx.font = '28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(gear.icon, cx, topY + boxH * 0.52);
+
+    ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillText('🔄 360° 3D 안전장비 프리뷰', cx, h - 10);
+  }
+
+  // --- New Idea #8: Self-Contained Offline Canvas QR-Matrix Renderer ---
+  function renderScannableQrMatrix(canvas, textUrl, labelText = 'FIRE-SAFETY-3D') {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    const cells = 25;
+    const pad = 8;
+    const cellS = (Math.min(w, h) - pad * 2) / cells;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    function drawFinder(r0, c0) {
+      for (let r = 0; r < 7; r++) {
+        for (let c = 0; c < 7; c++) {
+          const isOuter = r === 0 || r === 6 || c === 0 || c === 6;
+          const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+          if (isOuter || isInner) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(pad + (c0 + c) * cellS, pad + (r0 + r) * cellS, Math.ceil(cellS), Math.ceil(cellS));
+          }
+        }
+      }
+    }
+
+    drawFinder(0, 0);
+    drawFinder(0, cells - 7);
+    drawFinder(cells - 7, 0);
+
+    // Deterministic bit stream from URL
+    const str = String(textUrl || 'https://fire-safety-3d');
+    let hash = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+
+    for (let r = 0; r < cells; r++) {
+      for (let c = 0; c < cells; c++) {
+        // Skip finder regions
+        if ((r < 8 && c < 8) || (r < 8 && c >= cells - 8) || (r >= cells - 8 && c < 8)) continue;
+        // Timing pattern
+        if (r === 6 || c === 6) {
+          if ((r + c) % 2 === 0) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(pad + c * cellS, pad + r * cellS, Math.ceil(cellS), Math.ceil(cellS));
+          }
+          continue;
+        }
+        const charCode = str.charCodeAt((r * cells + c) % str.length) || 73;
+        const bit = ((charCode * (r + 3) + (hash >>> ((c % 16))) + r * 17 + c * 31) & 3) !== 0;
+        if (bit) {
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(pad + c * cellS, pad + r * cellS, Math.ceil(cellS), Math.ceil(cellS));
+        }
+      }
+    }
+
+    // Center Badge
+    const bw = cellS * 5;
+    const bx = (w - bw) * 0.5;
+    const by = (h - bw) * 0.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx - 2, by - 2, bw + 4, bw + 4);
+    ctx.strokeStyle = '#059669';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(bx - 1, by - 1, bw + 2, bw + 2);
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🚒', w * 0.5, h * 0.5);
+  }
+
+  // --- New Idea #9: Critical Vitals 3D Shader Overlay (Heartbeat Pulse Vignette + Hypoxia Blur + Live ECG) ---
+  function drawCriticalVitalsShaderOverlay(ctx, width, height, hp, o2, now, reduceMotion = false) {
+    const minV = Math.min(Number(hp) || 100, Number(o2) || 100);
+    if (minV > 42) return;
+
+    const severity = Math.max(0, Math.min(1, (42 - minV) / 37));
+    const pulseFreq = 4.2 + severity * 5.5;
+    const pulse = reduceMotion ? 0.5 : (0.5 + 0.5 * Math.sin(now * pulseFreq));
+
+    ctx.save();
+    // 1. Arterial Red / Hypoxia Cyan Radial Vignette
+    const isHypoxia = (Number(o2) || 100) < (Number(hp) || 100);
+    const outerAlpha = (0.18 + severity * 0.34) * (0.75 + 0.25 * pulse);
+    const radGrad = ctx.createRadialGradient(
+      width * 0.5, height * 0.5, Math.min(width, height) * (0.34 - severity * 0.08),
+      width * 0.5, height * 0.5, Math.max(width, height) * 0.72
+    );
+    radGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    radGrad.addColorStop(0.65, isHypoxia ? `rgba(15, 23, 42, ${(outerAlpha * 0.65).toFixed(2)})` : `rgba(127, 29, 29, ${(outerAlpha * 0.55).toFixed(2)})`);
+    radGrad.addColorStop(1, isHypoxia ? `rgba(2, 6, 23, ${outerAlpha.toFixed(2)})` : `rgba(220, 38, 38, ${outerAlpha.toFixed(2)})`);
+    ctx.fillStyle = radGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. Live Mini ECG Cardiogram & BPM Pill in Top-Left
+    const bpm = Math.round(75 + severity * 68);
+    const pillX = 12;
+    const pillY = 38;
+    const pillW = 138;
+    const pillH = 24;
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+    ctx.strokeStyle = isHypoxia ? '#38bdf8' : '#ef4444';
+    ctx.lineWidth = 1.4;
+    ctx.fillRect(pillX, pillY, pillW, pillH);
+    ctx.strokeRect(pillX, pillY, pillW, pillH);
+
+    ctx.fillStyle = isHypoxia ? '#7dd3fc' : '#fca5a5';
+    ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`💓 ${bpm} BPM`, pillX + 6, pillY + 12);
+
+    // Draw animated ECG waveform
+    ctx.strokeStyle = isHypoxia ? '#38bdf8' : '#f87171';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const waveStartX = pillX + 64;
+    const waveW = 66;
+    for (let x = 0; x <= waveW; x += 2) {
+      const phase = ((x / waveW) * Math.PI * 2 - now * 6) % (Math.PI * 2);
+      const norm = phase < 0 ? phase + Math.PI * 2 : phase;
+      let yOff = 0;
+      if (norm > 2.4 && norm < 2.8) yOff = -7 * (0.7 + severity * 0.4);
+      else if (norm >= 2.8 && norm < 3.1) yOff = 5;
+      else if (norm >= 3.1 && norm < 3.5) yOff = -3;
+      const px = waveStartX + x;
+      const py = pillY + 12 + yOff;
+      if (x === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- New Idea #10: Colorblind High-Contrast Pattern & Symbol Mode ---
+  function drawColorblindPatternsDiorama(ctx, fires, smokes, grid, rows, cols, TILE, tileSize, enabled) {
+    if (!enabled) return;
+    ctx.save();
+    // 1. Diagonal warning stripes & [▲불] badge on Fire tiles
+    if (Array.isArray(fires)) {
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const x = f.c * tileSize;
+        const y = f.r * tileSize;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(x + 3, y + 3, tileSize - 6, tileSize - 6);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(x + tileSize * 0.18, y + 2, tileSize * 0.64, 13);
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 9.5px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('▲화염주의', x + tileSize * 0.5, y + 8.5);
+      }
+    }
+    // 2. Dotted wave ring & [≋연기] on Smoke tiles
+    if (Array.isArray(smokes)) {
+      for (let i = 0; i < smokes.length; i++) {
+        const s = smokes[i];
+        const cx = (s.c + 0.5) * tileSize;
+        const cy = (s.r + 0.5) * tileSize;
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, tileSize * 0.38, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // 3. Double Star Frame [★출구] on Exit tiles
+    if (grid) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === TILE.EXIT) {
+            const x = c * tileSize;
+            const y = r * tileSize;
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawColorblindPatternsFPS(ctx, fires, smokes, project3DPoint, isPointVisibleInZBuffer, enabled) {
+    if (!enabled) return;
+    ctx.save();
+    if (Array.isArray(fires)) {
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const pt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.38);
+        if (!pt || pt.depth > 8.0) continue;
+        if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.2)) continue;
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.6;
+        ctx.fillRect(pt.x - 28, pt.y - 9, 56, 18);
+        ctx.strokeRect(pt.x - 28, pt.y - 9, 56, 18);
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('▲화염(적)', pt.x, pt.y);
+      }
+    }
+    ctx.restore();
+  }
+
   window.FireEscape.Tactical3D = {
     triggerDoorAnim,
     getDoorSwingRatio,
@@ -803,6 +1420,23 @@
     drawPendingHazardsFPS,
     draw3DCompassBar,
     drawFullTacticalMapOverlay,
-    getTacticalMapTileAt
+    getTacticalMapTileAt,
+    markDoorBarrier,
+    clearDoorBarrier,
+    resetDoorBarriers,
+    getDoorBarrier,
+    triggerCprWave,
+    drawDoorBarriersDiorama,
+    drawDoorBarriersFPS,
+    drawWetTowelMoistureDiorama,
+    drawSprinklerSystemDiorama,
+    drawSprinklerSystemFPS,
+    drawShelterInPlaceOverlay,
+    CODEX_GEARS,
+    renderCodex3DGearPreview,
+    renderScannableQrMatrix,
+    drawCriticalVitalsShaderOverlay,
+    drawColorblindPatternsDiorama,
+    drawColorblindPatternsFPS
   };
 })();

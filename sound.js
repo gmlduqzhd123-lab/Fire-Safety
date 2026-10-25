@@ -3,13 +3,16 @@
 
   window.FireEscape = window.FireEscape || {};
 
-  // --- Web Audio API Synthesizer & 3D Spatial Audio Engine ---
+  // --- Web Audio API Synthesizer, 3D Spatial Audio, Vital Heartbeat & Radio TTS Coach ---
   const SoundFX = {
     ctx: null,
     muted: false,
+    voiceCoachEnabled: true,
     spatialCrackleTimer: 0,
     lastSpatialPan: 0,
     lastSpatialGain: 0,
+    vitalBeatTimer: 0,
+    lastRadioTimestamp: 0,
     init() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -23,7 +26,7 @@
         this.ctx.resume().catch(() => {});
       }
     },
-    // Idea #5: 3D Spatial Audio & Crouch Low-Pass Filter for Nearby Fires
+    // Idea #5 (Prev): 3D Spatial Audio & Crouch Low-Pass Filter for Nearby Fires
     updateSpatialFireAudio(listenerX, listenerY, listenerYaw, fires, isCrouching, dt = 0.016) {
       if (this.muted || !Array.isArray(fires) || fires.length === 0) {
         this.lastSpatialGain = 0;
@@ -95,6 +98,23 @@
       this.lastSpatialGain = 0;
       this.lastSpatialPan = 0;
     },
+    // New Idea #9: Dynamic Vital Heartbeat Synthesizer (Scales BPM with Low O2 / HP)
+    updateVitalsHeartbeat(hp, o2, dt = 0.016) {
+      if (this.muted) return;
+      const minVital = Math.min(Number(hp) || 100, Number(o2) || 100);
+      if (minVital > 42) {
+        this.vitalBeatTimer = 0;
+        return;
+      }
+      // Scale interval from 0.85s (70 BPM at 42%) down to 0.42s (142 BPM at 5%)
+      const urgency = Math.max(0, Math.min(1, (42 - minVital) / 37));
+      const interval = 0.85 - urgency * 0.43;
+      this.vitalBeatTimer -= dt;
+      if (this.vitalBeatTimer <= 0) {
+        this.vitalBeatTimer = interval;
+        this.heartbeat(0.16 + urgency * 0.12);
+      }
+    },
     playTone(freq, type, duration, vol = 0.12, slideTo = null) {
       if (this.muted || !this.ctx) return;
       try {
@@ -148,6 +168,24 @@
     },
     spray() {
       this.playNoise(0.32, 0.22);
+    },
+    // New Idea #3: Ceiling Sprinkler Activation Sound
+    sprinklerSpray() {
+      if (this.muted) return;
+      this.playNoise(0.18, 0.09);
+      this.playTone(680, 'sine', 0.09, 0.06, 920);
+    },
+    // New Idea #5: 119 Emergency Situation Room Dispatcher Tone
+    dispatcher119Beep() {
+      if (this.muted) return;
+      this.playTone(960, 'sine', 0.08, 0.12);
+      setTimeout(() => this.playTone(1240, 'sine', 0.11, 0.12), 95);
+    },
+    // New Idea #6: Rhythmic CPR Chest Compression & First-Aid Beep
+    cprPulse(step = 1) {
+      if (this.muted) return;
+      const pitch = 540 + step * 90;
+      this.playTone(pitch, 'triangle', 0.10, 0.15, pitch * 1.15);
     },
     foamPulse(progress = 0.5) {
       this.playNoise(0.14, 0.18);
@@ -217,10 +255,10 @@
         this.playTone(210, 'sawtooth', 0.14, 0.10, 125);
       }, 150);
     },
-    heartbeat() {
+    heartbeat(vol = 0.22) {
       if (this.muted) return;
-      this.playTone(62, 'sine', 0.11, 0.22, 42);
-      setTimeout(() => this.playTone(54, 'sine', 0.14, 0.18, 36), 165);
+      this.playTone(62, 'sine', 0.11, vol, 42);
+      setTimeout(() => this.playTone(54, 'sine', 0.14, vol * 0.82, 36), 165);
     },
     guidePing() {
       if (this.muted) return;
@@ -236,6 +274,12 @@
       this.playNoise(0.38, 0.26);
       this.playTone(140, 'sawtooth', 0.28, 0.18, 52);
     },
+    // New Idea #10: Firefighter Walkie-Talkie Radio Squelch + TTS Voice Coaching
+    radioSquelch() {
+      if (this.muted) return;
+      this.playNoise(0.06, 0.10);
+      this.playTone(1480, 'sine', 0.045, 0.06, 1120);
+    },
     speak(text, rate = 1.08, pitch = 1.0) {
       if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
       try {
@@ -247,6 +291,14 @@
         utter.volume = 0.85;
         window.speechSynthesis.speak(utter);
       } catch (e) {}
+    },
+    speakRadioCoaching(text, force = false) {
+      if (this.muted || !this.voiceCoachEnabled || !text) return;
+      const nowMs = Date.now();
+      if (!force && nowMs - this.lastRadioTimestamp < 2800) return;
+      this.lastRadioTimestamp = nowMs;
+      this.radioSquelch();
+      this.speak(text, 1.10, 0.96);
     }
   };
 

@@ -523,6 +523,10 @@
 
     function drawFallbackQrMatrix(canvas, text) {
       if (!canvas) return;
+      if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.renderScannableQrMatrix === 'function') {
+        window.FireEscape.Tactical3D.renderScannableQrMatrix(canvas, text);
+        return;
+      }
       const ctx = canvas.getContext('2d');
       const size = 21;
       const cell = canvas.width / size;
@@ -561,6 +565,29 @@
           }
         }
       }
+    }
+
+    const btnDownloadQrCard = document.getElementById('btnDownloadQrCard');
+    if (btnDownloadQrCard && qrCodeCanvas) {
+      btnDownloadQrCard.addEventListener('click', () => {
+        syncEditorCode();
+        const code = editorMapCodeInput.value.trim();
+        const baseUrl = window.location.origin && window.location.origin !== 'null'
+          ? `${window.location.origin}${window.location.pathname}`
+          : window.location.href.split('?')[0];
+        const shareUrl = `${baseUrl}?map=${encodeURIComponent(code)}`;
+        drawFallbackQrMatrix(qrCodeCanvas, shareUrl);
+        try {
+          const url = qrCodeCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `커스텀대피도_QR_${new Date().toISOString().slice(0, 10)}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          callbacks.showToast('📱 커스텀 대피도 QR코드 이미지가 저장되었습니다!');
+        } catch (e) {}
+      });
     }
 
     if (btnShowMapQr && qrCodeContainer) {

@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=17" />
+  <link rel="stylesheet" href="./style.css?v=18" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -188,6 +188,21 @@
           <button id="btnCertModal" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 transition flex items-center gap-1">
             <span>🏅</span>
             <span>수료증·스킨</span>
+          </button>
+
+          <button id="btnCodexModal" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 text-sky-200 transition flex items-center gap-1" title="3D 소방 안전 장비 백과사전 (Codex)">
+            <span>📘</span>
+            <span>3D 장비도감</span>
+          </button>
+
+          <button id="btnVoiceCoachToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/50 text-amber-200 transition flex items-center gap-1" title="AI 소방관 무전 보이스 코칭 ON/OFF">
+            <span>🎙️</span>
+            <span id="voiceCoachToggleText">무전음성:켜짐</span>
+          </button>
+
+          <button id="btnColorblindToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-fuchsia-400/50 text-fuchsia-200 transition flex items-center gap-1" title="적록 색각 이상자 고대비 패턴 모드">
+            <span>👁️</span>
+            <span id="colorblindToggleText">색각보정:꺼짐</span>
           </button>
 
           <button id="btnGuide" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
@@ -747,6 +762,9 @@
           <div class="font-extrabold text-emerald-400">📱 태블릿·스마트폰 카메라로 QR코드를 스캔하세요!</div>
           <p class="text-slate-300 text-[11px]">별도 로그인이나 긴 코드 입력 없이 내가 만든 우리 집·교실 대피도가 친구의 화면에 즉시 열립니다.</p>
           <div id="qrShareUrlText" class="text-[10px] font-mono text-slate-400 break-all bg-slate-900 px-2 py-1 rounded border border-slate-800"></div>
+          <div class="pt-1 flex flex-wrap gap-1.5 justify-center sm:justify-start">
+            <button id="btnDownloadQrCard" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-[11px]">📥 QR코드 PNG 저장</button>
+          </div>
         </div>
       </div>
 
@@ -839,7 +857,7 @@
 
       <!-- 10 Safety Badges Grid -->
       <div>
-        <div class="text-xs font-bold text-slate-300 mb-1.5">🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</div>
+        <div class="text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between"><span>🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</span><button id="btnOpenCodexFromCert" type="button" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px]">📘 3D 소방장비 도감 열기</button></div>
         <div id="badgeCollectionGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
       </div>
 
@@ -1434,6 +1452,10 @@
             <label for="chkVoiceTts" class="text-amber-300 font-extrabold">🗣️ 미션·퀴즈 한국어 음성 읽어주기 (저학년·다문화 학생 지원 TTS):</label>
             <input id="chkVoiceTts" type="checkbox" class="w-4 h-4 accent-amber-400" />
           </div>
+          <div class="sm:col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <label for="chkColorblindMode" class="text-fuchsia-300 font-extrabold">👁️ 색각 이상자용 고대비 패턴 모드 (화염▲·연기≋·출구★ 기호 병기):</label>
+            <input id="chkColorblindMode" type="checkbox" class="w-4 h-4 accent-fuchsia-400" />
+          </div>
         </div>
       </div>
 
@@ -1477,6 +1499,44 @@
       <button id="btnExportPerfJson" type="button" class="px-1.5 py-0.5 rounded bg-emerald-600 text-slate-950 font-bold">JSON 내보내기</button>
     </div>
     <div id="perfMetricsText">FPS: 60 | p95: 16.7ms | LongFrames: 0</div>
+  </div>
+
+  <!-- New Idea #7: Safety Gear 3D Codex (소방 안전 장비 3D 도감) Modal -->
+  <div id="codexModal" class="fixed inset-0 z-50 hidden bg-slate-950/88 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-sky-500/50 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">소방청 안전 설비 원리 · 360° 입체 도감 (아이디어 7)</span>
+          <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5">📘 안전 대원 3D 소방 장비 도감 (Safety Gear Codex)</h3>
+        </div>
+        <button id="btnCloseCodexModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch">
+        <div class="sm:col-span-5 bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col items-center justify-between gap-2">
+          <canvas id="codex3DCanvas" width="220" height="165" class="w-full max-w-[220px] h-auto rounded-lg border border-slate-800"></canvas>
+          <div class="w-full text-center space-y-1">
+            <div id="codexGearCategoryBadge" class="inline-block px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[10px] font-extrabold">초기 진압 설비</div>
+            <div id="codexGearTitle" class="text-sm sm:text-base font-black text-white">🧯 ABC 분말소화기</div>
+          </div>
+        </div>
+
+        <div class="sm:col-span-7 flex flex-col justify-between gap-2.5">
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
+            <div class="font-extrabold text-amber-300">🔬 과학적 작동 원리 (연소·소화·피난 공학)</div>
+            <p id="codexGearPrinciple" class="text-slate-200 leading-relaxed">인산암모늄 분말로 화원을 덮어 산소를 차단(질식)하고 연쇄반응을 억제합니다.</p>
+            <div class="font-extrabold text-emerald-300 pt-1 border-t border-slate-800/80">✅ 실전 사용 핵심 수칙</div>
+            <p id="codexGearUsage" class="text-slate-300 leading-relaxed">안전핀(P) 뽑기 → 화원 바닥 조준(A) → 손잡이 움켜쥐기(S) → 빗자루처럼 쓸어 분사(S)</p>
+          </div>
+
+          <div id="codexGearGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs"></div>
+        </div>
+      </div>
+
+      <button id="btnConfirmCodexModal" type="button" class="w-full py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs sm:text-sm transition">
+        도감 닫기
+      </button>
+    </div>
   </div>
 
   <!-- Fire Safety & Curriculum Guide Modal -->
@@ -1589,10 +1649,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=17"></script>
-  <script src="./stages.js?v=17"></script>
-  <script src="./editor.js?v=17"></script>
-  <script src="./tactical-3d.js?v=17"></script>
-  <script src="./game.js?v=17"></script>
+  <script src="./sound.js?v=18"></script>
+  <script src="./stages.js?v=18"></script>
+  <script src="./editor.js?v=18"></script>
+  <script src="./tactical-3d.js?v=18"></script>
+  <script src="./game.js?v=18"></script>
 </body>
 </html>

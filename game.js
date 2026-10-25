@@ -275,6 +275,9 @@
     crouching: false,
     hasTowel: false,
     wetTowel: false,
+    towelWetness: 0,
+    sprinklerActive: false,
+    sealedDoorsCount: 0,
     hasMask: false,
     hasFlashlight: false,
     onFire: false,
@@ -360,7 +363,8 @@
     reduceMotion: false,
     gradePreset: 'standard', // 'low' | 'standard' | 'advanced'
     voiceTts: false,
-    goldenBellMode: false
+    goldenBellMode: false,
+    colorblindMode: false
   };
   try {
     const savedSettings = JSON.parse(localStorage.getItem('fire-safety:settings:v1') || 'null');
@@ -388,6 +392,8 @@
   let relayBatonTriggered = {};
   let autoGuideTimer = 0;
   let autoGuidePath = [];
+  let shelterInPlaceState = { active: false, timer: 0, duration: 3.5 };
+  let lowVitalRadioWarned = false;
   let lastGameOverReason = 'hp';
   let rescuedCompanions = [];
   let pendingHazards = [];
@@ -770,6 +776,14 @@
     player.crouching = false;
     player.hasTowel = false;
     player.wetTowel = false;
+    player.towelWetness = 0;
+    player.sprinklerActive = false;
+    player.sealedDoorsCount = 0;
+    shelterInPlaceState = { active: false, timer: 0, duration: 3.5 };
+    lowVitalRadioWarned = false;
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.resetDoorBarriers === "function") {
+      window.FireEscape.Tactical3D.resetDoorBarriers();
+    }
     player.hasMask = false;
     player.hasFlashlight = !!activeSkin.defaultFlashlight;
     player.onFire = false;
@@ -1241,7 +1255,7 @@
     }
 
     const activeSkin = getSelectedSkin();
-    const invKey = `${isCoopMode ? 1 : 0}|${activeSkin ? activeSkin.id : ''}|${player.hasMask ? 1 : 0}|${player.wetTowel ? 1 : 0}|${player.hasTowel ? 1 : 0}|${player.hasFlashlight ? 1 : 0}|${player.extinguisherCharges}|${player.waterCharges}|${player.keys}|${player.hasAxe ? 1 : 0}|${player.rescuedDog ? 1 : 0}|${player.rescuedNpcs}|${player.hazardsFixed}/${player.totalHazards}`;
+    const invKey = `${isCoopMode ? 1 : 0}|${activeSkin ? activeSkin.id : ''}|${player.hasMask ? 1 : 0}|${player.wetTowel ? Math.round(player.towelWetness || 100) : 0}|${player.sprinklerActive ? 1 : 0}|${player.hasTowel ? 1 : 0}|${player.hasFlashlight ? 1 : 0}|${player.extinguisherCharges}|${player.waterCharges}|${player.keys}|${player.hasAxe ? 1 : 0}|${player.rescuedDog ? 1 : 0}|${player.rescuedNpcs}|${player.hazardsFixed}/${player.totalHazards}`;
     if (hudCache.invKey !== invKey) {
       hudCache.invKey = invKey;
       const badges = [];
@@ -1254,7 +1268,7 @@
       if (player.hasMask) {
         badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/25 border border-teal-400/50 text-teal-200 text-[11px] font-bold shrink-0">😷 마스크 착용</span>`);
       } else if (player.wetTowel) {
-        badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/25 border border-sky-400/50 text-sky-200 text-[11px] font-bold shrink-0">💧 젖은수건 착용</span>`);
+        badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/25 border border-sky-400/50 text-sky-200 text-[11px] font-bold shrink-0">💧 젖은수건(💧${Math.max(1, Math.round(player.towelWetness || 100))}%)</span>`);
       } else if (player.hasTowel) {
         badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[11px] font-bold shrink-0">🧣 마른수건(대피 우선)</span>`);
       }
@@ -1684,6 +1698,8 @@
 
   // --- Improvement #7: 2-Step Interactive 119 Emergency Call Simulation Modal ---
   function start119Simulation(c, r) {
+    if (typeof SoundFX.dispatcher119Beep === "function") SoundFX.dispatcher119Beep();
+    if (typeof SoundFX.speakRadioCoaching === "function") SoundFX.speakRadioCoaching("119 종합상황실입니다. 정확한 위치와 화재 상황을 알려주세요.", true);
     if (metrics.called119) {
       showToast('📞 이미 119에 정확한 위치와 상황을 신고했습니다! 신속히 대피하세요!');
       return;
@@ -1712,6 +1728,24 @@
                 autoGuidePath = computeSafeBfsPathToTarget(nextObj.c, nextObj.r);
               }
               showToast('📞 [119 2단계 교신 완벽 성공!] 소방차 출동 완료 & 상황실이 안전 탈출 경로를 브리핑했습니다! (+350점)', 'border-purple-400');
+            }
+          },
+          {
+            label: '🛡️ [불나면 살펴서 대피 브리핑] "계단·복도에 연기가 가득할 땐 방화문을 닫고 젖은 수건으로 문틈을 막은 뒤 창가에서 119 구조대를 기다립니다!" (+400점 분기 클리어)',
+            primary: false,
+            onSelect: () => {
+              metrics.called119 = true;
+              player.wetTowel = true;
+              player.towelWetness = 100;
+              player.fireDoorsClosed = Math.max(1, player.fireDoorsClosed);
+              score += 400;
+              SoundFX.win();
+              if (typeof SoundFX.speakRadioCoaching === 'function') {
+                SoundFX.speakRadioCoaching('불나면 살펴서 대피! 방화구획 문틈 밀폐 완료. 119 구조대가 진입합니다!', true);
+              }
+              closeEduModal();
+              shelterInPlaceState = { active: true, timer: 0, duration: 3.0 };
+              showToast('🚒 [불나면 살펴서 대피 발동!] 젖은 수건으로 문틈을 막고 방화구획 안에서 119 구조대를 안전하게 맞이합니다! (+400점)', 'border-sky-400');
             }
           },
           {
@@ -2085,6 +2119,17 @@
         showToast('🔦 [비상 손전등 점등!] 어두운 정전 구역과 연기 속에서 시야가 2배 넓어졌습니다! (+200점)', 'border-yellow-400');
       } else if (it.type === 'npc') {
         player.rescuedNpcs++;
+        player.o2 = Math.min(100, player.o2 + 18);
+        if (typeof SoundFX.cprPulse === 'function') {
+          SoundFX.cprPulse(1);
+          setTimeout(() => SoundFX.cprPulse(2), 200);
+          setTimeout(() => SoundFX.cprPulse(3), 400);
+        }
+        if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerCprWave === 'function') {
+          window.FireEscape.Tactical3D.triggerCprWave(it.r, it.c, 1);
+          setTimeout(() => window.FireEscape.Tactical3D.triggerCprWave(it.r, it.c, 2), 220);
+          setTimeout(() => window.FireEscape.Tactical3D.triggerCprWave(it.r, it.c, 3), 440);
+        }
         rescuedCompanions.push({
           type: 'npc',
           name: it.name || '고립된 이웃',
@@ -2188,6 +2233,7 @@
         else SoundFX.unlock();
         if (window.FireEscape && window.FireEscape.Tactical3D) {
           window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'open');
+          if (typeof window.FireEscape.Tactical3D.clearDoorBarrier === 'function') window.FireEscape.Tactical3D.clearDoorBarrier(r, c);
           window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'cool_wave');
         }
         const openKey = `open:${r},${c}`;
@@ -2210,6 +2256,9 @@
         nudgePlayerOutOfSolidTile(c, r);
         if (window.FireEscape && window.FireEscape.Tactical3D) {
           window.FireEscape.Tactical3D.triggerDoorAnim(r, c, 'close');
+          if (typeof window.FireEscape.Tactical3D.markDoorBarrier === 'function') window.FireEscape.Tactical3D.markDoorBarrier(r, c, player.wetTowel);
+          if (player.wetTowel) player.sealedDoorsCount = (player.sealedDoorsCount || 0) + 1;
+          if (typeof SoundFX.speakRadioCoaching === 'function') SoundFX.speakRadioCoaching('방화문 차단 완료! 연기 확산 속도가 대폭 감소합니다.');
         }
         if (typeof SoundFX.doorShut === 'function') {
           SoundFX.doorShut();
@@ -2353,6 +2402,8 @@
       } else if (tile === TILE.ALARM_BELL) {
         if (!player.alarmRung) {
           player.alarmRung = true;
+          player.sprinklerActive = true;
+          if (typeof SoundFX.sprinklerSpray === "function") SoundFX.sprinklerSpray();
           unlockBadge('alarm_npc');
           SoundFX.bell();
           SoundFX.speak('불이야! 화재가 발생했습니다! 모두 비상구로 대피하세요!');
@@ -3063,6 +3114,37 @@
     if (typeof SoundFX.updateSpatialFireAudio === 'function') {
       SoundFX.updateSpatialFireAudio(player.x, player.y, fpsCamYaw, fires, player.crouching, dt);
     }
+    if (typeof SoundFX.updateVitalsHeartbeat === 'function' && !st.isPreventionMode) {
+      SoundFX.updateVitalsHeartbeat(player.hp, player.o2, dt);
+    }
+    if ((player.o2 <= 35 || player.hp <= 35) && !lowVitalRadioWarned && !st.isPreventionMode) {
+      lowVitalRadioWarned = true;
+      if (typeof SoundFX.speakRadioCoaching === 'function') {
+        SoundFX.speakRadioCoaching('경고! 산소와 체력이 위험 수준입니다. 즉시 낮은 자세로 비상구로 탈출하십시오!', true);
+      }
+    }
+    // Idea #3: Auto-trigger ceiling sprinklers when alarm rung or multiple fires burn
+    if (!st.isPreventionMode && !player.sprinklerActive && (player.alarmRung || (fires.length >= 2 && hazardExposure > 16))) {
+      player.sprinklerActive = true;
+      if (typeof SoundFX.sprinklerSpray === 'function') SoundFX.sprinklerSpray();
+      showToast('🚿 [천장 스프링클러 자동 작동!] 열감지기가 화재를 감지해 살수를 시작했습니다! (화재·연기 확산 억제)', 'border-sky-400');
+    }
+    if (player.sprinklerActive && fires.length > 0) {
+      for (let fi = 0; fi < fires.length; fi++) {
+        fires[fi].intensity = Math.max(0.52, (fires[fi].intensity || 1.0) - dt * 0.04);
+      }
+    }
+    // Idea #4: Shelter-in-Place ("불나면 살펴서 대피") Rescue Countdown
+    if (shelterInPlaceState && shelterInPlaceState.active) {
+      shelterInPlaceState.timer += dt;
+      player.hp = Math.min(100, player.hp + dt * 5);
+      player.o2 = Math.min(100, player.o2 + dt * 8);
+      if (shelterInPlaceState.timer >= shelterInPlaceState.duration) {
+        shelterInPlaceState.active = false;
+        handleStageClear();
+        return;
+      }
+    }
     // Idea #6: Passive Fire Base-Aim Progress Indicator when aiming extinguisher at a nearby fire
     if (player.extinguisherCharges > 0 && fires.length > 0) {
       for (let fi = 0; fi < fires.length; fi++) {
@@ -3655,6 +3737,17 @@
       }
     }
 
+    // Idea #2: Wet Towel Moisture Evaporation Timer
+    if (player.wetTowel && !player.hasMask && !st.isPreventionMode) {
+      const evapRate = inSmoke ? 2.1 : (inFire ? 5.5 : 0.35);
+      player.towelWetness = Math.max(0, (typeof player.towelWetness === 'number' ? player.towelWetness : 100) - evapRate * dt);
+      if (player.towelWetness <= 0) {
+        player.wetTowel = false;
+        player.towelWetness = 0;
+        showToast('💧 젖은 수건의 수분이 뜨거운 열기에 모두 말랐습니다! 세면대(🚰)에서 다시 적시거나 신속히 탈출하세요!', 'border-amber-400');
+      }
+    }
+
     if (inSmoke) {
       metrics.smokeTimeTotal += dt;
       if (player.crouching) metrics.smokeTimeCrouched += dt;
@@ -3735,7 +3828,7 @@
 
     // Physical Fire Door & Smoke Spread Simulation (Queues 3s Floor Warning before spreading!)
     const baseSpread = (st.fireSpreadInterval || 11.0) * 1.45 * gradeMults.spreadMult;
-    const spreadInterval = player.fireDoorsClosed > 0 ? baseSpread * 1.45 : baseSpread;
+    const spreadInterval = (player.fireDoorsClosed > 0 ? baseSpread * 1.85 : baseSpread) * (player.sprinklerActive ? 1.45 : 1.0);
     if (fireSpreadTimer >= spreadInterval) {
       fireSpreadTimer = 0;
       const sources = [...fires, ...smokes];
@@ -7009,6 +7102,21 @@
       if (typeof Tac3D.drawDoorEffectsFPS === 'function') {
         Tac3D.drawDoorEffectsFPS(ctx, project3DPoint, isPointVisibleInZBuffer);
       }
+      if (typeof Tac3D.drawDoorBarriersFPS === 'function') {
+        Tac3D.drawDoorBarriersFPS(ctx, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.drawSprinklerSystemFPS === 'function') {
+        Tac3D.drawSprinklerSystemFPS(ctx, fires, smokes, project3DPoint, isPointVisibleInZBuffer, now, player.sprinklerActive || player.alarmRung);
+      }
+      if (typeof Tac3D.drawColorblindPatternsFPS === 'function') {
+        Tac3D.drawColorblindPatternsFPS(ctx, fires, smokes, project3DPoint, isPointVisibleInZBuffer, appSettings && appSettings.colorblindMode);
+      }
+      if (typeof Tac3D.drawShelterInPlaceOverlay === 'function') {
+        Tac3D.drawShelterInPlaceOverlay(ctx, width, height, shelterInPlaceState);
+      }
+      if (typeof Tac3D.drawCriticalVitalsShaderOverlay === 'function') {
+        Tac3D.drawCriticalVitalsShaderOverlay(ctx, width, height, player.hp, player.o2, now, appSettings && appSettings.reduceMotion);
+      }
       if (typeof Tac3D.drawFireBaseAimFPS === 'function') {
         Tac3D.drawFireBaseAimFPS(ctx, fires, player, player.extinguisherCharges > 0, project3DPoint, isPointVisibleInZBuffer, now);
       }
@@ -7938,6 +8046,18 @@
       const Tac3D = window.FireEscape.Tactical3D;
       if (typeof Tac3D.drawDoorEffectsDiorama === 'function') {
         Tac3D.drawDoorEffectsDiorama(ctx, tileSize, now);
+      }
+      if (typeof Tac3D.drawDoorBarriersDiorama === 'function') {
+        Tac3D.drawDoorBarriersDiorama(ctx, tileSize, now);
+      }
+      if (typeof Tac3D.drawWetTowelMoistureDiorama === 'function' && player.wetTowel) {
+        Tac3D.drawWetTowelMoistureDiorama(ctx, px, py + tileSize * 0.16, tileSize, player.towelWetness || 100, player.hasMask, now);
+      }
+      if (typeof Tac3D.drawSprinklerSystemDiorama === 'function') {
+        Tac3D.drawSprinklerSystemDiorama(ctx, fires, smokes, tileSize, wallH, now, player.sprinklerActive || player.alarmRung);
+      }
+      if (typeof Tac3D.drawColorblindPatternsDiorama === 'function') {
+        Tac3D.drawColorblindPatternsDiorama(ctx, fires, smokes, grid, ROWS, COLS, TILE, tileSize, appSettings && appSettings.colorblindMode);
       }
       if (typeof Tac3D.drawFireBaseAimDiorama === 'function') {
         Tac3D.drawFireBaseAimDiorama(ctx, fires, player, player.extinguisherCharges > 0, tileSize, now);
@@ -12084,6 +12204,160 @@
   if (honorTitleSelect) honorTitleSelect.addEventListener('change', saveAndApplyCustomGear);
 
   // --- Bug #3 Fix & Features 1, 2, 4, 10: Automatically Load ?map=, ?class=, ?stage=, ?grade=, ?timeMode=, ?customQuiz= & Register PWA ---
+  
+  // --- New Ideas #7 & #10: 3D Safety Gear Codex Modal, AI Radio Voice Coach & Colorblind High-Contrast Mode ---
+  let codexSelectedGearId = 'abc_ext';
+  let codexAnimId = null;
+  let codexAngle = 0;
+
+  function initCodexAndAccessibilityFeatures() {
+    const codexModal = document.getElementById('codexModal');
+    const btnCodexModal = document.getElementById('btnCodexModal');
+    const btnOpenCodexFromCert = document.getElementById('btnOpenCodexFromCert');
+    const btnCloseCodexModal = document.getElementById('btnCloseCodexModal');
+    const btnConfirmCodexModal = document.getElementById('btnConfirmCodexModal');
+    const codex3DCanvas = document.getElementById('codex3DCanvas');
+    const codexGearGrid = document.getElementById('codexGearGrid');
+    const codexGearTitle = document.getElementById('codexGearTitle');
+    const codexGearCategoryBadge = document.getElementById('codexGearCategoryBadge');
+    const codexGearPrinciple = document.getElementById('codexGearPrinciple');
+    const codexGearUsage = document.getElementById('codexGearUsage');
+
+    const btnVoiceCoachToggle = document.getElementById('btnVoiceCoachToggle');
+    const voiceCoachToggleText = document.getElementById('voiceCoachToggleText');
+    const btnColorblindToggle = document.getElementById('btnColorblindToggle');
+    const colorblindToggleText = document.getElementById('colorblindToggleText');
+    const chkColorblindMode = document.getElementById('chkColorblindMode');
+
+    function syncAccessibilityUI() {
+      if (voiceCoachToggleText) {
+        voiceCoachToggleText.textContent = SoundFX.voiceCoachEnabled ? '무전음성:켜짐' : '무전음성:꺼짐';
+      }
+      if (colorblindToggleText) {
+        colorblindToggleText.textContent = appSettings.colorblindMode ? '색각보정:켜짐' : '색각보정:꺼짐';
+      }
+      if (chkColorblindMode) {
+        chkColorblindMode.checked = !!appSettings.colorblindMode;
+      }
+    }
+
+    if (btnVoiceCoachToggle) {
+      btnVoiceCoachToggle.addEventListener('click', () => {
+        SoundFX.init();
+        SoundFX.voiceCoachEnabled = !SoundFX.voiceCoachEnabled;
+        appSettings.voiceTts = SoundFX.voiceCoachEnabled;
+        syncAccessibilityUI();
+        if (SoundFX.voiceCoachEnabled) {
+          SoundFX.speakRadioCoaching('소방관 무전 음성 코칭이 활성화되었습니다.', true);
+          showToast('🎙️ [AI 소방관 무전 코칭 ON] 위급 상황과 핵심 지침을 무전 음성으로 안내합니다!', 'border-amber-400');
+        } else {
+          showToast('🎙️ AI 소방관 무전 음성 코칭을 껐습니다.');
+        }
+      });
+    }
+
+    function toggleColorblindMode(forceVal) {
+      SoundFX.init();
+      SoundFX.pickup();
+      appSettings.colorblindMode = typeof forceVal === 'boolean' ? forceVal : !appSettings.colorblindMode;
+      syncAccessibilityUI();
+      renderCanvas();
+      showToast(
+        appSettings.colorblindMode
+          ? '👁️ [색각 보정 고대비 모드 ON] 화염(▲)·연기(≋)·비상구(★)에 고대비 패턴과 기호를 함께 표시합니다!'
+          : '👁️ 색각 보정 고대비 모드를 해제했습니다.',
+        'border-fuchsia-400'
+      );
+    }
+
+    if (btnColorblindToggle) {
+      btnColorblindToggle.addEventListener('click', () => toggleColorblindMode());
+    }
+    if (chkColorblindMode) {
+      chkColorblindMode.addEventListener('change', () => toggleColorblindMode(chkColorblindMode.checked));
+    }
+
+    function renderCodexSelection() {
+      const Tac3D = window.FireEscape && window.FireEscape.Tactical3D;
+      const gears = (Tac3D && Tac3D.CODEX_GEARS) || [];
+      const selected = gears.find(g => g.id === codexSelectedGearId) || gears[0];
+      if (!selected) return;
+
+      if (codexGearTitle) codexGearTitle.textContent = `${selected.icon} ${selected.name}`;
+      if (codexGearCategoryBadge) codexGearCategoryBadge.textContent = selected.category;
+      if (codexGearPrinciple) codexGearPrinciple.textContent = selected.principle;
+      if (codexGearUsage) codexGearUsage.textContent = selected.usageTip;
+
+      if (codexGearGrid) {
+        codexGearGrid.innerHTML = gears.map(g => {
+          const isSel = g.id === selected.id;
+          return `<button type="button" data-codex-id="${g.id}" class="p-2 rounded-xl border text-left transition flex flex-col gap-0.5 ${
+            isSel
+              ? 'bg-sky-600/30 border-sky-400 text-white font-extrabold shadow'
+              : 'bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-300 font-semibold'
+          }">
+            <span class="text-base">${g.icon}</span>
+            <span class="text-[11px] truncate">${g.name}</span>
+          </button>`;
+        }).join('');
+
+        codexGearGrid.querySelectorAll('[data-codex-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            SoundFX.init();
+            SoundFX.pickup();
+            codexSelectedGearId = btn.getAttribute('data-codex-id');
+            renderCodexSelection();
+          });
+        });
+      }
+    }
+
+    function stepCodex3D() {
+      if (!codexModal || codexModal.classList.contains('hidden')) {
+        codexAnimId = null;
+        return;
+      }
+      codexAngle += 0.035;
+      if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.renderCodex3DGearPreview === 'function') {
+        window.FireEscape.Tactical3D.renderCodex3DGearPreview(codex3DCanvas, codexSelectedGearId, codexAngle);
+      }
+      codexAnimId = requestAnimationFrame(stepCodex3D);
+    }
+
+    function openCodexModal() {
+      if (!codexModal) return;
+      SoundFX.init();
+      SoundFX.pickup();
+      if (certModal && !certModal.classList.contains('hidden')) {
+        certModal.classList.add('hidden');
+        certModal.classList.remove('flex');
+      }
+      const moreDrawerEl = document.getElementById('moreToolsDrawer');
+      if (moreDrawerEl) moreDrawerEl.classList.add('hidden');
+      codexModal.classList.remove('hidden');
+      codexModal.classList.add('flex');
+      renderCodexSelection();
+      if (!codexAnimId) codexAnimId = requestAnimationFrame(stepCodex3D);
+    }
+
+    function closeCodexModal() {
+      if (!codexModal) return;
+      codexModal.classList.add('hidden');
+      codexModal.classList.remove('flex');
+      if (codexAnimId) {
+        cancelAnimationFrame(codexAnimId);
+        codexAnimId = null;
+      }
+    }
+
+    if (btnCodexModal) btnCodexModal.addEventListener('click', openCodexModal);
+    if (btnOpenCodexFromCert) btnOpenCodexFromCert.addEventListener('click', openCodexModal);
+    if (btnCloseCodexModal) btnCloseCodexModal.addEventListener('click', closeCodexModal);
+    if (btnConfirmCodexModal) btnConfirmCodexModal.addEventListener('click', closeCodexModal);
+
+    syncAccessibilityUI();
+  }
+
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
@@ -12096,6 +12370,7 @@
     syncGoldenBellUI();
     syncSpeedDrillUI();
     syncCustomGearUI();
+    initCodexAndAccessibilityFeatures();
 
     if (isPerfDiagEnabled && perfDiagOverlay) {
       perfDiagOverlay.classList.remove('hidden');
