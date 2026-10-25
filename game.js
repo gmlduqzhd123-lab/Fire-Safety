@@ -137,6 +137,7 @@
   const btnStage4 = document.getElementById('btnStage4');
   const btnStage5 = document.getElementById('btnStage5');
   const btnStage6 = document.getElementById('btnStage6');
+  const btnStage7 = document.getElementById('btnStage7');
   const btnDailyStage = document.getElementById('btnDailyStage');
   const btnCoopToggle = document.getElementById('btnCoopToggle');
   const coopToggleText = document.getElementById('coopToggleText');
@@ -393,6 +394,10 @@
   let autoGuideTimer = 0;
   let autoGuidePath = [];
   let shelterInPlaceState = { active: false, timer: 0, duration: 3.5 };
+  let thermalVisionActive = false;
+  let currentAirflowDraft = { vx: 1, vy: 0, speed: 1.0, dirName: '동쪽(→)', openDoors: 0 };
+  let sweepGaugeState = { active: false, timer: 0, duration: 1.8, phase: 0, bonusClaimed: false };
+  let earthquakeState = { active: false, timer: 0, duration: 5.0, rewarded: false };
   let lowVitalRadioWarned = false;
   let lastGameOverReason = 'hp';
   let rescuedCompanions = [];
@@ -695,7 +700,8 @@
       document.getElementById('puzzleModal'),
       document.getElementById('settingsModal'),
       document.getElementById('exitGameModal'),
-      document.getElementById('codexModal')
+      document.getElementById('codexModal'),
+      document.getElementById('familyPlanModal')
     ];
     const allHidden = blockingModals.every((m) => !m || m.classList.contains('hidden'));
     if (gameState === 'PAUSED' && allHidden) {
@@ -782,6 +788,14 @@
     player.sprinklerActive = false;
     player.sealedDoorsCount = 0;
     shelterInPlaceState = { active: false, timer: 0, duration: 3.5 };
+    sweepGaugeState = { active: false, timer: 0, duration: 1.8, phase: 0, bonusClaimed: false };
+    if (st.isEarthquakeStage) {
+      earthquakeState = { active: true, timer: 5.0, duration: 5.0, rewarded: false };
+      screenShakeTimer = 1.8;
+      if (typeof SoundFX.earthquakeRumble === 'function') SoundFX.earthquakeRumble();
+    } else {
+      earthquakeState = { active: false, timer: 0, duration: 5.0, rewarded: false };
+    }
     lowVitalRadioWarned = false;
     if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.resetDoorBarriers === "function") {
       window.FireEscape.Tactical3D.resetDoorBarriers();
@@ -869,7 +883,8 @@
       { btn: btnStage4, idx: 3 },
       { btn: btnStage5, idx: 4 },
       { btn: btnStage0, idx: 5 },
-      { btn: btnStage6, idx: 6 }
+      { btn: btnStage6, idx: 6 },
+      { btn: btnStage7, idx: 7 }
     ];
     stageButtons.forEach(({ btn, idx }) => {
       if (!btn) return;
@@ -1648,6 +1663,30 @@
       }
     }
 
+    if (sweepGaugeState && sweepGaugeState.active && !sweepGaugeState.bonusClaimed) {
+      sweepGaugeState.bonusClaimed = true;
+      sweepGaugeState.active = false;
+      score += 150;
+      if (typeof SoundFX.sweepPerfect === 'function') SoundFX.sweepPerfect();
+      addFloatText(actor.x, actor.y - 0.35, '⚡ PASS 완벽 빗자루 쓸기! +150', '#fde047');
+      for (let s = smokes.length - 1; s >= 0; s--) {
+        if (Math.hypot((smokes[s].c + 0.5) - actor.x, (smokes[s].r + 0.5) - actor.y) <= 2.6) {
+          smokes.splice(s, 1);
+        }
+      }
+    }
+    if (sweepGaugeState && sweepGaugeState.active && !sweepGaugeState.bonusClaimed) {
+      sweepGaugeState.bonusClaimed = true;
+      sweepGaugeState.active = false;
+      score += 150;
+      if (typeof SoundFX.sweepPerfect === 'function') SoundFX.sweepPerfect();
+      addFloatText(actor.x, actor.y - 0.35, '⚡ PASS 완벽 빗자루 쓸기! +150', '#fde047');
+      for (let s = smokes.length - 1; s >= 0; s--) {
+        if (Math.hypot((smokes[s].c + 0.5) - actor.x, (smokes[s].r + 0.5) - actor.y) <= 2.6) {
+          smokes.splice(s, 1);
+        }
+      }
+    }
     let extinguishedCount = 0;
     let specialExtinguished = 0;
     for (let i = fires.length - 1; i >= 0; i--) {
@@ -1685,6 +1724,16 @@
       }
     }
 
+    if ((extinguishedCount > 0 || fires.length > 0) && (!sweepGaugeState || !sweepGaugeState.active)) {
+      sweepGaugeState = { active: true, timer: 0, duration: 1.8, phase: 0, bonusClaimed: false };
+    }
+    if (extinguishedCount > 0 && currentAirflowDraft) {
+      const windDot = actor.dirX * currentAirflowDraft.vx + actor.dirY * currentAirflowDraft.vy;
+      if (windDot >= -0.25) {
+        score += 80;
+        addFloatText(actor.x, actor.y - 0.55, '🌬️ 바람 등지기 정석 분사! +80', '#6ee7b7');
+      }
+    }
     if (specialExtinguished > 0) {
       showToast(`🧯 [맞춤형 질식 소화 성공] 산소를 차단해 식용유(K급)/전기 화재를 완벽히 진압했습니다! (+${specialExtinguished * 200}점)`, 'border-sky-400');
     } else if (extinguishedCount > 0) {
@@ -1789,6 +1838,9 @@
 
   // --- Descending Life Line (완강기) Sequence Mini-Game ---
   function startLifelineMiniGame() {
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerLifelineDescent === 'function') {
+      window.FireEscape.Tactical3D.triggerLifelineDescent(Math.floor(player.y), Math.floor(player.x));
+    }
     const incompleteReason = getIncompleteEscapeReason();
     if (incompleteReason) {
       SoundFX.warning();
@@ -1867,6 +1919,41 @@
 
   // --- Lightweight Partition Wall (아파트 베란다 경량칸막이) Mini-Game ---
   function startPartitionBreak(c, r) {
+    const st = activeCustomStage || STAGES[currentStageIdx] || STAGES[0];
+    if (st && st.hasFireShutterDoor) {
+      openEduModal(
+        '학교안전 7대 표준안 · 방화셔터 일체형 비상문(피난구) 식별',
+        '🟩 복도 방화셔터가 내려와 있습니다!',
+        '화재 연기를 막기 위해 복도에 철제 <strong>방화셔터</strong>가 내려왔습니다! 셔터 한가운데에 <strong>초록색 유도표지가 붙은 비상문(피난구)</strong>이 있습니다. 어떻게 대피할까요?',
+        [
+          {
+            label: '🟩 1. 방화셔터 안쪽에 붙어 있는 초록색 [비상문]을 손으로 힘껏 밀고 통과한다! (+400점)',
+            primary: true,
+            onSelect: () => {
+              grid[r][c] = TILE.OPEN_DOOR;
+              metrics.usedPartition = true;
+              unlockBadge('partition');
+              score += 400;
+              if (typeof SoundFX.shutterDoorPush === 'function') SoundFX.shutterDoorPush();
+              else SoundFX.unlock();
+              addFloatText(c + 0.5, r + 0.5, '🟩 방화셔터 비상문 돌파! +400', '#34d399');
+              closeEduModal();
+              showToast('🟩 [방화셔터 비상문 통과 성공!] 방화셔터가 내려와도 초록색 비상문을 밀고 안전하게 대피할 수 있습니다! (+400점)', 'border-emerald-400');
+              updateHUD();
+            }
+          },
+          {
+            label: '❌ 2. 길이 막혔다고 생각하고 연기 가득한 뒤쪽 복도로 되돌아간다',
+            primary: false,
+            onSelect: () => {
+              SoundFX.warning();
+              showToast('💡 방화셔터에는 사람이 밀고 나갈 수 있는 초록색 비상문(피난구)이 설치되어 있습니다!');
+            }
+          }
+        ]
+      );
+      return;
+    }
     const incompleteReason = getIncompleteEscapeReason();
     if (incompleteReason) {
       SoundFX.warning();
@@ -2761,6 +2848,20 @@
     }
 
     renderReplayMinimap();
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.computeSafetyCompetencyScores === 'function') {
+      const compData = window.FireEscape.Tactical3D.computeSafetyCompetencyScores(metrics, player, elapsedSeconds, st);
+      const radarCanvas = document.getElementById('debriefRadarCanvas');
+      if (radarCanvas && typeof window.FireEscape.Tactical3D.drawSafetyCompetencyRadarChart === 'function') {
+        window.FireEscape.Tactical3D.drawSafetyCompetencyRadarChart(radarCanvas, compData);
+      }
+      const weakestBadge = document.getElementById('debriefWeakestBadge');
+      if (weakestBadge && compData.weakest) {
+        weakestBadge.textContent = `🕸️ 역량 평균 ${compData.avg}점 (보완: ${compData.weakest.label})`;
+      }
+      if (prescriptionBox && compData.weakest) {
+        prescriptionBox.innerHTML += `<div class="mt-1 pt-1 border-t border-rose-500/30 text-amber-200">🎯 <strong>[AI 대장님 5대 역량 코칭 - ${compData.weakest.label}(${compData.weakest.score}점)]</strong> ${compData.weakest.tip}</div>`;
+      }
+    }
   }
 
   const btnCopyVerifyCode = document.getElementById('btnCopyVerifyCode');
@@ -3119,6 +3220,29 @@
     }
     if (typeof SoundFX.updateSpatialFireAudio === 'function') {
       SoundFX.updateSpatialFireAudio(player.x, player.y, fpsCamYaw, fires, player.crouching, dt);
+      if (typeof SoundFX.updateSpatialNavigationAudio === 'function' && !st.isPreventionMode) {
+        SoundFX.updateSpatialNavigationAudio(player.x, player.y, fpsCamYaw, grid, TILE, items, smokes, dt);
+      }
+      if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.computeIndoorAirflowVector === 'function') {
+        currentAirflowDraft = window.FireEscape.Tactical3D.computeIndoorAirflowVector(grid, ROWS, COLS, TILE, player);
+      }
+      if (sweepGaugeState && sweepGaugeState.active) {
+        sweepGaugeState.timer += dt;
+        sweepGaugeState.phase += dt;
+        if (sweepGaugeState.timer >= sweepGaugeState.duration) sweepGaugeState.active = false;
+      }
+      if (earthquakeState && earthquakeState.active) {
+        earthquakeState.timer -= dt;
+        screenShakeTimer = Math.max(screenShakeTimer, 0.12);
+        if (player.crouching && !earthquakeState.rewarded) {
+          earthquakeState.rewarded = true;
+          score += 200;
+          SoundFX.pickup();
+          addFloatText(player.x, player.y - 0.3, '🛡️ 지진 머리 보호 완료! +200', '#34d399');
+          showToast('🛡️ [지진 대피 수칙 달성!] 여진 발생 시 낮은 자세로 머리를 안전하게 보호했습니다! (+200점)', 'border-emerald-400');
+        }
+        if (earthquakeState.timer <= 0) earthquakeState.active = false;
+      }
     }
     if (typeof SoundFX.updateVitalsHeartbeat === 'function' && !st.isPreventionMode) {
       SoundFX.updateVitalsHeartbeat(player.hp, player.o2, dt);
@@ -7119,6 +7243,20 @@
       }
       if (typeof Tac3D.drawShelterInPlaceOverlay === 'function') {
         Tac3D.drawShelterInPlaceOverlay(ctx, width, height, shelterInPlaceState);
+      if (typeof Tac3D.drawThermalVisionOverlay === 'function') {
+        Tac3D.drawThermalVisionOverlay(ctx, width, height, {
+          active: thermalVisionActive, isFps: true, fires, items, grid, rows: ROWS, cols: COLS, TILE, project3DPoint, now
+        });
+      }
+      if (typeof Tac3D.drawExtinguisherSweepGaugeOverlay === 'function') {
+        Tac3D.drawExtinguisherSweepGaugeOverlay(ctx, width, height, sweepGaugeState, currentAirflowDraft);
+      }
+      if (typeof Tac3D.drawEarthquakeTremorOverlay === 'function') {
+        Tac3D.drawEarthquakeTremorOverlay(ctx, width, height, earthquakeState, player.crouching);
+      }
+      if (typeof Tac3D.drawSpatialAudioRadarHUD === 'function') {
+        Tac3D.drawSpatialAudioRadarHUD(ctx, width, height, SoundFX.lastAcousticCue);
+      }
       }
       if (typeof Tac3D.drawCriticalVitalsShaderOverlay === 'function') {
         Tac3D.drawCriticalVitalsShaderOverlay(ctx, width, height, player.hp, player.o2, now, appSettings && appSettings.reduceMotion);
@@ -7131,6 +7269,15 @@
       }
       if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
         Tac3D.drawLifelineDescentOverlay(ctx, width, height);
+      }
+      if (typeof Tac3D.drawExtinguisherSweepGaugeOverlay === 'function') {
+        Tac3D.drawExtinguisherSweepGaugeOverlay(ctx, width, height, sweepGaugeState, currentAirflowDraft);
+      }
+      if (typeof Tac3D.drawEarthquakeTremorOverlay === 'function') {
+        Tac3D.drawEarthquakeTremorOverlay(ctx, width, height, earthquakeState, player.crouching);
+      }
+      if (typeof Tac3D.drawSpatialAudioRadarHUD === 'function') {
+        Tac3D.drawSpatialAudioRadarHUD(ctx, width, height, SoundFX.lastAcousticCue);
       }
       if (typeof Tac3D.draw3DCompassBar === 'function') {
         Tac3D.draw3DCompassBar(ctx, width, height, { player, fpsCamYaw, nextObj });
@@ -8068,6 +8215,17 @@
       if (typeof Tac3D.drawFireBaseAimDiorama === 'function') {
         Tac3D.drawFireBaseAimDiorama(ctx, fires, player, player.extinguisherCharges > 0, tileSize, now);
       }
+      if (typeof Tac3D.drawAirflowDraftDiorama === 'function') {
+        Tac3D.drawAirflowDraftDiorama(ctx, currentAirflowDraft, smokes, tileSize, width, now);
+      }
+      if (typeof Tac3D.drawFireShutterAndCompanionCareDiorama === 'function') {
+        Tac3D.drawFireShutterAndCompanionCareDiorama(ctx, grid, ROWS, COLS, TILE, player, rescuedCompanions, !!(st && st.hasFireShutterDoor), tileSize, now);
+      }
+      if (typeof Tac3D.drawThermalVisionOverlay === 'function' && thermalVisionActive) {
+        Tac3D.drawThermalVisionOverlay(ctx, COLS * tileSize, ROWS * tileSize, {
+          active: true, isFps: false, fires, items, grid, rows: ROWS, cols: COLS, TILE, tileSize, now
+        });
+      }
     }
 
     // 7. Floating 3D Combat/Score Texts
@@ -8659,6 +8817,16 @@
       return;
     }
 
+    const familyPlanModalEl = document.getElementById('familyPlanModal');
+    if (familyPlanModalEl && !familyPlanModalEl.classList.contains('hidden')) {
+      if ((e.code === 'Escape' || e.code === 'Enter') && !e.repeat) {
+        e.preventDefault();
+        const closeFpBtn = document.getElementById('btnCloseFamilyPlanModal');
+        if (closeFpBtn) closeFpBtn.click();
+      }
+      return;
+    }
+
     const codexModalEl = document.getElementById('codexModal');
     if (codexModalEl && !codexModalEl.classList.contains('hidden')) {
       if ((e.code === 'Escape' || e.code === 'Enter') && !e.repeat) {
@@ -9139,6 +9307,9 @@
   if (btnStage6) {
     btnStage6.addEventListener('click', () => selectStageManual(6));
   }
+  if (btnStage7) {
+    btnStage7.addEventListener('click', () => selectStageManual(7));
+  }
 
   // --- Feature 5: Daily Challenge Stage Button ---
   if (btnDailyStage && typeof generateDailyChallengeStage === 'function') {
@@ -9291,7 +9462,7 @@
       ...STAGES.map((stItem, idx) => ({
         key: `s${idx}`,
         legacyKey: String(idx),
-        icon: ['🏡', '🏢', '🏬', '🏫', '🚇', '🔍', '🏕️'][idx] || '🏢',
+        icon: ['🏡', '🏢', '🏬', '🏫', '🚇', '🔍', '🏕️', '🌐'][idx] || '🏢',
         shortName: stItem.name.replace(/^\d+단계:\s*/, '').replace(/^사전예방:\s*/, '예방:').split('[')[0].trim()
       })),
       { key: 'daily', legacyKey: 'daily', icon: '🎲', shortName: '오늘의 119 챌린지' }
@@ -12385,6 +12556,327 @@
     syncAccessibilityUI();
   }
 
+  
+  function initStrategyV20Features() {
+    // --- Strategy #1: FLIR Thermal Vision Toggle & KeyT Shortcut ---
+    const btnThermalVisionToggle = document.getElementById('btnThermalVisionToggle');
+    const thermalVisionToggleText = document.getElementById('thermalVisionToggleText');
+
+    function toggleThermalVision(forceVal) {
+      SoundFX.init();
+      thermalVisionActive = typeof forceVal === 'boolean' ? forceVal : !thermalVisionActive;
+      if (typeof SoundFX.thermalVisionToggle === 'function') {
+        SoundFX.thermalVisionToggle(thermalVisionActive);
+      }
+      if (thermalVisionToggleText) {
+        thermalVisionToggleText.textContent = thermalVisionActive ? '열화상:켜짐' : '열화상:꺼짐';
+      }
+      renderCanvas();
+      showToast(
+        thermalVisionActive
+          ? '🌡️ [FLIR 열화상 투시 모드 ON] 연기 너머의 화원(620°C)·백드래프트 고열문(390°C)·요구조자 체온(36.5°C)을 적외선 투시합니다!'
+          : '🌡️ FLIR 열화상 카메라 투시 모드를 해제했습니다.',
+        'border-purple-400'
+      );
+    }
+
+    if (btnThermalVisionToggle) {
+      btnThermalVisionToggle.addEventListener('click', () => toggleThermalVision());
+    }
+    window.addEventListener('keydown', (e) => {
+      const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.code === 'KeyT' && !e.repeat && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+        e.preventDefault();
+        toggleThermalVision();
+      }
+    });
+
+    // --- Strategy #9: Teacher Smartboard Annotation Overlay & Class Bell Timer ---
+    const annotCanvas = document.getElementById('annotationCanvas');
+    const sbToolbar = document.getElementById('smartboardToolbar');
+    const btnSmartboardPenToggle = document.getElementById('btnSmartboardPenToggle');
+    const btnOpenSmartboardFromTeacher = document.getElementById('btnOpenSmartboardFromTeacher');
+    const btnSbPassThrough = document.getElementById('btnSbPassThrough');
+    const btnSbLaser = document.getElementById('btnSbLaser');
+    const btnSbHighlighter = document.getElementById('btnSbHighlighter');
+    const btnSbRedPen = document.getElementById('btnSbRedPen');
+    const btnSbClear = document.getElementById('btnSbClear');
+    const btnSbTimerToggle = document.getElementById('btnSbTimerToggle');
+    const btnSbClose = document.getElementById('btnSbClose');
+
+    let sbMode = 'pass'; // 'pass' | 'laser' | 'highlight' | 'red'
+    let sbDrawing = false;
+    let sbStrokes = []; // { mode, points: [{x, y}], createdAt }
+    let sbTimerSeconds = 180;
+    let sbTimerInterval = null;
+
+    function resizeAnnotationCanvas() {
+      if (!annotCanvas || !canvas) return;
+      if (annotCanvas.width !== canvas.width || annotCanvas.height !== canvas.height) {
+        annotCanvas.width = canvas.width || 600;
+        annotCanvas.height = canvas.height || 400;
+        renderAnnotations();
+      }
+    }
+
+    function setSmartboardMode(newMode) {
+      sbMode = newMode;
+      if (annotCanvas) {
+        if (sbMode === 'pass') {
+          annotCanvas.classList.add('pointer-events-none');
+          annotCanvas.style.cursor = 'default';
+        } else {
+          annotCanvas.classList.remove('pointer-events-none');
+          annotCanvas.style.cursor = 'crosshair';
+        }
+      }
+      const modeBtns = [
+        { btn: btnSbPassThrough, m: 'pass', activeCls: 'px-2 py-0.5 rounded bg-emerald-600 text-white' },
+        { btn: btnSbLaser, m: 'laser', activeCls: 'px-2 py-0.5 rounded bg-rose-600 text-white' },
+        { btn: btnSbHighlighter, m: 'highlight', activeCls: 'px-2 py-0.5 rounded bg-amber-500 text-slate-950' },
+        { btn: btnSbRedPen, m: 'red', activeCls: 'px-2 py-0.5 rounded bg-red-600 text-white' }
+      ];
+      modeBtns.forEach(({ btn, m, activeCls }) => {
+        if (!btn) return;
+        btn.className = (m === sbMode) ? activeCls : 'px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300';
+      });
+    }
+
+    function renderAnnotations() {
+      if (!annotCanvas) return;
+      const actx = annotCanvas.getContext('2d');
+      if (!actx) return;
+      actx.clearRect(0, 0, annotCanvas.width, annotCanvas.height);
+      const nowMs = performance.now();
+      for (let i = sbStrokes.length - 1; i >= 0; i--) {
+        const st = sbStrokes[i];
+        if (st.mode === 'laser' && nowMs - st.createdAt > 1800) {
+          sbStrokes.splice(i, 1);
+          continue;
+        }
+      }
+      for (let i = 0; i < sbStrokes.length; i++) {
+        const st = sbStrokes[i];
+        if (!st.points || st.points.length < 2) continue;
+        actx.save();
+        actx.lineCap = 'round';
+        actx.lineJoin = 'round';
+        if (st.mode === 'highlight') {
+          actx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
+          actx.lineWidth = 12;
+        } else if (st.mode === 'red') {
+          actx.strokeStyle = 'rgba(239, 68, 68, 0.92)';
+          actx.lineWidth = 4;
+        } else if (st.mode === 'laser') {
+          const age = Math.max(0, 1 - (nowMs - st.createdAt) / 1800);
+          actx.strokeStyle = `rgba(244, 63, 94, ${(age * 0.95).toFixed(2)})`;
+          actx.lineWidth = 5;
+        }
+        actx.beginPath();
+        actx.moveTo(st.points[0].x, st.points[0].y);
+        for (let k = 1; k < st.points.length; k++) {
+          actx.lineTo(st.points[k].x, st.points[k].y);
+        }
+        actx.stroke();
+        actx.restore();
+      }
+    }
+
+    if (annotCanvas) {
+      const getAnnotPt = (e) => {
+        const local = window.getElementLocalCoords(annotCanvas, e.clientX, e.clientY);
+        const sx = annotCanvas.width / Math.max(1, local.width);
+        const sy = annotCanvas.height / Math.max(1, local.height);
+        return { x: local.x * sx, y: local.y * sy };
+      };
+      annotCanvas.addEventListener('pointerdown', (e) => {
+        if (sbMode === 'pass') return;
+        e.preventDefault();
+        resizeAnnotationCanvas();
+        sbDrawing = true;
+        const pt = getAnnotPt(e);
+        sbStrokes.push({ mode: sbMode, points: [pt, pt], createdAt: performance.now() });
+        renderAnnotations();
+      });
+      annotCanvas.addEventListener('pointermove', (e) => {
+        if (!sbDrawing || sbMode === 'pass' || sbStrokes.length === 0) return;
+        e.preventDefault();
+        const pt = getAnnotPt(e);
+        const cur = sbStrokes[sbStrokes.length - 1];
+        cur.points.push(pt);
+        cur.createdAt = performance.now();
+        renderAnnotations();
+      });
+      const stopDraw = () => {
+        sbDrawing = false;
+        if (sbMode === 'laser') {
+          setTimeout(renderAnnotations, 1850);
+        }
+      };
+      annotCanvas.addEventListener('pointerup', stopDraw);
+      annotCanvas.addEventListener('pointercancel', stopDraw);
+    }
+
+    function toggleSmartboardBar(forceOpen) {
+      if (!sbToolbar) return;
+      SoundFX.init();
+      SoundFX.pickup();
+      resizeAnnotationCanvas();
+      const willOpen = typeof forceOpen === 'boolean' ? forceOpen : sbToolbar.classList.contains('hidden');
+      if (willOpen) {
+        sbToolbar.classList.remove('hidden');
+        sbToolbar.classList.add('flex');
+        setSmartboardMode('highlight');
+        showToast('🖍️ [전자칠판 판서 & 수업 타이머 ON] 화면 위에 형광펜·레이저로 대피 경로를 그리거나 [🎮조작]을 눌러 진행하세요!', 'border-amber-400');
+      } else {
+        sbToolbar.classList.add('hidden');
+        sbToolbar.classList.remove('flex');
+        setSmartboardMode('pass');
+      }
+    }
+
+    if (btnSmartboardPenToggle) btnSmartboardPenToggle.addEventListener('click', () => toggleSmartboardBar());
+    if (btnOpenSmartboardFromTeacher) {
+      btnOpenSmartboardFromTeacher.addEventListener('click', () => {
+        if (teacherModal) {
+          teacherModal.classList.add('hidden');
+          teacherModal.classList.remove('flex');
+        }
+        resumeIfNoBlockingModalOpen();
+        toggleSmartboardBar(true);
+      });
+    }
+    if (btnSbPassThrough) btnSbPassThrough.addEventListener('click', () => setSmartboardMode('pass'));
+    if (btnSbLaser) btnSbLaser.addEventListener('click', () => setSmartboardMode('laser'));
+    if (btnSbHighlighter) btnSbHighlighter.addEventListener('click', () => setSmartboardMode('highlight'));
+    if (btnSbRedPen) btnSbRedPen.addEventListener('click', () => setSmartboardMode('red'));
+    if (btnSbClear) {
+      btnSbClear.addEventListener('click', () => {
+        sbStrokes = [];
+        renderAnnotations();
+        showToast('🧹 전자칠판 판서 내용을 모두 지웠습니다.');
+      });
+    }
+    if (btnSbClose) btnSbClose.addEventListener('click', () => toggleSmartboardBar(false));
+
+    if (btnSbTimerToggle) {
+      btnSbTimerToggle.addEventListener('click', () => {
+        SoundFX.init();
+        if (sbTimerInterval) {
+          clearInterval(sbTimerInterval);
+          sbTimerInterval = null;
+          showToast('⏸️ 교실 활동 타이머를 일시정지했습니다.');
+          return;
+        }
+        if (sbTimerSeconds <= 0) sbTimerSeconds = 180;
+        SoundFX.bell();
+        showToast('⏱️ [교실 활동 3분 타이머 시작!] 모둠별로 안전 대피 미션을 완수하세요!', 'border-indigo-400');
+        sbTimerInterval = setInterval(() => {
+          sbTimerSeconds = Math.max(0, sbTimerSeconds - 1);
+          const m = String(Math.floor(sbTimerSeconds / 60)).padStart(2, '0');
+          const s = String(sbTimerSeconds % 60).padStart(2, '0');
+          btnSbTimerToggle.textContent = `⏱️${m}:${s}`;
+          if (sbTimerSeconds <= 0) {
+            clearInterval(sbTimerInterval);
+            sbTimerInterval = null;
+            SoundFX.win();
+            showToast('🔔 [수업 활동 시간 종료!] 모둠별로 찾은 대피 경로와 안전 수칙을 발표해 보세요!', 'border-amber-400');
+          }
+        }, 1000);
+      });
+    }
+
+    // --- Strategy #10: Family Fire Escape Plan & Home Safety Audit Card Modal ---
+    const familyPlanModal = document.getElementById('familyPlanModal');
+    const btnFamilyPlanModal = document.getElementById('btnFamilyPlanModal');
+    const btnOpenFamilyPlanFromCert = document.getElementById('btnOpenFamilyPlanFromCert');
+    const btnOpenFamilyPlanFromDebrief = document.getElementById('btnOpenFamilyPlanFromDebrief');
+    const btnCloseFamilyPlanModal = document.getElementById('btnCloseFamilyPlanModal');
+    const btnConfirmFamilyPlanModal = document.getElementById('btnConfirmFamilyPlanModal');
+    const btnDownloadFamilyPlanPng = document.getElementById('btnDownloadFamilyPlanPng');
+    const familyPlanCanvas = document.getElementById('familyPlanCanvas');
+    const familyPlanNameInput = document.getElementById('familyPlanNameInput');
+    const familyPlanExtInput = document.getElementById('familyPlanExtInput');
+    const familyPlanSpotInput = document.getElementById('familyPlanSpotInput');
+    const familyPlanPledgeInput = document.getElementById('familyPlanPledgeInput');
+    const chkHomeDetector = document.getElementById('chkHomeDetector');
+    const chkHomeLifeline = document.getElementById('chkHomeLifeline');
+    const chkHomeOutlet = document.getElementById('chkHomeOutlet');
+
+    function updateFamilyPlanPreview() {
+      if (!familyPlanCanvas || !window.FireEscape || !window.FireEscape.Tactical3D || typeof window.FireEscape.Tactical3D.renderFamilyEscapePlanCard !== 'function') return;
+      const checks = [];
+      if (!chkHomeDetector || chkHomeDetector.checked) checks.push('화재감지기✓');
+      if (!chkHomeLifeline || chkHomeLifeline.checked) checks.push('경량칸막이·완강기✓');
+      if (!chkHomeOutlet || chkHomeOutlet.checked) checks.push('콘센트·가스차단✓');
+      window.FireEscape.Tactical3D.renderFamilyEscapePlanCard(familyPlanCanvas, {
+        familyName: (familyPlanNameInput && familyPlanNameInput.value.trim()) || '우리 가족',
+        extLocation: (familyPlanExtInput && familyPlanExtInput.value.trim()) || '현관 신발장 옆 & 주방 싱크대 옆',
+        equipChecked: checks.length > 0 ? checks.join(' · ') : '가정 내 소방시설 점검 진행 중',
+        meetingSpot: (familyPlanSpotInput && familyPlanSpotInput.value.trim()) || '아파트 정문 시계탑 놀이터 앞',
+        pledge: (familyPlanPledgeInput && familyPlanPledgeInput.value.trim()) || '물건을 챙기지 않고 낮은 자세로 즉시 대피해요!'
+      });
+    }
+
+    function openFamilyPlanModal() {
+      if (!familyPlanModal) return;
+      SoundFX.init();
+      SoundFX.pickup();
+      clearAllInputStates();
+      closeOtherModalsExcept(familyPlanModal);
+      if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        pauseIcon.textContent = '▶️';
+        pauseText.textContent = '계속하기';
+      }
+      updateFamilyPlanPreview();
+      familyPlanModal.classList.remove('hidden');
+      familyPlanModal.classList.add('flex');
+    }
+
+    function closeFamilyPlanModal() {
+      if (!familyPlanModal) return;
+      clearAllInputStates();
+      familyPlanModal.classList.add('hidden');
+      familyPlanModal.classList.remove('flex');
+      resumeIfNoBlockingModalOpen();
+      updateHUD();
+    }
+
+    [familyPlanNameInput, familyPlanExtInput, familyPlanSpotInput, familyPlanPledgeInput, chkHomeDetector, chkHomeLifeline, chkHomeOutlet].forEach((el) => {
+      if (el) {
+        el.addEventListener('input', updateFamilyPlanPreview);
+        el.addEventListener('change', updateFamilyPlanPreview);
+      }
+    });
+
+    if (btnFamilyPlanModal) btnFamilyPlanModal.addEventListener('click', openFamilyPlanModal);
+    if (btnOpenFamilyPlanFromCert) btnOpenFamilyPlanFromCert.addEventListener('click', openFamilyPlanModal);
+    if (btnOpenFamilyPlanFromDebrief) btnOpenFamilyPlanFromDebrief.addEventListener('click', openFamilyPlanModal);
+    if (btnCloseFamilyPlanModal) btnCloseFamilyPlanModal.addEventListener('click', closeFamilyPlanModal);
+    if (btnConfirmFamilyPlanModal) btnConfirmFamilyPlanModal.addEventListener('click', closeFamilyPlanModal);
+
+    if (btnDownloadFamilyPlanPng && familyPlanCanvas) {
+      btnDownloadFamilyPlanPng.addEventListener('click', () => {
+        SoundFX.init();
+        updateFamilyPlanPreview();
+        try {
+          const famName = ((familyPlanNameInput && familyPlanNameInput.value.trim()) || '우리가족').replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
+          const url = familyPlanCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `가족화재대피약속카드_${famName}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          SoundFX.win();
+          showToast('📥 [우리 가족 화재 대피 약속 카드(PNG)]가 고화질 이미지로 저장되었습니다!', 'border-emerald-400');
+        } catch (e) {}
+      });
+    }
+  }
+
   let appInitialized = false;
   function initApp() {
     if (appInitialized) return;
@@ -12398,6 +12890,7 @@
     syncSpeedDrillUI();
     syncCustomGearUI();
     initCodexAndAccessibilityFeatures();
+    initStrategyV20Features();
 
     if (isPerfDiagEnabled && perfDiagOverlay) {
       perfDiagOverlay.classList.remove('hidden');

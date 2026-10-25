@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=19" />
+  <link rel="stylesheet" href="./style.css?v=20" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -178,6 +178,7 @@
             <button id="btnStage4" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0">4단계·과학실</button>
             <button id="btnStage5" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0">5단계·지하철</button>
             <button id="btnStage6" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-slate-300 hover:text-white transition shrink-0">6단계·캠핑</button>
+            <button id="btnStage7" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-rose-300 hover:text-white transition shrink-0">7단계·지진화재</button>
             <button id="btnStage0" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-emerald-300 hover:text-white transition shrink-0">🔍예방점검</button>
             <button id="btnDailyStage" type="button" class="px-2.5 py-1 text-xs font-bold rounded-md text-amber-300 hover:text-white transition shrink-0">🎲오늘의챌린지</button>
           </div>
@@ -203,6 +204,21 @@
           <button id="btnColorblindToggle" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-fuchsia-500/20 hover:bg-fuchsia-500/35 border border-fuchsia-400/50 text-fuchsia-200 transition flex items-center gap-1" title="적록 색각 이상자 고대비 패턴 모드">
             <span>👁️</span>
             <span id="colorblindToggleText">색각보정:꺼짐</span>
+          </button>
+
+          <button id="btnThermalVisionToggle" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-purple-500/25 hover:bg-purple-500/40 border border-purple-400/60 text-purple-200 transition flex items-center gap-1" title="소방관 FLIR 열화상 카메라 투시 모드 (단축키 T)">
+            <span>🌡️</span>
+            <span id="thermalVisionToggleText">열화상:꺼짐</span>
+          </button>
+
+          <button id="btnSmartboardPenToggle" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/60 text-amber-200 transition flex items-center gap-1" title="전자칠판 실시간 판서(형광펜·레이저) & 수업 타이머">
+            <span>🖍️</span>
+            <span id="smartboardPenToggleText">전자칠판판서</span>
+          </button>
+
+          <button id="btnFamilyPlanModal" type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-500/25 hover:bg-emerald-500/40 border border-emerald-400/60 text-emerald-200 transition flex items-center gap-1" title="우리 집 화재안전 체크리스트 & 가족 대피 약속 카드(PNG) 발급">
+            <span>🏠</span>
+            <span>가족대피카드</span>
           </button>
 
           <button id="btnGuide" type="button" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition flex items-center gap-1">
@@ -305,6 +321,20 @@
     <!-- Canvas & Interactive Toast Area -->
     <div class="relative w-full flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl" id="canvasContainer">
       <canvas id="gameCanvas" class="w-full h-full cursor-pointer"></canvas>
+      <canvas id="annotationCanvas" class="pointer-events-none absolute inset-0 w-full h-full z-[25]"></canvas>
+
+      <!-- Strategy #9: Teacher Smartboard Annotation & Class Bell Timer Floating Bar -->
+      <div id="smartboardToolbar" class="hidden absolute top-1.5 left-1.5 z-30 flex-wrap items-center gap-1 px-2 py-1 rounded-xl bg-slate-950/92 border border-amber-400/60 shadow-xl text-[10.5px] font-extrabold text-white">
+        <span class="text-amber-300 mr-0.5">🖍️판서:</span>
+        <button id="btnSbPassThrough" type="button" class="px-2 py-0.5 rounded bg-emerald-600 text-white" title="게임 조작 모드">🎮조작</button>
+        <button id="btnSbLaser" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-rose-300" title="레이저 포인터">🔴레이저</button>
+        <button id="btnSbHighlighter" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-yellow-300" title="형광펜 동선 그리기">🟡형광펜</button>
+        <button id="btnSbRedPen" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-red-400" title="적색 위험구역 표시">🖍️적색펜</button>
+        <button id="btnSbClear" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="판서 모두 지우기">🧹지우기</button>
+        <span class="text-slate-600">|</span>
+        <button id="btnSbTimerToggle" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-mono" title="교실 활동 3분 타이머 시작/일시정지">⏱️03:00</button>
+        <button id="btnSbClose" type="button" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-rose-700 text-slate-300">✕</button>
+      </div>
 
       <!-- Quick 1-Tap Map Zoom Toggle Pill (1.0x Wide Full-Bleed <-> 1.4x Close-Up Follow Cam) -->
       <button id="btnMapZoomToggle" type="button" class="absolute top-1.5 right-1.5 z-20 px-2 py-0.5 rounded-full bg-slate-950/85 hover:bg-slate-900 border border-sky-400/60 text-sky-200 text-[10px] sm:text-[11px] font-extrabold shadow transition flex items-center gap-1" title="화면 확대 / 전체 맵 전환 (단축키 Z)">
@@ -407,8 +437,13 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                  <div id="debriefChecklist" class="sm:col-span-7 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
-                  <div class="sm:col-span-5 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
+                  <div id="debriefChecklist" class="sm:col-span-5 space-y-1 text-[10px] sm:text-[11px] text-slate-300"></div>
+                  <div class="sm:col-span-3 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
+                    <span id="debriefWeakestBadge" class="text-[9px] text-emerald-300 font-bold">🕸️ 5대 안전역량 분석</span>
+                    <canvas id="debriefRadarCanvas" width="176" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
+                    <button id="btnOpenFamilyPlanFromDebrief" type="button" class="w-full py-1 px-1.5 rounded bg-emerald-600/90 hover:bg-emerald-500 text-[10px] font-extrabold text-white transition whitespace-nowrap">🏠 가족 대피 카드 발급</button>
+                  </div>
+                  <div class="sm:col-span-4 flex flex-col items-center bg-slate-900 p-1.5 rounded-lg border border-slate-800 gap-1">
                     <span class="text-[9px] text-slate-400">👣 이동 동선 리플레이 (🟢안전 🔵낮은자세 🔴피해)</span>
                     <canvas id="replayMinimap" width="195" height="130" class="rounded border border-slate-700 bg-slate-950"></canvas>
                     <div class="flex gap-1 w-full"><button id="btnReplayAnim" type="button" class="flex-1 py-1 px-1.5 rounded bg-indigo-600/80 hover:bg-indigo-500 text-[10px] font-bold text-white transition whitespace-nowrap">▶️ 미니맵 재생</button><button id="btnReplay3DCinematic" type="button" class="flex-1 py-1 px-1.5 rounded bg-sky-600 hover:bg-sky-500 text-[10px] font-extrabold text-white transition whitespace-nowrap">🎥 3D 건물 다시보기</button></div>
@@ -510,7 +545,7 @@
               </div>
 
               <!-- 8-Column Single-Row Escape Zone Dock -->
-              <div id="mainStageSelectBar" class="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5">
+              <div id="mainStageSelectBar" class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-1.5 sm:gap-2">
                 <!-- Card 0: 1단계 아파트 침실 -->
                 <button type="button" data-main-stage="0" class="main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-gradient-to-b from-orange-500/30 to-slate-950 border-2 border-orange-400 ring-2 ring-yellow-300/50 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]">
                   <span data-stage-badge data-default-badge="1단계" data-default-badge-class="bg-slate-800 text-slate-300" class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-orange-400 text-slate-950">선택됨</span>
@@ -557,6 +592,14 @@
                   <div class="stage-dock-icon text-2xl sm:text-3xl my-0.5">⛺</div>
                   <div class="stage-dock-title text-[11px] sm:text-xs font-black text-white whitespace-nowrap">야간 캠핑장</div>
                   <div class="stage-dock-desc text-[9.5px] sm:text-[10px] text-slate-400 font-semibold whitespace-nowrap">배터리 화재</div>
+                </button>
+
+                <!-- Card 7: 7단계 지진 복합 화재 -->
+                <button type="button" data-main-stage="7" class="main-stage-pill group p-2.5 sm:p-3 rounded-2xl bg-slate-950/90 border border-rose-500/50 hover:border-rose-400 flex flex-col items-center text-center gap-1 sm:gap-1.5 shadow-md transition hover:scale-[1.02]">
+                  <span data-stage-badge data-default-badge="7단계" data-default-badge-class="bg-slate-800 text-rose-300" class="px-2 py-0.5 rounded-full text-[9.5px] font-black bg-slate-800 text-rose-300">7단계</span>
+                  <div class="stage-dock-icon text-2xl sm:text-3xl my-0.5">🌐</div>
+                  <div class="stage-dock-title text-[11px] sm:text-xs font-black text-white whitespace-nowrap">지진·복합화재</div>
+                  <div class="stage-dock-desc text-[9.5px] sm:text-[10px] text-slate-400 font-semibold whitespace-nowrap">여진·방화셔터</div>
                 </button>
 
                 <!-- Card 5: 예방 탐정 모드 -->
@@ -857,7 +900,7 @@
 
       <!-- 10 Safety Badges Grid -->
       <div>
-        <div class="text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between"><span>🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</span><button id="btnOpenCodexFromCert" type="button" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px]">📘 3D 소방장비 도감 열기</button></div>
+        <div class="text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between"><span>🎖️ 나의 화재 안전 마스터 배지 도감 (행동 달성 시 자동 해금)</span><div class="flex items-center gap-1"><button id="btnOpenCodexFromCert" type="button" class="px-2 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px]">📘 3D 장비도감</button><button id="btnOpenFamilyPlanFromCert" type="button" class="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px]">🏠 가족대피카드</button></div></div>
         <div id="badgeCollectionGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center"></div>
       </div>
 
@@ -956,7 +999,7 @@
             <div class="text-xs font-extrabold text-purple-300">🖥️ 전자칠판 대형 화면 & 큰 자막 모드</div>
             <div class="text-[11px] text-slate-400">교실 뒷자리 학생도 잘 보이도록 게임 화면 폭과 자막 크기를 확대합니다.</div>
           </div>
-          <button id="btnToggleBoardZoom" type="button" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-extrabold text-white shrink-0">켜기</button>
+          <div class="flex items-center gap-1 shrink-0"><button id="btnToggleBoardZoom" type="button" class="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-xs font-extrabold text-white">확대 켜기</button><button id="btnOpenSmartboardFromTeacher" type="button" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-xs font-extrabold text-slate-950">🖍️ 판서·타이머</button></div>
         </div>
 
         <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
@@ -1038,6 +1081,7 @@
             <option value="3">4단계: 초등학교 과학실 (중상급)</option>
             <option value="4">5단계: 지하철 정전미로 (상급)</option>
             <option value="6">6단계: 캠핑장 열폭주 (최상급)</option>
+            <option value="7">7단계: 지진 복합 화재 (마스터)</option>
             <option value="5">예방점검: 우리 집 5대 위험</option>
             <option value="daily">오늘의 챌린지 (랜덤 구조)</option>
           </select>
@@ -1539,7 +1583,59 @@
     </div>
   </div>
 
-  <!-- Fire Safety & Curriculum Guide Modal -->
+  <!-- Strategy #10: Family Fire Escape Plan & Home Safety Audit Card Modal -->
+  <div id="familyPlanModal" class="fixed inset-0 z-50 hidden bg-slate-950/88 backdrop-blur-sm items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl space-y-3 my-auto max-h-[95vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">가정 연계 안전점검 · FAMILY ESCAPE PLAN (전략 10)</span>
+          <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5">🏠 우리 집 화재안전 체크리스트 & 가족 대피 약속 카드 발급</h3>
+        </div>
+        <button id="btnCloseFamilyPlanModal" type="button" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-stretch text-xs">
+        <div class="sm:col-span-6 space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div>
+            <label for="familyPlanNameInput" class="block text-amber-300 font-extrabold mb-1">👨‍👩‍👧‍👦 우리 가족 호칭 / 학생 이름:</label>
+            <input id="familyPlanNameInput" type="text" maxlength="20" value="김안전네 가족" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold" />
+          </div>
+          <div>
+            <label for="familyPlanExtInput" class="block text-sky-300 font-extrabold mb-1">🧯 우리 집 소화기 비치 위치:</label>
+            <input id="familyPlanExtInput" type="text" maxlength="32" value="현관 신발장 옆 & 주방 싱크대 옆" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white" />
+          </div>
+          <div>
+            <label for="familyPlanSpotInput" class="block text-emerald-300 font-extrabold mb-1">📍 화재 시 가족 밖에서 만날 약속 장소(집결지):</label>
+            <input id="familyPlanSpotInput" type="text" maxlength="32" value="아파트 정문 시계탑 놀이터 앞" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white" />
+          </div>
+          <div>
+            <label for="familyPlanPledgeInput" class="block text-purple-300 font-extrabold mb-1">💬 우리 가족 화재 대피 안전 다짐:</label>
+            <input id="familyPlanPledgeInput" type="text" maxlength="36" value="물건을 챙기지 않고 낮은 자세로 즉시 대피해요!" class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white" />
+          </div>
+          <div class="pt-1 border-t border-slate-800 space-y-1 text-[11px] text-slate-300">
+            <div class="font-extrabold text-amber-200">✅ 가정 내 피난·소방설비 점검 체크</div>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input id="chkHomeDetector" type="checkbox" checked class="accent-emerald-500" /> 천장 단독경보형 감지기 작동 확인</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input id="chkHomeLifeline" type="checkbox" checked class="accent-emerald-500" /> 베란다 경량칸막이·완강기 위치 확인</label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input id="chkHomeOutlet" type="checkbox" checked class="accent-emerald-500" /> 문어발 콘센트 먼지 제거 및 가스밸브 점검</label>
+          </div>
+        </div>
+
+        <div class="sm:col-span-6 flex flex-col items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 gap-2">
+          <span class="text-[11px] font-extrabold text-emerald-300">🖼️ 실시간 가족 대피 약속 카드 미리보기</span>
+          <canvas id="familyPlanCanvas" width="520" height="280" class="w-full h-auto rounded-lg border border-amber-500/40 shadow-lg"></canvas>
+          <button id="btnDownloadFamilyPlanPng" type="button" class="w-full py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-black text-xs shadow-lg transition">
+            📥 우리 가족 대피 약속 카드(PNG) 이미지 저장
+          </button>
+        </div>
+      </div>
+
+      <button id="btnConfirmFamilyPlanModal" type="button" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm transition">
+        점검 완료 및 닫기
+      </button>
+    </div>
+  </div>
+
+    <!-- Fire Safety & Curriculum Guide Modal -->
   <div id="guideModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm items-center justify-center p-3 sm:p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
@@ -1649,10 +1745,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=19"></script>
-  <script src="./stages.js?v=19"></script>
-  <script src="./editor.js?v=19"></script>
-  <script src="./tactical-3d.js?v=19"></script>
-  <script src="./game.js?v=19"></script>
+  <script src="./sound.js?v=20"></script>
+  <script src="./stages.js?v=20"></script>
+  <script src="./editor.js?v=20"></script>
+  <script src="./tactical-3d.js?v=20"></script>
+  <script src="./game.js?v=20"></script>
 </body>
 </html>

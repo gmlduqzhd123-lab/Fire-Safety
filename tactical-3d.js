@@ -191,10 +191,13 @@
     ctx.fillStyle = '#bae6fd';
     ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('🪢 3D 완강기 외벽 하강 중', bx + 10, by + 16);
+    ctx.fillText('🪢 3D 완강기 3단계 외벽 안전 하강', bx + 10, by + 16);
+    ctx.fillStyle = '#6ee7b7';
+    ctx.font = 'bold 9.5px "Noto Sans KR", sans-serif';
+    ctx.fillText('✓1.고리결속  ✓2.가슴벨트  ✓3.벽면지지', cableX + 12, by + boxH * 0.34);
     ctx.fillStyle = '#fef08a';
-    ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
-    ctx.fillText(`남은 높이: ${altitudeM.toFixed(1)}m`, cableX + 16, by + boxH * 0.55);
+    ctx.font = 'bold 11.5px "Noto Sans KR", sans-serif';
+    ctx.fillText(`하강 높이: ${altitudeM.toFixed(1)}m (0.8m/s)`, cableX + 12, by + boxH * 0.56);
 
     ctx.restore();
   }
@@ -1099,6 +1102,26 @@
       usageTip: '비상벨(발신기)을 누르면 건물 전체에 경보가 울리고 방화·소화 설비가 연동됩니다.'
     },
     {
+      id: 'flir_cam',
+      name: '열화상 카메라 (FLIR 투시)',
+      icon: '🌡️',
+      category: '첨단 탐색 장비',
+      color: '#7c3aed',
+      accent: '#f0abfc',
+      principle: '짙은 연기로 가시광선이 차단된 화재 현장에서 물체가 방출하는 적외선(열복사 에너지)을 감지해 화원과 요구조자의 체온(36.5°C)을 투시합니다.',
+      usageTip: '연기 너머 닫힌 문(백드래프트 위험 고열문)의 온도와 고립된 이웃의 위치를 단축키 [T]로 즉시 스캔하세요!'
+    },
+    {
+      id: 'fire_shutter',
+      name: '방화셔터 일체형 비상문',
+      icon: '🟩',
+      category: '방화 구획·피난 설비',
+      color: '#059669',
+      accent: '#fde047',
+      principle: '화재 감지기 작동 시 철제 방화셔터가 내려와 연기를 차단하더라도, 재실자가 갇히지 않도록 셔터 안쪽에 초록색 유도표지가 붙은 비상문(피난구)이 설치되어 있습니다.',
+      usageTip: '학교·지하철에서 방화셔터가 내려오면 당황하지 말고 셔터에 달린 초록색 [비상문]을 손으로 밀고 대피하세요!'
+    },
+    {
       id: 'fire_door',
       name: '갑종 방화문 (연기·화염 차단)',
       icon: '🚪',
@@ -1403,7 +1426,571 @@
     ctx.restore();
   }
 
+
+  // --- Strategy #1: Firefighter FLIR Thermal Imaging Camera 3D Overlay (DIORAMA_3D & FPS_3D) ---
+  function drawThermalVisionOverlay(ctx, width, height, state) {
+    if (!state || !state.active) return;
+    const {
+      isFps,
+      fires,
+      items,
+      grid,
+      rows,
+      cols,
+      TILE,
+      tileSize,
+      project3DPoint,
+      now
+    } = state;
+
+    ctx.save();
+    // 1. Infrared FLIR Color Grading Backdrop & Scanlines
+    ctx.fillStyle = 'rgba(18, 12, 56, 0.34)';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = 'rgba(192, 132, 252, 0.05)';
+    for (let y = 0; y < height; y += 4) {
+      ctx.fillRect(0, y, width, 1.2);
+    }
+
+    // 2. Render Thermal Signatures in DIORAMA_3D or FPS_3D
+    if (!isFps && tileSize) {
+      // Fires -> White-Yellow-Magenta Core
+      if (Array.isArray(fires)) {
+        for (let i = 0; i < fires.length; i++) {
+          const f = fires[i];
+          const cx = (f.c + 0.5) * tileSize;
+          const cy = (f.r + 0.5) * tileSize;
+          const r = tileSize * 0.72;
+          const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+          g.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+          g.addColorStop(0.35, 'rgba(250, 204, 21, 0.75)');
+          g.addColorStop(0.7, 'rgba(217, 70, 239, 0.42)');
+          g.addColorStop(1, 'rgba(88, 28, 135, 0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      // Hot Doors (Backdraft warning) -> Pulsing Crimson Thermal Ring
+      if (grid && TILE) {
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (grid[r][c] === TILE.HOT_DOOR) {
+              const cx = (c + 0.5) * tileSize;
+              const cy = (r + 0.5) * tileSize;
+              ctx.strokeStyle = '#f43f5e';
+              ctx.lineWidth = 2.4;
+              ctx.strokeRect(c * tileSize + 2, r * tileSize + 2, tileSize - 4, tileSize - 4);
+              ctx.fillStyle = '#fda4af';
+              ctx.font = 'bold 9.5px "Noto Sans KR", sans-serif';
+              ctx.textAlign = 'center';
+              ctx.fillText('🌡️390°C 고열문!', cx, cy - tileSize * 0.35);
+            }
+          }
+        }
+      }
+      // Survivors / Pets -> 36.5°C Warm Amber Silhouette
+      if (Array.isArray(items)) {
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          if (it.type === 'npc' || it.type === 'dog') {
+            const cx = (it.c + 0.5) * tileSize;
+            const cy = (it.r + 0.5) * tileSize;
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, tileSize * 0.42, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 9.5px "Noto Sans KR", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🌡️36.5°C 체온감지', cx, cy - tileSize * 0.48);
+          }
+        }
+      }
+    } else if (isFps && typeof project3DPoint === 'function') {
+      // Through-smoke / through-wall thermal signatures in 1st-person 3D
+      if (Array.isArray(fires)) {
+        for (let i = 0; i < fires.length; i++) {
+          const f = fires[i];
+          const pt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.35);
+          if (!pt || pt.depth > 11) continue;
+          const rad = Math.max(14, 52 / pt.depth);
+          const g = ctx.createRadialGradient(pt.x, pt.y, 2, pt.x, pt.y, rad);
+          g.addColorStop(0, 'rgba(255, 255, 255, 0.90)');
+          g.addColorStop(0.4, 'rgba(250, 204, 21, 0.65)');
+          g.addColorStop(0.8, 'rgba(217, 70, 239, 0.30)');
+          g.addColorStop(1, 'rgba(88, 28, 135, 0)');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`🌡️화원 620°C (${pt.depth.toFixed(1)}m)`, pt.x, pt.y - rad * 0.6);
+        }
+      }
+      if (Array.isArray(items)) {
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          if (it.type === 'npc' || it.type === 'dog') {
+            const pt = project3DPoint(it.c + 0.5, it.r + 0.5, 0.42);
+            if (!pt || pt.depth > 12) continue;
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(pt.x - 18, pt.y - 18, 36, 36);
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`🌡️${it.name || '요구조자'} 36.5°C (${pt.depth.toFixed(1)}m)`, pt.x, pt.y - 24);
+          }
+        }
+      }
+    }
+
+    // 3. FLIR HUD Frame & Right Temperature Scale Bar
+    const pad = 10;
+    ctx.strokeStyle = 'rgba(232, 121, 249, 0.75)';
+    ctx.lineWidth = 2;
+    // Top-left bracket
+    ctx.beginPath();
+    ctx.moveTo(pad, pad + 22);
+    ctx.lineTo(pad, pad);
+    ctx.lineTo(pad + 22, pad);
+    ctx.stroke();
+    // Bottom-right bracket
+    ctx.beginPath();
+    ctx.moveTo(width - pad, height - pad - 22);
+    ctx.lineTo(width - pad, height - pad);
+    ctx.lineTo(width - pad - 22, height - pad);
+    ctx.stroke();
+
+    // Top-left FLIR badge
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+    ctx.fillRect(pad + 6, pad + 6, 205, 22);
+    ctx.strokeRect(pad + 6, pad + 6, 205, 22);
+    ctx.fillStyle = '#f0abfc';
+    ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🌡️ FLIR 열화상 투시 ON (단축키 T)', pad + 12, pad + 17);
+
+    ctx.restore();
+  }
+
+  // --- Strategy #2: Indoor Airflow Draft & Smoke Stack-Effect Vector Engine ---
+  function computeIndoorAirflowVector(grid, rows, cols, TILE, player) {
+    if (!grid || !TILE) return { vx: 1, vy: 0, speed: 1.0, dirName: '동쪽', openDoors: 0 };
+    let sumX = 0;
+    let sumY = 0;
+    let openDoors = 0;
+    const px = player ? player.x : cols * 0.5;
+    const py = player ? player.y : rows * 0.5;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const t = grid[r][c];
+        if (t === TILE.OPEN_DOOR) openDoors++;
+        // Stack effect pulls air toward vertical shafts (ELEVATOR, EXIT stairwell) and OPEN_DOORs
+        if (t === TILE.ELEVATOR || t === TILE.EXIT || t === TILE.OPEN_DOOR) {
+          const weight = t === TILE.OPEN_DOOR ? 1.4 : (t === TILE.ELEVATOR ? 1.8 : 1.2);
+          const dx = (c + 0.5) - px;
+          const dy = (r + 0.5) - py;
+          const d = Math.max(0.8, Math.hypot(dx, dy));
+          sumX += (dx / d) * weight;
+          sumY += (dy / d) * weight;
+        }
+      }
+    }
+
+    const len = Math.hypot(sumX, sumY) || 1;
+    const vx = sumX / len;
+    const vy = sumY / len;
+    const speed = Number((0.85 + Math.min(0.95, openDoors * 0.22)).toFixed(2));
+    let dirName = '동쪽';
+    const ang = Math.atan2(vy, vx);
+    if (ang > -Math.PI * 0.25 && ang <= Math.PI * 0.25) dirName = '동쪽(→)';
+    else if (ang > Math.PI * 0.25 && ang <= Math.PI * 0.75) dirName = '남쪽(↓)';
+    else if (ang <= -Math.PI * 0.25 && ang > -Math.PI * 0.75) dirName = '북쪽(↑)';
+    else dirName = '서쪽(←)';
+
+    return { vx, vy, speed, dirName, openDoors };
+  }
+
+  function drawAirflowDraftDiorama(ctx, draft, smokes, tileSize, width, now) {
+    if (!draft) return;
+    ctx.save();
+    // Animated airflow streamlines near smoke tiles
+    if (Array.isArray(smokes) && smokes.length > 0 && tileSize) {
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.36)';
+      ctx.lineWidth = 1.5;
+      const stepCount = Math.min(6, smokes.length);
+      for (let i = 0; i < stepCount; i++) {
+        const s = smokes[i];
+        const phase = (now * 1.4 + i * 0.27) % 1;
+        const sx = (s.c + 0.5 - draft.vx * 0.35 + draft.vx * phase * 0.7) * tileSize;
+        const sy = (s.r + 0.5 - draft.vy * 0.35 + draft.vy * phase * 0.7) * tileSize;
+        const ex = sx + draft.vx * tileSize * 0.36;
+        const ey = sy + draft.vy * tileSize * 0.36;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #3: Spatial Audio Acoustic Radar Badge ---
+  function drawSpatialAudioRadarHUD(ctx, width, height, acousticCue) {
+    if (!acousticCue) return;
+    ctx.save();
+    ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+    const tw = ctx.measureText(acousticCue).width + 16;
+    const bx = 10;
+    const by = height - 30;
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.86)';
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.65)';
+    ctx.lineWidth = 1.3;
+    ctx.fillRect(bx, by, tw, 20);
+    ctx.strokeRect(bx, by, tw, 20);
+    ctx.fillStyle = '#6ee7b7';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(acousticCue, bx + 8, by + 10);
+    ctx.restore();
+  }
+
+  // --- Strategy #4: PASS Extinguisher Aim-and-Sweep Rhythm Gauge Overlay ---
+  function drawExtinguisherSweepGaugeOverlay(ctx, width, height, sweepState, draft) {
+    if (!sweepState || !sweepState.active) return;
+    ctx.save();
+    const boxW = Math.min(340, width * 0.80);
+    const boxH = 54;
+    const bx = (width - boxW) * 0.5;
+    const by = height - boxH - 36;
+
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.94)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeRect(bx, by, boxW, boxH);
+
+    const windHint = draft ? `🌬️기류: ${draft.dirName} (바람 등지기)` : '🎯화원 뿌리 조준';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`🧯 PASS 빗자루 쓸기(Sweep)! 녹색 구간에서 [Space/소화기] 클릭 (${windHint})`, width * 0.5, by + 15);
+
+    const trackX = bx + 16;
+    const trackY = by + 28;
+    const trackW = boxW - 32;
+    const trackH = 14;
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(trackX, trackY, trackW, trackH);
+
+    // Golden/Green Sweet Spot Zone (0.32 ~ 0.68)
+    const sweetX = trackX + trackW * 0.32;
+    const sweetW = trackW * 0.36;
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.65)';
+    ctx.fillRect(sweetX, trackY, sweetW, trackH);
+    ctx.strokeStyle = '#fde047';
+    ctx.strokeRect(sweetX, trackY, sweetW, trackH);
+
+    // Oscillating Cursor
+    const cursorRatio = 0.5 + 0.46 * Math.sin((sweepState.phase || 0) * 7.5);
+    const cx = trackX + trackW * cursorRatio;
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(cx - 3, trackY - 3, 6, trackH + 6);
+
+    ctx.restore();
+  }
+
+  // --- Strategy #6: Earthquake Seismic Tremor Warning Overlay ---
+  function drawEarthquakeTremorOverlay(ctx, width, height, eqState, isCrouching) {
+    if (!eqState || !eqState.active) return;
+    ctx.save();
+    const boxW = Math.min(430, width * 0.88);
+    const boxH = 42;
+    const bx = (width - boxW) * 0.5;
+    const by = 38;
+
+    ctx.fillStyle = isCrouching ? 'rgba(6, 78, 59, 0.92)' : 'rgba(127, 29, 29, 0.92)';
+    ctx.strokeStyle = isCrouching ? '#34d399' : '#f87171';
+    ctx.lineWidth = 2;
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeRect(bx, by, boxW, boxH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11.5px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const msg = isCrouching
+      ? `🛡️ [지진 머리 보호 완료!] 낮은 자세 유지 중 (남은 여진 ${Math.max(0.1, eqState.timer).toFixed(1)}초)`
+      : `🌐 [진도 5.5 여진 발생!] 즉시 [숙이기(Shift)]로 머리를 보호하세요! (${Math.max(0.1, eqState.timer).toFixed(1)}초)`;
+    ctx.fillText(msg, width * 0.5, by + 21);
+    ctx.restore();
+  }
+
+  // --- Strategy #7: Fire Shutter Sub-Door Badge & Vulnerable Companion Care Tether ---
+  function drawFireShutterAndCompanionCareDiorama(ctx, grid, rows, cols, TILE, player, companions, hasFireShutter, tileSize, now) {
+    if (!tileSize) return;
+    ctx.save();
+    // 1. Companion Escort Care Tether Line
+    if (player && Array.isArray(companions) && companions.length > 0) {
+      for (let i = 0; i < companions.length; i++) {
+        const comp = companions[i];
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.78)';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(player.x * tileSize, player.y * tileSize);
+        ctx.lineTo(comp.x * tileSize, comp.y * tileSize);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // 2. Green Emergency Sub-Door Badge on Fire Shutter Doors in Stage 4/5/7
+    if (hasFireShutter && grid && TILE) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === TILE.PARTITION || (grid[r][c] === TILE.DOOR && (c === 4 || c === 9))) {
+            const cx = (c + 0.5) * tileSize;
+            const cy = (r + 0.5) * tileSize;
+            ctx.fillStyle = 'rgba(5, 150, 105, 0.90)';
+            ctx.fillRect(cx - tileSize * 0.36, cy + tileSize * 0.14, tileSize * 0.72, 11);
+            ctx.fillStyle = '#ecfdf5';
+            ctx.font = 'bold 8.5px "Noto Sans KR", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🟩셔터비상문', cx, cy + tileSize * 0.14 + 5.5);
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #8: 5-Axis Safety Competency Radar Chart & Personalized AI Prescription ---
+  function computeSafetyCompetencyScores(metrics, player, elapsedSeconds, st) {
+    const m = metrics || {};
+    const p = player || {};
+    const isPrev = st && st.isPreventionMode;
+
+    // 1. 신속성 (Speed: 0~100)
+    const speedScore = Math.max(45, Math.min(100, Math.round(100 - Math.max(0, (elapsedSeconds || 25) - 18) * 0.55)));
+
+    // 2. 호흡보호 (Breathing: Crouch in smoke + Wet towel / Mask)
+    const smokeRatio = (m.smokeTimeTotal || 0) > 1.0 ? (m.smokeTimeCrouched || 0) / m.smokeTimeTotal : 1.0;
+    const breathScore = isPrev
+      ? 95
+      : Math.max(40, Math.min(100, Math.round(smokeRatio * 65 + (p.wetTowel || p.hasMask ? 35 : (p.crouching ? 25 : 15)))));
+
+    // 3. 초기대응 (Response: 119 Call + Alarm Bell + Gas/Breaker)
+    let respBase = 60;
+    if (m.called119) respBase += 20;
+    if (p.alarmRung) respBase += 10;
+    if (p.gasClosed || p.breakerClosed || (m.correctExtinguishCount || 0) > 0) respBase += 15;
+    const responseScore = isPrev ? 96 : Math.min(100, respBase);
+
+    // 4. 위험회피 (Hazard Avoidance: Door heat check + No backdraft + No water on oil/electric)
+    let avoidBase = 85;
+    if ((m.doorHeatChecked || 0) > 0) avoidBase += 15;
+    if ((m.backdraftTriggered || 0) > 0) avoidBase -= 25;
+    if ((m.waterOnSpecialFireMistake || 0) > 0) avoidBase -= 25;
+    if (!m.ignoredOrDroppedToy) avoidBase -= 15;
+    const avoidScore = Math.max(35, Math.min(100, avoidBase));
+
+    // 5. 협동·방화 (Coop & Fire Door: Fire doors closed + Companion rescue)
+    let coopBase = 68;
+    if ((p.fireDoorsClosed || 0) > 0) coopBase += 18;
+    if ((p.rescuedNpcs || 0) > 0 || p.rescuedDog) coopBase += 16;
+    const coopScore = isPrev ? 94 : Math.min(100, coopBase);
+
+    const axes = [
+      { key: 'speed', label: '신속성', score: speedScore, tip: '바닥의 초록 유도선과 비상구 유도음(🔊)을 따라 지체 없이 출구로 이동하세요!' },
+      { key: 'breath', label: '호흡보호', score: breathScore, tip: '연기 구역 진입 즉시 [Shift] 키로 낮은 자세를 유지하고 젖은 수건·마스크를 활용하세요!' },
+      { key: 'response', label: '초기대응', score: responseScore, tip: '복도 비상벨(🔔)과 119 신고 전화(📞), 가스·전기 차단기를 침착하게 작동해 보세요!' },
+      { key: 'avoid', label: '위험회피', score: avoidScore, tip: '닫힌 문은 열기 전 손등 온도(🌡️)나 열화상(T)을 확인하고, 식용유·전기 불엔 전용 소화기를 쓰세요!' },
+      { key: 'coop', label: '방화·배려', score: coopScore, tip: '지나온 방화문을 닫아(Space) 연기 확산을 막고, 고립된 이웃 위치를 확인하세요!' }
+    ];
+
+    let weakest = axes[0];
+    for (let i = 1; i < axes.length; i++) {
+      if (axes[i].score < weakest.score) weakest = axes[i];
+    }
+
+    const avg = Math.round(axes.reduce((acc, a) => acc + a.score, 0) / axes.length);
+    return { axes, weakest, avg };
+  }
+
+  function drawSafetyCompetencyRadarChart(canvas, compData) {
+    if (!canvas || !compData || !Array.isArray(compData.axes)) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w * 0.5;
+    const cy = h * 0.54;
+    const maxR = Math.min(w, h) * 0.34;
+    const axes = compData.axes;
+    const n = axes.length;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#090f1d';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw concentric pentagon webs (33%, 66%, 100%)
+    for (let lv = 1; lv <= 3; lv++) {
+      const r = (maxR * lv) / 3;
+      ctx.strokeStyle = lv === 3 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(71, 85, 105, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const ang = -Math.PI * 0.5 + (i * Math.PI * 2) / n;
+        const px = cx + Math.cos(ang) * r;
+        const py = cy + Math.sin(ang) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    // Spokes
+    ctx.strokeStyle = 'rgba(71, 85, 105, 0.5)';
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI * 0.5 + (i * Math.PI * 2) / n;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(ang) * maxR, cy + Math.sin(ang) * maxR);
+      ctx.stroke();
+    }
+
+    // Data polygon
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.34)';
+    ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI * 0.5 + (i * Math.PI * 2) / n;
+      const r = maxR * (Math.max(20, axes[i].score) / 100);
+      const px = cx + Math.cos(ang) * r;
+      const py = cy + Math.sin(ang) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Vertex dots & Axis Labels
+    ctx.font = 'bold 9.5px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI * 0.5 + (i * Math.PI * 2) / n;
+      const r = maxR * (Math.max(20, axes[i].score) / 100);
+      const vx = cx + Math.cos(ang) * r;
+      const vy = cy + Math.sin(ang) * r;
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(vx, vy, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      const lx = cx + Math.cos(ang) * (maxR + 16);
+      const ly = cy + Math.sin(ang) * (maxR + 13);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(`${axes[i].label}(${axes[i].score})`, lx, ly);
+    }
+  }
+
+  // --- Strategy #10: Family Fire Escape Plan & Home Safety Audit PNG Card Renderer ---
+  function renderFamilyEscapePlanCard(canvas, data) {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    const d = data || {};
+
+    ctx.clearRect(0, 0, w, h);
+    const bg = ctx.createLinearGradient(0, 0, w, h);
+    bg.addColorStop(0, '#0f172a');
+    bg.addColorStop(1, '#1e293b');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Outer Border
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+
+    // Header
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 13px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('🏠 가정 연계 소방안전 점검표 · FAMILY FIRE ESCAPE PLAN', 24, 34);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 20px "Noto Sans KR", sans-serif';
+    ctx.fillText(`🚒 [${d.familyName || '우리 가족'}] 화재 대피 약속 카드`, 24, 62);
+
+    // Divider
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(24, 76);
+    ctx.lineTo(w - 24, 76);
+    ctx.stroke();
+
+    // Key Info Rows
+    const rows = [
+      { icon: '🧯', title: '우리 집 소화기 위치', val: d.extLocation || '현관 신발장 옆 & 주방 싱크대 옆' },
+      { icon: '🪢', title: '비상 피난설비 확인', val: d.equipChecked || '경량칸막이 · 완강기 · 단독경보형 감지기 점검 완료' },
+      { icon: '📍', title: '화재 시 가족 밖 집결지', val: d.meetingSpot || '아파트 정문 시계탑 놀이터 앞 (재진입 절대 금지!)' },
+      { icon: '💬', title: '우리 가족 안전 다짐', val: d.pledge || '불나면 물건을 챙기지 않고 낮은 자세로 즉시 대피해요!' }
+    ];
+
+    let y = 102;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.68)';
+      ctx.fillRect(24, y - 18, w - 48, 38);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.strokeRect(24, y - 18, w - 48, 38);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 12px "Noto Sans KR", sans-serif';
+      ctx.fillText(`${r.icon} ${r.title}:`, 34, y + 4);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 12.5px "Noto Sans KR", sans-serif';
+      ctx.fillText(String(r.val).slice(0, 36), 182, y + 4);
+      y += 46;
+    }
+
+    // Footer Stamp
+    ctx.fillStyle = '#6ee7b7';
+    ctx.font = 'bold 11.5px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('✓ 119 소방안전 교육 공식 점검 완료 · 화재 탈출 넘버원 3D', w - 26, h - 22);
+  }
+
   window.FireEscape.Tactical3D = {
+    drawThermalVisionOverlay,
+    computeIndoorAirflowVector,
+    drawAirflowDraftDiorama,
+    drawSpatialAudioRadarHUD,
+    drawExtinguisherSweepGaugeOverlay,
+    drawEarthquakeTremorOverlay,
+    drawFireShutterAndCompanionCareDiorama,
+    computeSafetyCompetencyScores,
+    drawSafetyCompetencyRadarChart,
+    renderFamilyEscapePlanCard,
     triggerDoorAnim,
     getDoorSwingRatio,
     triggerLifelineDescent,

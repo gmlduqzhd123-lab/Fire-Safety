@@ -280,6 +280,134 @@
       this.playNoise(0.06, 0.10);
       this.playTone(1480, 'sine', 0.045, 0.06, 1120);
     },
+    // Strategy #1: FLIR Thermal Vision Activation Sound
+    thermalVisionToggle(active = true) {
+      if (this.muted) return;
+      if (active) {
+        this.playTone(620, 'sine', 0.09, 0.11, 1280);
+        setTimeout(() => this.playTone(1360, 'triangle', 0.12, 0.09, 1680), 80);
+      } else {
+        this.playTone(980, 'sine', 0.10, 0.10, 440);
+      }
+    },
+    // Strategy #4: PASS Extinguisher Perfect Sweep Fanfare
+    sweepPerfect() {
+      if (this.muted) return;
+      this.playNoise(0.18, 0.16);
+      this.playTone(587.33, 'triangle', 0.10, 0.14, 880);
+      setTimeout(() => this.playTone(880, 'triangle', 0.14, 0.15, 1174.66), 85);
+    },
+    // Strategy #6: Earthquake Seismic Tremor Rumble
+    earthquakeRumble() {
+      if (this.muted) return;
+      this.playNoise(0.35, 0.20);
+      this.playTone(72, 'sawtooth', 0.32, 0.18, 44);
+    },
+    // Strategy #7: Fire Shutter Green Sub-Door Push Sound
+    shutterDoorPush() {
+      if (this.muted) return;
+      this.playTone(280, 'triangle', 0.12, 0.14, 520);
+      setTimeout(() => this.playTone(660, 'sine', 0.14, 0.13, 880), 95);
+    },
+    // Strategy #3: Stereo-Panned Tone Helper & 3D Acoustic Exit/SOS Navigation
+    exitBeaconTimer: 0,
+    sosBeaconTimer: 0,
+    lastAcousticCue: '',
+    lastAcousticPan: 0,
+    playSpatialTone(freq, type, duration, vol = 0.09, pan = 0, slideTo = null) {
+      if (this.muted || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) {
+          osc.frequency.exponentialRampToValueAtTime(slideTo, now + duration);
+        }
+        gain.gain.setValueAtTime(Math.max(0.002, vol), now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        if (typeof this.ctx.createStereoPanner === 'function') {
+          const panner = this.ctx.createStereoPanner();
+          panner.pan.setValueAtTime(Math.max(-0.95, Math.min(0.95, pan)), now);
+          osc.connect(panner);
+          panner.connect(gain);
+        } else {
+          osc.connect(gain);
+        }
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      } catch (e) {}
+    },
+    updateSpatialNavigationAudio(listenerX, listenerY, listenerYaw, grid, TILE, items, smokes, dt = 0.016) {
+      if (this.muted || !grid || !TILE) {
+        this.lastAcousticCue = '';
+        return;
+      }
+      const yaw = Number.isFinite(listenerYaw) ? listenerYaw : 0;
+
+      // 1. Find nearest EXIT tile for acoustic exit sign chime
+      let bestExit = null;
+      let minExitDist = Infinity;
+      for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          if (grid[r][c] === TILE.EXIT) {
+            const d = Math.hypot((c + 0.5) - listenerX, (r + 0.5) - listenerY);
+            if (d < minExitDist) {
+              minExitDist = d;
+              bestExit = { c, r, d };
+            }
+          }
+        }
+      }
+
+      // 2. Find nearest unrescued survivor/pet (npc/dog)
+      let bestNpc = null;
+      let minNpcDist = Infinity;
+      if (Array.isArray(items)) {
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          if (it.type === 'npc' || it.type === 'dog') {
+            const d = Math.hypot((it.c + 0.5) - listenerX, (it.r + 0.5) - listenerY);
+            if (d < minNpcDist) {
+              minNpcDist = d;
+              bestNpc = { c: it.c, r: it.r, d, name: it.name || '요구조자' };
+            }
+          }
+        }
+      }
+
+      if (bestExit && minExitDist <= 11.5) {
+        const ang = Math.atan2((bestExit.r + 0.5) - listenerY, (bestExit.c + 0.5) - listenerX) - yaw;
+        const pan = Math.max(-0.95, Math.min(0.95, Math.sin(ang)));
+        const dirLabel = pan < -0.25 ? '◀좌측' : (pan > 0.25 ? '▶우측' : '▲정면');
+        this.lastAcousticPan = pan;
+        this.lastAcousticCue = `🔊 비상구 유도음(${dirLabel} ${minExitDist.toFixed(1)}m)`;
+
+        this.exitBeaconTimer -= dt;
+        if (this.exitBeaconTimer <= 0) {
+          this.exitBeaconTimer = Math.max(1.3, Math.min(2.8, minExitDist * 0.24));
+          const prox = Math.max(0.15, 1 - minExitDist / 12);
+          this.playSpatialTone(880, 'sine', 0.08, 0.045 * prox, pan, 1174.66);
+        }
+      } else {
+        this.lastAcousticCue = '';
+      }
+
+      if (bestNpc && minNpcDist <= 6.2) {
+        const ang = Math.atan2((bestNpc.r + 0.5) - listenerY, (bestNpc.c + 0.5) - listenerX) - yaw;
+        const pan = Math.max(-0.95, Math.min(0.95, Math.sin(ang)));
+        const dirLabel = pan < -0.25 ? '◀좌측' : (pan > 0.25 ? '▶우측' : '▲정면');
+        this.lastAcousticCue = `🆘 ${bestNpc.name} 구조신호(${dirLabel} ${minNpcDist.toFixed(1)}m)`;
+        this.sosBeaconTimer -= dt;
+        if (this.sosBeaconTimer <= 0) {
+          this.sosBeaconTimer = 2.6;
+          const prox = Math.max(0.2, 1 - minNpcDist / 6.5);
+          this.playSpatialTone(659.25, 'triangle', 0.09, 0.055 * prox, pan, 783.99);
+        }
+      }
+    },
     speak(text, rate = 1.08, pitch = 1.0) {
       if (this.muted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
       try {

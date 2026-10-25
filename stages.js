@@ -452,6 +452,62 @@
         { c: 2, r: 3, type: 'axe', name: '소방 도끼', icon: '🪓' },
         { c: 12, r: 7, type: 'npc', name: '동생', icon: '🧒' }
       ]
+    },
+
+    // Index 7 -> Stage 7 [★★★★★ 마스터]: Earthquake-Induced Complex Fire & Fire Shutter Sub-Door (Strategy #6 & #7)
+    {
+      id: 8,
+      isEarthquakeStage: true,
+      hasFireShutterDoor: true,
+      name: '7단계: 지진 발생 후 복합 화재 [★★★★★ 마스터 · 여진·방화셔터·배려 동행]',
+      difficultyStars: '★★★★★',
+      difficultyLabel: '마스터 · 지진 복합 화재 & 방화셔터 피난구',
+      fireSpreadInterval: 10.5,
+      smokeO2DrainMult: 1.05,
+      fireDamageMult: 1.05,
+      mission: '여진 발생 시 자세를 낮춰(Shift) 머리를 보호하고, 방화셔터 안쪽 초록색 비상문(피난구)과 가스·전기 차단 수칙을 활용해 안전하게 비상구(EXIT)로 대피하세요!',
+      curriculumFocus: '학교안전 7대 표준안(지진 후 2차 화재 대응 · 방화셔터 일체형 비상문 식별 · 다친 친구 배려 동행 대피)',
+      roomLabels: [
+        { c: 2.3, r: 1.4, text: '🏫 4층 교실(여진 대피)' },
+        { c: 7.5, r: 2.2, text: '🚪 방화셔터 구획 복도' },
+        { c: 12.2, r: 1.4, text: '⚡ 급식실·배전실(차단)' },
+        { c: 12.0, r: 7.2, text: '🦽 보건실(다친 친구 동행)' },
+        { c: 2.3, r: 7.4, text: '🏃 내진 옥외피난계단(EXIT)' }
+      ],
+      map: [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,2,0,1,5,0,17,0,1,9,0,12,11,1],
+        [1,0,0,0,3,0,0,0,0,3,0,0,0,0,1],
+        [1,2,0,0,1,1,14,1,1,1,0,2,0,6,1],
+        [1,1,3,1,1,0,0,0,0,3,0,0,0,1,1],
+        [1,0,0,0,8,0,2,0,0,1,1,4,1,1,1],
+        [1,0,2,0,1,1,3,1,1,1,0,0,0,2,1],
+        [1,0,0,0,3,0,0,0,0,3,0,0,0,0,1],
+        [1,7,0,0,1,10,0,0,13,1,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+      ],
+      playerStart: { x: 1.5, y: 1.5 },
+      guideSigns: [
+        { c: 5, r: 2, dir: '→' },
+        { c: 6, r: 4, dir: '↓' },
+        { c: 6, r: 7, dir: '←' },
+        { c: 2, r: 7, dir: '↓' }
+      ],
+      fires: [
+        { c: 11, r: 2, intensity: 0.95, fireType: 'oil' },
+        { c: 7, r: 5, intensity: 0.95, fireType: 'electric' },
+        { c: 6, r: 8, intensity: 0.90, fireType: 'normal' }
+      ],
+      smokes: [
+        { c: 7, r: 2 }, { c: 8, r: 4 }, { c: 6, r: 5 }, { c: 7, r: 7 }
+      ],
+      items: [
+        { c: 3, r: 1, type: 'mask', name: '방연마스크', icon: '😷' },
+        { c: 8, r: 1, type: 'extinguisher', name: '소화기', icon: '🧯', charges: 8 },
+        { c: 5, r: 4, type: 'axe', name: '소방 도끼', icon: '🪓' },
+        { c: 10, r: 4, type: 'key', name: '보건실 열쇠', icon: '🔑' },
+        { c: 12, r: 7, type: 'npc', name: '발목 다친 친구 지민', icon: '🦽' }
+      ]
     }
   ];
 
