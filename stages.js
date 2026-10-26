@@ -456,7 +456,7 @@
 
     // Index 7 -> Stage 7 [★★★★★ 마스터]: Earthquake-Induced Complex Fire & Fire Shutter Sub-Door (Strategy #6 & #7)
     {
-      id: 8,
+      id: 7,
       isEarthquakeStage: true,
       hasFireShutterDoor: true,
       name: '7단계: 지진 발생 후 복합 화재 [★★★★★ 마스터 · 여진·방화셔터·배려 동행]',

@@ -2909,7 +2909,7 @@
     // Bug #4 Fix: Push exact exit coordinate so replay trajectory connects to the exit
     pathHistory.push({ x: player.x, y: player.y, state: player.crouching ? 'crouch' : 'safe' });
 
-    if (currentStageIdx === 3 || currentStageIdx === 4 || currentStageIdx === 6) {
+    if (currentStageIdx === 3 || currentStageIdx === 4 || currentStageIdx === 6 || currentStageIdx === 7) {
       unlockBadge('school_metro');
     }
 
@@ -2974,7 +2974,7 @@
       btnPrimaryAction.textContent = '1단계 실전 대피 시작 ▶';
       btnSecondaryAction.classList.remove('hidden');
       btnSecondaryAction.textContent = '예방 점검 다시하기';
-    } else if (currentStageIdx < 4 || currentStageIdx === 4) {
+    } else if (currentStageIdx < STAGES.length - 1) {
       gameState = 'STAGE_CLEAR';
       overlayIcon.textContent = '🎉';
       overlaySubtitle.textContent = `${activeSt.name} 돌파 성공!`;
@@ -9512,7 +9512,7 @@
     const best = Math.max(score, getSavedBestScore());
     const unlockedCount = getUnlockedBadgeCount();
     const clearedCount = [
-      ['s0', '0'], ['s1', '1'], ['s2', '2'], ['s3', '3'], ['s4', '4'], ['s5', '5'], ['s6', '6'], ['daily', 'daily']
+      ['s0', '0'], ['s1', '1'], ['s2', '2'], ['s3', '3'], ['s4', '4'], ['s5', '5'], ['s6', '6'], ['s7', '7'], ['daily', 'daily']
     ].reduce((acc, [k1, k2]) => acc + ((clearedStages[k1] || clearedStages[k2]) ? 1 : 0), 0);
     const activeSkin = getSelectedSkin();
     const clsText = currentClassCode.trim() || '자유 참가 대원';
@@ -9560,7 +9560,7 @@
 
     cctx.fillStyle = '#93c5fd';
     cctx.font = 'bold 16px "Noto Sans KR", sans-serif';
-    cctx.fillText(`소속: ${clsText}  |  최고점수: ${best.toLocaleString()}점  |  배지: ${unlockedCount}/${BADGE_DEFS.length}개  |  완주도장: ${clearedCount}/8곳`, 450, 229);
+    cctx.fillText(`소속: ${clsText}  |  최고점수: ${best.toLocaleString()}점  |  배지: ${unlockedCount}/${BADGE_DEFS.length}개  |  완주도장: ${clearedCount}/9곳`, 450, 229);
 
     // Citation Text
     cctx.fillStyle = '#e2e8f0';
@@ -9859,7 +9859,7 @@
       } catch (e) {}
       SoundFX.win();
       updateHUD();
-      showToast('🔓 [교사 시연 모드] 안전 배지 10종, 직업 스킨 4종, 8대 건물 완주 도장이 모두 해금되었습니다!', 'border-amber-400');
+      showToast('🔓 [교사 시연 모드] 안전 배지 10종, 직업 스킨 4종, 9개 구역 완주 도장이 모두 해금되었습니다!', 'border-amber-400');
     });
   }
 
