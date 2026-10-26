@@ -3,16 +3,106 @@
 
   window.FireEscape = window.FireEscape || {};
 
-  // --- Web Audio API Synthesizer, 3D Spatial Audio, Vital Heartbeat & Radio TTS Coach ---
+  // --- Web Audio API Synthesizer, 3D Spatial Audio, Vital Heartbeat, Radio TTS Coach & BGM Player ---
   const SoundFX = {
     ctx: null,
     muted: false,
     voiceCoachEnabled: true,
+    bgmAudio: null,
+    bgmEnabled: true,
+    bgmVolume: 0.35,
     spatialCrackleTimer: 0,
     lastSpatialPan: 0,
     lastSpatialGain: 0,
     vitalBeatTimer: 0,
     lastRadioTimestamp: 0,
+    loadBgmPrefs() {
+      try {
+        const savedEnabled = localStorage.getItem('fire_escape_bgm_enabled');
+        if (savedEnabled === 'false') {
+          this.bgmEnabled = false;
+        } else if (savedEnabled === 'true') {
+          this.bgmEnabled = true;
+        }
+        const savedVol = localStorage.getItem('fire_escape_bgm_volume');
+        if (savedVol !== null) {
+          const parsed = parseFloat(savedVol);
+          if (Number.isFinite(parsed)) {
+            this.bgmVolume = Math.max(0, Math.min(1, parsed));
+          }
+        }
+      } catch (e) {}
+    },
+    initBgm() {
+      if (typeof window === 'undefined' || typeof Audio === 'undefined') return null;
+      if (!this.bgmAudio) {
+        try {
+          const audio = new Audio('./bgm.mp3');
+          audio.loop = true;
+          audio.preload = 'auto';
+          audio.volume = this.bgmEnabled ? Math.max(0, Math.min(1, this.bgmVolume)) : 0;
+          this.bgmAudio = audio;
+        } catch (e) {}
+      }
+      return this.bgmAudio;
+    },
+    playBgm() {
+      const audio = this.initBgm();
+      if (!audio) return;
+      audio.volume = this.bgmEnabled ? Math.max(0, Math.min(1, this.bgmVolume)) : 0;
+      if (this.bgmEnabled && this.bgmVolume > 0 && audio.paused) {
+        const p = audio.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => {});
+        }
+      }
+    },
+    pauseBgm() {
+      if (this.bgmAudio && !this.bgmAudio.paused) {
+        try {
+          this.bgmAudio.pause();
+        } catch (e) {}
+      }
+    },
+    setBgmEnabled(enabled) {
+      this.bgmEnabled = !!enabled;
+      if (this.bgmEnabled && this.bgmVolume <= 0) {
+        this.bgmVolume = 0.35;
+        try {
+          localStorage.setItem('fire_escape_bgm_volume', String(this.bgmVolume));
+        } catch (e) {}
+      }
+      try {
+        localStorage.setItem('fire_escape_bgm_enabled', this.bgmEnabled ? 'true' : 'false');
+      } catch (e) {}
+      if (this.bgmEnabled && this.bgmVolume > 0) {
+        this.playBgm();
+      } else {
+        this.pauseBgm();
+      }
+      return this.bgmEnabled;
+    },
+    toggleBgm() {
+      return this.setBgmEnabled(!this.bgmEnabled);
+    },
+    setBgmVolume(vol0to1) {
+      const parsed = Number(vol0to1);
+      const clamped = Number.isFinite(parsed) ? Math.max(0, Math.min(1, parsed)) : 0.35;
+      this.bgmVolume = Number(clamped.toFixed(2));
+      try {
+        localStorage.setItem('fire_escape_bgm_volume', String(this.bgmVolume));
+      } catch (e) {}
+      const audio = this.initBgm();
+      if (audio) {
+        audio.volume = this.bgmEnabled ? this.bgmVolume : 0;
+      }
+      if (this.bgmVolume <= 0) {
+        this.pauseBgm();
+      } else if (this.bgmEnabled) {
+        this.playBgm();
+      }
+      return this.bgmVolume;
+    },
     init() {
       if (!this.ctx) {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -24,6 +114,9 @@
       }
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
+      }
+      if (this.bgmEnabled && this.bgmVolume > 0) {
+        this.playBgm();
       }
     },
     // Idea #5 (Prev): 3D Spatial Audio & Crouch Low-Pass Filter for Nearby Fires
@@ -429,6 +522,26 @@
       this.speak(text, 1.10, 0.96);
     }
   };
+
+  SoundFX.loadBgmPrefs();
+  if (typeof window !== 'undefined') {
+    const tryUnlockBgm = () => {
+      if (SoundFX.bgmEnabled && SoundFX.bgmVolume > 0) {
+        SoundFX.playBgm();
+      }
+    };
+    window.addEventListener('pointerdown', tryUnlockBgm, { passive: true });
+    window.addEventListener('keydown', tryUnlockBgm, { passive: true });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          SoundFX.pauseBgm();
+        } else if (SoundFX.bgmEnabled && SoundFX.bgmVolume > 0) {
+          SoundFX.playBgm();
+        }
+      });
+    }
+  }
 
   window.FireEscape.SoundFX = SoundFX;
 })();

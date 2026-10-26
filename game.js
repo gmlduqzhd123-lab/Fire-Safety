@@ -365,7 +365,9 @@
     gradePreset: 'standard', // 'low' | 'standard' | 'advanced'
     voiceTts: false,
     goldenBellMode: false,
-    colorblindMode: false
+    colorblindMode: false,
+    bgmEnabled: SoundFX.bgmEnabled !== false,
+    bgmVolume: Math.round((Number.isFinite(SoundFX.bgmVolume) ? SoundFX.bgmVolume : 0.35) * 100)
   };
   try {
     const savedSettings = JSON.parse(localStorage.getItem('fire-safety:settings:v1') || 'null');
@@ -377,6 +379,14 @@
       if (['low', 'standard', 'advanced'].includes(savedSettings.gradePreset)) appSettings.gradePreset = savedSettings.gradePreset;
       if (typeof savedSettings.voiceTts === 'boolean') appSettings.voiceTts = savedSettings.voiceTts;
       if (typeof savedSettings.goldenBellMode === 'boolean') appSettings.goldenBellMode = savedSettings.goldenBellMode;
+      if (typeof savedSettings.bgmEnabled === 'boolean' && localStorage.getItem('fire_escape_bgm_enabled') === null) {
+        appSettings.bgmEnabled = savedSettings.bgmEnabled;
+        if (typeof SoundFX.setBgmEnabled === 'function') SoundFX.setBgmEnabled(appSettings.bgmEnabled);
+      }
+      if (typeof savedSettings.bgmVolume === 'number' && localStorage.getItem('fire_escape_bgm_volume') === null) {
+        appSettings.bgmVolume = Math.max(0, Math.min(100, Math.round(savedSettings.bgmVolume)));
+        if (typeof SoundFX.setBgmVolume === 'function') SoundFX.setBgmVolume(appSettings.bgmVolume / 100);
+      }
       if (['standard', 'relaxed', 'practice'].includes(savedSettings.defaultMode)) {
         nextRunOptions.mode = savedSettings.defaultMode;
         nextRunOptions.hazardLimitSeconds = savedSettings.defaultMode === 'relaxed' ? 480 : (savedSettings.defaultMode === 'practice' ? null : 300);
@@ -9934,6 +9944,99 @@
     showToast(SoundFX.muted ? '🔇 효과음 및 음성 안내가 꺼졌습니다.' : '🔊 효과음 및 음성 안내가 켜졌습니다.');
   });
 
+  // --- Background Music (BGM) ON/OFF & Volume Control Synchronization ---
+  const btnBgmQuickTop = document.getElementById('btnBgmQuickTop');
+  const bgmQuickTopIcon = document.getElementById('bgmQuickTopIcon');
+  const bgmQuickTopText = document.getElementById('bgmQuickTopText');
+  const btnBgmDrawerToggle = document.getElementById('btnBgmDrawerToggle');
+  const rangeBgmDrawer = document.getElementById('rangeBgmDrawer');
+  const lblBgmDrawer = document.getElementById('lblBgmDrawer');
+  const btnBgmMainOverlay = document.getElementById('btnBgmMainOverlay');
+  const rangeBgmMainOverlay = document.getElementById('rangeBgmMainOverlay');
+  const lblBgmMainOverlay = document.getElementById('lblBgmMainOverlay');
+  const btnBgmSettingsToggle = document.getElementById('btnBgmSettingsToggle');
+  const rangeBgmVolume = document.getElementById('rangeBgmVolume');
+  const lblBgmVolume = document.getElementById('lblBgmVolume');
+
+  function syncBgmUI() {
+    const isOn = !!SoundFX.bgmEnabled && (SoundFX.bgmVolume > 0);
+    const pct = Math.max(0, Math.min(100, Math.round((Number.isFinite(SoundFX.bgmVolume) ? SoundFX.bgmVolume : 0.35) * 100)));
+    appSettings.bgmEnabled = !!SoundFX.bgmEnabled;
+    appSettings.bgmVolume = pct;
+
+    if (btnBgmQuickTop) {
+      btnBgmQuickTop.className = isOn
+        ? 'px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-amber-200 transition flex items-center gap-0.5 sm:gap-1 shadow-sm whitespace-nowrap shrink-0'
+        : 'px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-400 transition flex items-center gap-0.5 sm:gap-1 whitespace-nowrap shrink-0';
+    }
+    if (bgmQuickTopIcon) bgmQuickTopIcon.textContent = isOn ? '🎵' : '🔇';
+    if (bgmQuickTopText) bgmQuickTopText.textContent = isOn ? 'BGM' : 'BGM꺼짐';
+
+    if (btnBgmDrawerToggle) {
+      btnBgmDrawerToggle.textContent = isOn ? '🎵 BGM ON' : '🔇 BGM OFF';
+      btnBgmDrawerToggle.className = isOn
+        ? 'text-amber-200 hover:text-white transition whitespace-nowrap'
+        : 'text-slate-400 hover:text-slate-200 transition whitespace-nowrap';
+    }
+    if (rangeBgmDrawer) rangeBgmDrawer.value = String(isOn ? pct : 0);
+    if (lblBgmDrawer) lblBgmDrawer.textContent = isOn ? `${pct}%` : 'OFF';
+
+    if (btnBgmMainOverlay) {
+      btnBgmMainOverlay.textContent = isOn ? '🎵 BGM ON' : '🔇 BGM OFF';
+    }
+    if (rangeBgmMainOverlay) rangeBgmMainOverlay.value = String(isOn ? pct : 0);
+    if (lblBgmMainOverlay) lblBgmMainOverlay.textContent = isOn ? `${pct}%` : 'OFF';
+
+    if (btnBgmSettingsToggle) {
+      btnBgmSettingsToggle.textContent = isOn ? '🎵 켜짐 (ON)' : '🔇 꺼짐 (OFF)';
+      btnBgmSettingsToggle.className = isOn
+        ? 'px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition whitespace-nowrap shrink-0'
+        : 'px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 font-extrabold text-xs transition whitespace-nowrap shrink-0';
+    }
+    if (rangeBgmVolume) rangeBgmVolume.value = String(isOn ? pct : 0);
+    if (lblBgmVolume) lblBgmVolume.textContent = isOn ? `${pct}%` : '0% (OFF)';
+  }
+
+  function handleBgmToggleClick() {
+    if (typeof SoundFX.toggleBgm === 'function') {
+      const enabled = SoundFX.toggleBgm();
+      syncBgmUI();
+      if (typeof persistAppSettings === 'function') persistAppSettings();
+      const pct = Math.round((SoundFX.bgmVolume || 0.35) * 100);
+      showToast(
+        enabled
+          ? `🎵 배경음악(BGM)이 켜졌습니다! (볼륨 ${pct}%)`
+          : '🔇 배경음악(BGM)이 꺼졌습니다.',
+        enabled ? 'border-amber-400' : 'border-slate-500'
+      );
+    }
+  }
+
+  function handleBgmVolumeInput(rawPctVal) {
+    const pct = Math.max(0, Math.min(100, parseInt(rawPctVal, 10) || 0));
+    if (pct === 0) {
+      if (typeof SoundFX.setBgmVolume === 'function') SoundFX.setBgmVolume(0);
+      if (typeof SoundFX.setBgmEnabled === 'function') SoundFX.setBgmEnabled(false);
+    } else {
+      if (typeof SoundFX.setBgmVolume === 'function') SoundFX.setBgmVolume(pct / 100);
+      if (!SoundFX.bgmEnabled && typeof SoundFX.setBgmEnabled === 'function') {
+        SoundFX.setBgmEnabled(true);
+      }
+    }
+    syncBgmUI();
+    if (typeof persistAppSettings === 'function') persistAppSettings();
+  }
+
+  [btnBgmQuickTop, btnBgmDrawerToggle, btnBgmMainOverlay, btnBgmSettingsToggle].forEach((btn) => {
+    if (btn) btn.addEventListener('click', handleBgmToggleClick);
+  });
+
+  [rangeBgmDrawer, rangeBgmMainOverlay, rangeBgmVolume].forEach((slider) => {
+    if (slider) {
+      slider.addEventListener('input', () => handleBgmVolumeInput(slider.value));
+    }
+  });
+
   // Safety Guide Modal
   btnGuide.addEventListener('click', () => {
     clearAllInputStates();
@@ -11402,6 +11505,7 @@
     if (rangeSensitivity) rangeSensitivity.value = String(sRatio);
     if (lblSensitivity) lblSensitivity.textContent = sRatio.toFixed(1);
     if (chkReduceMotion) chkReduceMotion.checked = !!appSettings.reduceMotion;
+    syncBgmUI();
     updateTimePolicyModalUI();
     updateGradePresetModalUI();
     updateSaveStatusUI();
@@ -12934,6 +13038,13 @@
     syncGoldenBellUI();
     syncSpeedDrillUI();
     syncCustomGearUI();
+    syncBgmUI();
+    if (typeof SoundFX.initBgm === 'function') {
+      SoundFX.initBgm();
+      if (SoundFX.bgmEnabled && SoundFX.bgmVolume > 0) {
+        SoundFX.playBgm();
+      }
+    }
     initCodexAndAccessibilityFeatures();
     initStrategyV20Features();
 

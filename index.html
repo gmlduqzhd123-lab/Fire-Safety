@@ -100,6 +100,11 @@
             <span id="landscapeToggleText">가로전용</span>
           </button>
 
+          <button id="btnBgmQuickTop" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/60 text-amber-200 transition flex items-center gap-0.5 sm:gap-1 shadow-sm whitespace-nowrap shrink-0" title="배경음악(BGM) 켜기/끄기">
+            <span id="bgmQuickTopIcon">🎵</span>
+            <span id="bgmQuickTopText" class="text-[10px] sm:text-xs hidden md:inline">BGM</span>
+          </button>
+
           <button id="btnMoreMenu" type="button" class="px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/60 text-amber-200 transition flex items-center gap-0.5 sm:gap-1 whitespace-nowrap" title="메뉴 · 스테이지 선택 · 설정">
             <span>⚙️</span>
             <span class="text-[10px] sm:text-xs">메뉴</span>
@@ -151,6 +156,12 @@
             <button id="btnSound" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 transition" title="효과음 및 음성 켜기/끄기">
               🔊
             </button>
+
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-amber-400/50 text-xs font-extrabold text-amber-200 whitespace-nowrap shrink-0">
+              <button id="btnBgmDrawerToggle" type="button" class="hover:text-white transition whitespace-nowrap" title="배경음악(BGM) 켜기/끄기">🎵 BGM ON</button>
+              <input id="rangeBgmDrawer" type="range" min="0" max="100" step="5" value="35" aria-label="배경음악 볼륨" class="w-16 h-1.5 accent-amber-400 cursor-pointer" title="배경음악 볼륨 조절" />
+              <span id="lblBgmDrawer" class="w-8 text-right font-mono text-[11px] text-amber-300">35%</span>
+            </div>
 
             <button id="btnSettingsTop" type="button" class="px-3 py-1.5 text-xs font-extrabold rounded-lg bg-slate-800 hover:bg-slate-700 border border-sky-500/50 text-sky-200 transition flex items-center gap-1">
               <span>🎛️</span>
@@ -359,8 +370,13 @@
             <div class="hidden items-center gap-2 px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full bg-slate-900/90 border border-orange-400/40 text-orange-300 text-[11px] sm:text-xs font-extrabold shadow-lg truncate">
               🔥 2022 개정 교육과정 · 3D 화재 대피 방탈출
             </div>
-            <!-- ⛶ 전체화면 · 📲 앱 설치 · 📱 QR · 🚪 게임 종료 (메인 화면 상단 우측 바) -->
+            <!-- 🎵 BGM · ⛶ 전체화면 · 📲 앱 설치 · 📱 QR · 🚪 게임 종료 (메인 화면 상단 우측 바) -->
             <div class="ys-top ys-top-card items-center shrink-0">
+              <button id="btnBgmMainOverlay" type="button" class="ys-chip whitespace-nowrap shrink-0" title="배경음악(BGM) 켜기/끄기">🎵 BGM ON</button>
+              <label class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[10px] text-amber-300 font-bold whitespace-nowrap shrink-0" title="배경음악 볼륨 조절">
+                <input id="rangeBgmMainOverlay" type="range" min="0" max="100" step="5" value="35" aria-label="배경음악 볼륨" class="w-14 h-1.5 accent-amber-400 cursor-pointer" />
+                <span id="lblBgmMainOverlay" class="w-7 text-right font-mono">35%</span>
+              </label>
               <button type="button" class="ys-chip" data-fullscreen-btn>⛶ 전체화면</button>
               <button type="button" class="ys-chip" data-ys-install>📲 <span class="ys-wide">앱 </span>설치</button>
               <button type="button" class="ys-chip" data-qr aria-label="QR 코드로 접속">📱 QR</button>
@@ -1474,6 +1490,14 @@
             <label for="rangeSensitivity" class="text-slate-300 font-bold whitespace-nowrap shrink-0">회전 감도 (<span id="lblSensitivity">1.0</span>):</label>
             <input id="rangeSensitivity" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-28 accent-sky-400" />
           </div>
+          <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <label for="btnBgmSettingsToggle" class="text-amber-300 font-extrabold whitespace-nowrap shrink-0">🎵 배경음악(BGM) 전원:</label>
+            <button id="btnBgmSettingsToggle" type="button" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs transition whitespace-nowrap shrink-0">🎵 켜짐 (ON)</button>
+          </div>
+          <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <label for="rangeBgmVolume" class="text-amber-300 font-extrabold whitespace-nowrap shrink-0">🎚️ 배경음악 볼륨 (<span id="lblBgmVolume">35%</span>):</label>
+            <input id="rangeBgmVolume" type="range" min="0" max="100" step="5" value="35" class="w-28 accent-amber-400 cursor-pointer" />
+          </div>
           <div class="sm:col-span-2 flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
             <label for="chkVoiceTts" class="text-amber-300 font-extrabold">🗣️ 미션·퀴즈 한국어 음성 읽어주기 (저학년·다문화 학생 지원 TTS):</label>
             <input id="chkVoiceTts" type="checkbox" class="w-4 h-4 accent-amber-400" />
@@ -1727,10 +1751,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=24"></script>
-  <script src="./stages.js?v=24"></script>
-  <script src="./editor.js?v=24"></script>
-  <script src="./tactical-3d.js?v=24"></script>
-  <script src="./game.js?v=24"></script>
+  <script src="./sound.js?v=25"></script>
+  <script src="./stages.js?v=25"></script>
+  <script src="./editor.js?v=25"></script>
+  <script src="./tactical-3d.js?v=25"></script>
+  <script src="./game.js?v=25"></script>
 </body>
 </html>
