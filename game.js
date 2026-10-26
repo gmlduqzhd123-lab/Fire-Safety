@@ -677,6 +677,7 @@
       document.getElementById('settingsModal'),
       document.getElementById('exitGameModal'),
       document.getElementById('codexModal'),
+      document.getElementById('familyPlanModal'),
       document.getElementById('moreToolsDrawer')
     ];
     list.forEach((m) => {
@@ -706,7 +707,7 @@
     const allHidden = blockingModals.every((m) => !m || m.classList.contains('hidden'));
     if (gameState === 'PAUSED' && allHidden) {
       gameState = 'PLAYING';
-      pauseIcon.textContent = '▶️' ? '⏸️' : '⏸️';
+      pauseIcon.textContent = '⏸️';
       pauseText.textContent = '일시정지';
     }
   }
@@ -719,6 +720,9 @@
     clearAllInputStates();
     eduModal.classList.add('hidden');
     eduModal.classList.remove('flex');
+    if (gameState === 'GAME_OVER' || gameState === 'STAGE_CLEAR' || gameState === 'ALL_CLEAR' || gameState === 'START') {
+      gameOverlay.classList.remove('hidden');
+    }
     resumeIfNoBlockingModalOpen();
     updateHUD();
   }
@@ -727,6 +731,7 @@
 
   // --- Initialize Stage ---
   function loadStage(stageIndex, resetTotalScore = false, customStageObj = null) {
+    if (typeof stop3DCinematicReplay === 'function') stop3DCinematicReplay();
     clearAllInputStates();
     currentStageIdx = stageIndex;
     activeCustomStage = customStageObj || null;
@@ -2683,10 +2688,15 @@
     savedX: 1.5,
     savedY: 1.5,
     savedCrouch: false,
-    rafId: null
+    rafId: null,
+    timeoutId: null
   };
 
   function stop3DCinematicReplay() {
+    if (cinematicReplayState.timeoutId) {
+      clearTimeout(cinematicReplayState.timeoutId);
+      cinematicReplayState.timeoutId = null;
+    }
     if (!cinematicReplayState.active) return;
     if (cinematicReplayState.rafId) {
       cancelAnimationFrame(cinematicReplayState.rafId);
@@ -2762,7 +2772,7 @@
       if (p < 1) {
         cinematicReplayState.rafId = requestAnimationFrame(step3DReplay);
       } else {
-        setTimeout(() => stop3DCinematicReplay(), 450);
+        cinematicReplayState.timeoutId = setTimeout(() => stop3DCinematicReplay(), 450);
       }
     }
     cinematicReplayState.rafId = requestAnimationFrame(step3DReplay);
@@ -8871,6 +8881,13 @@
     }
 
     if (!gameOverlay.classList.contains('hidden')) {
+      if (cinematicReplayState && cinematicReplayState.active) {
+        if ((e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') && !e.repeat) {
+          e.preventDefault();
+          stop3DCinematicReplay();
+        }
+        return;
+      }
       const btns = getVisibleOverlayButtons();
       if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowLeft' || e.code === 'KeyA') {
         e.preventDefault();
@@ -9112,6 +9129,7 @@
   }
 
   function showMainTitleScreen() {
+    if (typeof stop3DCinematicReplay === 'function') stop3DCinematicReplay();
     if (gameState === 'PLAYING' && elapsedSeconds > 0 && typeof saveCampaignState === 'function') {
       saveCampaignState();
     }
@@ -10141,6 +10159,7 @@
       fires: fires.map(f => ({ ...f })),
       smokes: smokes.map(s => ({ ...s })),
       interactedDoors: Array.from(interactedDoors),
+      rescuedCompanions: Array.isArray(rescuedCompanions) ? rescuedCompanions.map(rc => ({ ...rc })) : [],
       metrics: { ...metrics },
       hintLog: Array.isArray(hintLog) ? [...hintLog] : [],
       safeWrongCount,
@@ -10212,6 +10231,7 @@
     fires = saved.fires.map(f => ({ ...f, phase: f.phase || 0 }));
     smokes = saved.smokes.map(s => ({ ...s, phase: s.phase || 0 }));
     interactedDoors = new Set(Array.isArray(saved.interactedDoors) ? saved.interactedDoors : []);
+    rescuedCompanions = Array.isArray(saved.rescuedCompanions) ? saved.rescuedCompanions.map(rc => ({ ...rc })) : [];
     if (saved.metrics && typeof saved.metrics === 'object') {
       Object.assign(metrics, saved.metrics);
     }
@@ -10230,7 +10250,7 @@
     hideAllModalsAndResume();
     updateHUD();
     renderCanvas();
-    showToast(`⏯️ [${saved.stageName || '저장된 캠페인'}] 진행 상태를 이어서 시작합니다!`, 'border-emerald-400');
+    showToast(`⏯️ [${String(saved.stageName || '저장된 캠페인').split('[')[0].trim()}] 진행 상태를 이어서 시작합니다!`, 'border-emerald-400');
     return true;
   }
 
@@ -12140,6 +12160,7 @@
   window.addEventListener('keydown', (e) => {
     const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'KeyG' && !e.repeat && gameState === 'PLAYING') {
       e.preventDefault();
       triggerAiCaptainAutoGuide();
@@ -12363,10 +12384,10 @@
             }
             if (btnReviveWithQuiz) btnReviveWithQuiz.classList.add('hidden');
             SoundFX.win();
-            closeEduModal();
             gameState = 'PLAYING';
             pauseIcon.textContent = '⏸️';
             pauseText.textContent = '일시정지';
+            closeEduModal();
             addFloatText(player.x, player.y, '🛡️ 안전 퀴즈 부활 성공!', '#34d399');
             showToast('🛡️ [안전 오답노트 정답!] 그 자리에서 체력 80%·산소 85%로 부활했습니다! 끝까지 비상구로 탈출하세요!', 'border-emerald-400');
             updateHUD();
@@ -12609,7 +12630,8 @@
     window.addEventListener('keydown', (e) => {
       const tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.code === 'KeyT' && !e.repeat && (gameState === 'PLAYING' || gameState === 'PAUSED')) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.code === 'KeyT' && !e.repeat && gameState === 'PLAYING') {
         e.preventDefault();
         toggleThermalVision();
       }

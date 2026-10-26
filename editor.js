@@ -822,6 +822,8 @@
       if (!validation.ok) {
         if (validation.reason === 'missing_key') {
           callbacks.showToast('⚠️ 잠긴 문(🔒)으로만 출구가 연결되어 있는데 도달 가능한 열쇠(🔑)가 없습니다! 열쇠를 배치하거나 일반 방화문(🚪)으로 바꿔주세요.', 'border-amber-500');
+        } else if (validation.reason === 'missing_axe') {
+          callbacks.showToast('⚠️ 장애물(🪵)로만 출구가 연결되어 있는데 도달 가능한 소방도끼(🪓)가 없습니다! 도끼를 배치하거나 통로를 열어주세요.', 'border-amber-500');
         } else {
           callbacks.showToast('⚠️ 시작 위치(🧍)에서 비상구까지 이동할 수 있는 통로가 벽이나 가구로 완전히 막혀 있습니다! 통로를 열어주세요.', 'border-red-500');
         }
