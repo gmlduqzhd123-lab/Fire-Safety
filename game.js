@@ -1324,10 +1324,13 @@
         badges.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold shrink-0">🔍 점검(${player.hazardsFixed}/${player.totalHazards})</span>`);
       }
 
+      const hudMissionRowEl = document.getElementById('hudMissionRow');
       if (badges.length === 0) {
         inventoryList.innerHTML = `<span class="text-[11px] text-slate-400 font-semibold whitespace-nowrap shrink-0">🎒 가방: 비어 있음</span>`;
+        if (hudMissionRowEl) hudMissionRowEl.classList.add('hidden');
       } else {
         inventoryList.innerHTML = badges.join('');
+        if (hudMissionRowEl) hudMissionRowEl.classList.remove('hidden');
       }
     }
   }
@@ -4259,6 +4262,11 @@
   function toggleMapZoomMode() {
     SoundFX.init();
     SoundFX.pickup();
+    const drawerEl = document.getElementById('moreToolsDrawer');
+    if (drawerEl) {
+      drawerEl.classList.add('hidden');
+      drawerEl.classList.remove('flex');
+    }
     dioramaZoom = dioramaZoom > 1.18 ? 1.0 : 1.42;
     const zIcon = document.getElementById('mapZoomIcon');
     const zText = document.getElementById('mapZoomText');
@@ -8512,12 +8520,17 @@
   const btnTacticalMapTop = document.getElementById('btnTacticalMapTop');
   function toggleFullTacticalMap() {
     SoundFX.init();
+    const drawerEl = document.getElementById('moreToolsDrawer');
+    if (drawerEl) {
+      drawerEl.classList.add('hidden');
+      drawerEl.classList.remove('flex');
+    }
     isFullMapOverlayOpen = !isFullMapOverlayOpen;
     SoundFX.playTone(isFullMapOverlayOpen ? 560 : 420, 'sine', 0.06, 0.08);
     if (btnTacticalMapTop) {
       btnTacticalMapTop.className = isFullMapOverlayOpen
-        ? 'px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-500 border border-sky-200 text-slate-950 transition flex items-center gap-1 shadow-sm whitespace-nowrap'
-        : 'px-2 py-0.5 sm:py-1 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap';
+        ? 'px-2.5 py-1.5 text-xs font-extrabold rounded-lg bg-sky-500 border border-sky-200 text-slate-950 transition flex items-center gap-1 shadow-sm whitespace-nowrap'
+        : 'px-2.5 py-1.5 text-xs font-extrabold rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-400/60 text-sky-100 transition flex items-center gap-1 shadow-sm whitespace-nowrap';
     }
     if (isFullMapOverlayOpen) {
       showToast('🗺️ [전술 피난안내도 열림 · M키] 건물 전체 구조와 추천 황금 탈출 경로를 확인하세요! (타일 클릭 시 자동 이동)', 'border-sky-400');
@@ -9128,8 +9141,8 @@
     }
     if (typeof selectWorldCard === 'function') selectWorldCard('fire');
     if (typeof syncContinueButtonUI === 'function') syncContinueButtonUI();
-    if (btnMainGuide) btnMainGuide.classList.remove('hidden');
-    btnOpenCertFromOverlay.classList.remove('hidden');
+    if (btnMainGuide) btnMainGuide.classList.add('hidden');
+    btnOpenCertFromOverlay.classList.add('hidden');
     btnSecondaryAction.classList.add('hidden');
     btnPrimaryAction.textContent = '▶️ 전체화면으로 게임 시작';
     gameOverlay.classList.remove('hidden');
