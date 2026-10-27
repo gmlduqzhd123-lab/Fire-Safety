@@ -977,7 +977,11 @@
     bookSortSolved = false;
     bookSortOrder = ['430', '425.2', '480', '425.12', '450', '440'];
 
-    stageBadge.textContent = (st.name || '').split('[')[0].trim();
+    stageBadge.textContent = (st.name || '').split('[')[0].replace(':', ' ·').replace('2층 ', '').trim();
+    const homeStageHintEl = document.getElementById('homeSelectedStageHint');
+    if (homeStageHintEl) {
+      homeStageHintEl.textContent = `· ${stageBadge.textContent}`;
+    }
     missionShort.textContent = activeBonusQuest
       ? `${st.mission} · [${activeBonusQuest.shortLabel}]`
       : st.mission;
@@ -1160,12 +1164,12 @@
     if (hudCache.hpPct !== hpPct) {
       hudCache.hpPct = hpPct;
       hpBar.style.width = hpPct + '%';
-      hpValue.textContent = hpPct + '%';
+      hpValue.textContent = String(hpPct);
     }
     if (hudCache.o2Pct !== o2Pct) {
       hudCache.o2Pct = o2Pct;
       o2Bar.style.width = o2Pct + '%';
-      o2Value.textContent = o2Pct + '%';
+      o2Value.textContent = String(o2Pct);
     }
 
     const dangerPulse = (hpPct <= 30 || o2Pct <= 30 || player.onFire);
@@ -1242,7 +1246,7 @@
     // Update Context-Sensitive Primary Action Button (#btnAction)
     const target = getInteractTarget();
     let actIcon = '✋';
-    let actLabel = '반응하기';
+    let actLabel = '행동하기';
     let actHighlight = false;
 
     if (player.onFire) {
@@ -1327,8 +1331,8 @@
     if (hudCache.actHighlight !== actHighlight) {
       hudCache.actHighlight = actHighlight;
       btnAction.className = actHighlight
-        ? 'btn-control px-3 py-1.5 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 border-2 border-yellow-200 text-xs sm:text-sm font-black text-slate-950 flex flex-col items-center justify-center gap-0.5 shadow-xl'
-        : 'btn-control px-3 py-1.5 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border-2 border-orange-300/60 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg';
+        ? 'btn-control rescue-circle-btn rescue-circle-action px-3 py-1.5 rounded-full bg-gradient-to-br from-amber-400 to-orange-600 border-2 border-yellow-200 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-xl'
+        : 'btn-control rescue-circle-btn rescue-circle-action px-3 py-1.5 rounded-full text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg';
     }
 
     const postureKey = `${st.isPreventionMode ? 1 : 0}:${player.crouching ? 1 : 0}`;
@@ -1354,11 +1358,11 @@
 
     if (hudCache.crouchState !== player.crouching) {
       hudCache.crouchState = player.crouching;
-      if (crouchBtnIcon) crouchBtnIcon.textContent = player.crouching ? '🧎' : '🚶';
+      if (crouchBtnIcon) crouchBtnIcon.textContent = '🧎';
       if (crouchBtnText) crouchBtnText.textContent = player.crouching ? '숙이기 켜짐' : '숙이기';
       btnCrouch.className = player.crouching
-        ? 'btn-control px-3 py-1.5 rounded-2xl bg-emerald-600 border-2 border-emerald-300 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg'
-        : 'btn-control px-3 py-1.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 text-xs sm:text-sm font-extrabold text-amber-300 flex flex-col items-center justify-center gap-0.5 shadow';
+        ? 'btn-control rescue-circle-btn rescue-circle-crouch px-3 py-1.5 rounded-full bg-emerald-600 border-2 border-emerald-300 text-xs sm:text-sm font-black text-white flex flex-col items-center justify-center gap-0.5 shadow-lg'
+        : 'btn-control rescue-circle-btn rescue-circle-crouch px-3 py-1.5 rounded-full text-xs sm:text-sm font-extrabold text-white flex flex-col items-center justify-center gap-0.5 shadow';
     }
 
     const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
@@ -4514,6 +4518,20 @@
       const gy = Math.max(0.5, Math.min(ROWS - 0.5, player.y + Math.sin(rayAngle) * stepDist));
       return { gx, gy, c: Math.floor(gx), r: Math.floor(gy) };
     }
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.screenToIsoTile === 'function') {
+      const iso = window.FireEscape.Tactical3D.screenToIsoTile(
+        local.x,
+        local.y,
+        local.width,
+        local.height,
+        COLS,
+        ROWS,
+        dioramaZoom,
+        player.x,
+        player.y
+      );
+      return { gx: iso.wx, gy: iso.wy, c: iso.col, r: iso.row };
+    }
     const layout = computeDioramaLayout(local.width, local.height);
     const gx = (local.x - layout.offsetX) / (layout.tileSize * (layout.stretchX || 1) * (layout.zoom || 1));
     const gy = (local.y - layout.offsetY) / (layout.tileSize * (layout.zoom || 1));
@@ -7657,6 +7675,92 @@
       return;
     }
 
+    // v29: 02 레스큐 컨트롤 — 45° Isometric Dollhouse Cutaway 3D Renderer
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.renderIsometricDollhouse3D === 'function') {
+      const Tac3D = window.FireEscape.Tactical3D;
+      const isoTf = Tac3D.renderIsometricDollhouse3D({
+        ctx,
+        canvasW: width,
+        canvasH: height,
+        cols: COLS,
+        rows: ROWS,
+        grid,
+        T: TILE,
+        stageIdx: currentStageIdx,
+        player,
+        coopPartner: typeof coopPartner !== 'undefined' ? coopPartner : null,
+        fires,
+        smokes,
+        items,
+        now,
+        zoomScale: dioramaZoom,
+        customGear: typeof customGearState !== 'undefined' ? customGearState : null,
+        breadcrumbTarget: nextObj
+      });
+
+      if (isoTf) {
+        // Extinguisher / Water Spray Particles in 3D Isometric Space
+        for (const p of particles) {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          const pt3d = isoTf.project(p.x, p.y, 0.35 + (1 - alpha) * 0.25);
+          const rad = Math.max(2, p.size * (1.3 - alpha * 0.25));
+          ctx.fillStyle = p.color === '#60a5fa'
+            ? `rgba(96, 165, 250, ${alpha * 0.72})`
+            : `rgba(224, 242, 254, ${alpha * 0.75})`;
+          ctx.beginPath();
+          ctx.arc(pt3d.x, pt3d.y, rad * 1.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Touch Target Ring on Isometric Floor
+        if (pointerMoveTarget) {
+          const tp = isoTf.project(pointerMoveTarget.x, pointerMoveTarget.y, 0.05);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.ellipse(tp.x, tp.y, isoTf.scaleX * 0.26, isoTf.scaleY * 0.16, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Floating 3D Score / Status Texts
+        for (const ft of floatTexts) {
+          const fp = isoTf.project(ft.x, ft.y, 1.15);
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, ft.alpha);
+          ctx.font = '800 12px "Noto Sans KR", sans-serif';
+          ctx.fillStyle = ft.color;
+          ctx.textAlign = 'center';
+          ctx.fillText(ft.text, fp.x, fp.y);
+          ctx.restore();
+        }
+      }
+
+      if (typeof Tac3D.drawShelterInPlaceOverlay === 'function') {
+        Tac3D.drawShelterInPlaceOverlay(ctx, width, height, shelterInPlaceState);
+      }
+      if (typeof Tac3D.drawCriticalVitalsShaderOverlay === 'function') {
+        Tac3D.drawCriticalVitalsShaderOverlay(ctx, width, height, player.hp, player.o2, now, appSettings && appSettings.reduceMotion);
+      }
+      if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
+        Tac3D.drawLifelineDescentOverlay(ctx, width, height);
+      }
+      if (typeof Tac3D.drawCameraMorphTransitionOverlay === 'function') {
+        Tac3D.drawCameraMorphTransitionOverlay(ctx, width, height);
+      }
+      if (cinematicReplayState && cinematicReplayState.active && typeof Tac3D.drawCinematicReplayHUD === 'function') {
+        Tac3D.drawCinematicReplayHUD(ctx, width, height, cinematicReplayState);
+      }
+      if (isFullMapOverlayOpen && typeof Tac3D.drawFullTacticalMapOverlay === 'function') {
+        const escapePath = nextObj ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r) : [];
+        Tac3D.drawFullTacticalMapOverlay(ctx, width, height, {
+          grid, cols: COLS, rows: ROWS, TILE, player, fpsCamYaw, fires, smokes, pendingHazards, items, nextObj, escapePath, stageName: st.name, roomLabels: st.roomLabels
+        });
+      }
+      return;
+    }
+
     // Deep atmospheric 3D building backdrop
     ctx.fillStyle = '#0c1322';
     ctx.fillRect(0, 0, width, height);
@@ -8649,6 +8753,9 @@
 
     // Avoid heavy 60fps 3D canvas redraws while a full-screen modal/overlay is covering the canvas and player isn't moving
     const isOverlayVisible = gameOverlay && !gameOverlay.classList.contains('hidden');
+    if (isOverlayVisible && gameState === 'START' && window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.renderHomeHeroBgCanvas === 'function') {
+      window.FireEscape.Tactical3D.renderHomeHeroBgCanvas(document.getElementById('homeHeroBgCanvas'), timestamp * 0.001);
+    }
     const isModalCovering = isOverlayVisible || isReadingNotebook || (puzzleModal && !puzzleModal.classList.contains('hidden'));
     if (isModalCovering && !keysPressed.up && !keysPressed.down && !keysPressed.left && !keysPressed.right) {
       idleModalFrameSkip = (idleModalFrameSkip + 1) % 6;
@@ -9459,11 +9566,14 @@
     clearAllInputStates();
     closeOtherModalsExcept(null, true);
     gameState = 'START';
-    overlayIcon.textContent = '🚨';
+    overlayIcon.textContent = '🔥';
     overlaySubtitle.textContent = '생명 최우선 · 3D 실감형 대피 훈련';
-    overlayTitle.innerHTML = '화재 탈출 넘버원 3D';
-    overlayDesc.innerHTML = '연기 속 <span class="text-emerald-300 underline underline-offset-4">낮은 자세(Shift)</span>로 <span class="text-amber-300">비상구(EXIT)</span>까지 신속히 탈출하세요!';
+    overlayTitle.innerHTML = '화재 탈출 넘버원 <span class="hero-3d-badge">3D</span>';
+    overlayDesc.innerHTML = '- 배우는 오늘, 더 안전한 내일 -';
     overlayTipsBox.classList.remove('hidden');
+    overlayTipsBox.classList.remove('stage-dock-open');
+    const chevronEl = document.getElementById('stageSelectDockChevron');
+    if (chevronEl) chevronEl.textContent = '❯';
     overlayStats.classList.add('hidden');
     overlayStats.classList.remove('grid');
     debriefReportBox.classList.add('hidden');
@@ -9485,7 +9595,7 @@
     if (btnMainGuide) btnMainGuide.classList.add('hidden');
     btnOpenCertFromOverlay.classList.add('hidden');
     btnSecondaryAction.classList.add('hidden');
-    btnPrimaryAction.textContent = '▶️ 전체화면으로 게임 시작';
+    btnPrimaryAction.innerHTML = '<span class="inline-flex items-center gap-2"><span>▶</span> <span id="primaryActionLabel">훈련 시작</span></span><span class="text-amber-100/90 text-sm">❯</span>';
     gameOverlay.classList.remove('hidden');
     const overlayCardMain = document.getElementById('overlayCard');
     if (overlayCardMain) overlayCardMain.scrollTop = 0;
@@ -9493,10 +9603,53 @@
     setTimeout(updateOverlaySelectionUI, 20);
   }
 
+  // v29: 01. 홈 화면 3-Tier Rescue Control Action Stack Handlers
+  const btnToggleStageSelectDock = document.getElementById('btnToggleStageSelectDock');
+  if (btnToggleStageSelectDock) {
+    btnToggleStageSelectDock.addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.playTone(520, 'sine', 0.05, 0.07);
+      if (overlayTipsBox) {
+        const isOpen = overlayTipsBox.classList.toggle('stage-dock-open');
+        const chevronEl = document.getElementById('stageSelectDockChevron');
+        if (chevronEl) chevronEl.textContent = isOpen ? '✕' : '❯';
+      }
+    });
+  }
+
+  const btnHomeTeacherTools = document.getElementById('btnHomeTeacherTools');
+  if (btnHomeTeacherTools) {
+    btnHomeTeacherTools.addEventListener('click', () => {
+      SoundFX.init();
+      const tBtn = document.getElementById('btnTeacherMode');
+      if (tBtn) tBtn.click();
+    });
+  }
+
+  const btnHomeSoundToggle = document.getElementById('btnHomeSoundToggle');
+  if (btnHomeSoundToggle) {
+    btnHomeSoundToggle.addEventListener('click', () => {
+      SoundFX.init();
+      const sBtn = document.getElementById('btnSound');
+      if (sBtn) sBtn.click();
+      btnHomeSoundToggle.textContent = SoundFX.enabled ? '🔊' : '🔇';
+    });
+  }
+
+  const btnHomeSettingsToggle = document.getElementById('btnHomeSettingsToggle');
+  if (btnHomeSettingsToggle) {
+    btnHomeSettingsToggle.addEventListener('click', () => {
+      SoundFX.init();
+      const setBtn = document.getElementById('btnSettingsTop');
+      if (setBtn) setBtn.click();
+    });
+  }
+
   // Improvement #1: Main Screen Quick Stage Selector Bar (#mainStageSelectBar) 1-Click Stage Launch
   document.querySelectorAll('#mainStageSelectBar .main-stage-pill').forEach((pill) => {
     pill.addEventListener('click', () => {
       SoundFX.init();
+      if (overlayTipsBox) overlayTipsBox.classList.remove('stage-dock-open');
       if (!navigator.webdriver) {
         requestGameFullscreen(true);
       }
@@ -10636,7 +10789,7 @@
       if (btnPrimaryAction && gameState === 'START') {
         btnPrimaryAction.disabled = false;
         btnPrimaryAction.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnPrimaryAction.textContent = '▶️ 전체화면으로 게임 시작';
+        btnPrimaryAction.innerHTML = '<span class="inline-flex items-center gap-2"><span>▶</span> <span id="primaryActionLabel">훈련 시작</span></span><span class="text-amber-100/90 text-sm">❯</span>';
       }
     } else {
       const worldNames = {

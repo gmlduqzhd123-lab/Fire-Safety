@@ -722,3 +722,494 @@ body.landscape-console #actionButtonsWrapper button span,
 #debriefCurriculumNote {
   white-space: nowrap !important;
 }
+
+/* ============================================================================
+   v29: 02 레스큐 컨트롤 (Rescue Control) — Full-Bleed 3D Isometric Dollhouse UI
+   ============================================================================ */
+
+/* 1. Full-Bleed 100vw x 100vh 3D Viewport in Landscape Console Mode */
+body.landscape-console #appRoot {
+  position: relative !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  background: #070b14 !important;
+}
+
+body.landscape-console #gameMain {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+body:has(#gameOverlay:not(.hidden):not(.cinematic-replay-active)) #appHeader,
+body:has(#gameOverlay:not(.hidden):not(.cinematic-replay-active)) #hudSection,
+body:has(#gameOverlay:not(.hidden):not(.cinematic-replay-active)) #dpadWrapper,
+body:has(#gameOverlay:not(.hidden):not(.cinematic-replay-active)) #actionButtonsWrapper {
+  display: none !important;
+}
+
+body.landscape-console #canvasContainer {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: radial-gradient(circle at 50% 45%, #161f33 0%, #090d18 75%, #04070e 100%) !important;
+  box-shadow: none !important;
+}
+
+body.landscape-console #gameCanvas {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 2. Top-Left Floating Glassmorphism Status Capsule (1단계 · 침실과 복도 | ❤️ 체력 100 | 🫁 산소 100) */
+body.landscape-console #hudSection {
+  position: fixed !important;
+  top: 12px !important;
+  left: 14px !important;
+  z-index: 35 !important;
+  width: auto !important;
+  max-width: calc(100vw - 340px) !important;
+  padding: 7px 15px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.84) 0%, rgba(30, 41, 59, 0.76) 100%) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1.5px solid rgba(226, 232, 240, 0.25) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+body.landscape-console #hudVitalsRow {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  width: auto !important;
+}
+
+.hud-stage-badge {
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  color: #f8fafc !important;
+  letter-spacing: -0.01em !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7) !important;
+}
+
+.hud-capsule-divider {
+  color: rgba(148, 163, 184, 0.45) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  user-select: none !important;
+}
+
+body.landscape-console #hudBarsBox {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: auto !important;
+  flex: 0 1 auto !important;
+}
+
+body.landscape-console #hudBarsBox > .hud-vital-pill {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: auto !important;
+  flex: 0 0 auto !important;
+}
+
+.hud-vital-label {
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75) !important;
+}
+
+body.landscape-console .hud-bar-track {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 7px !important;
+  flex: 0 0 44px !important;
+}
+
+body.landscape-console #hpValue,
+body.landscape-console #o2Value {
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  min-width: 24px !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+body.landscape-console #hudMissionRow {
+  position: fixed !important;
+  top: 52px !important;
+  left: 16px !important;
+  z-index: 34 !important;
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  border-radius: 9999px !important;
+  padding: 3px 12px !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 3. Top-Right Floating Gold-Bordered Mission Card (#appHeader) */
+body.landscape-console #appHeader {
+  position: fixed !important;
+  top: 12px !important;
+  right: 14px !important;
+  left: auto !important;
+  width: auto !important;
+  min-width: 270px !important;
+  max-width: min(430px, 48vw) !important;
+  z-index: 40 !important;
+  padding: 8px 13px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.88) 0%, rgba(23, 33, 53, 0.82) 100%) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.68) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+body.landscape-console #headerInner {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+body.landscape-console #headerTopRow {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 3px !important;
+}
+
+.mission-card-toprow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.mission-card-label {
+  font-size: 11.5px !important;
+  font-weight: 900 !important;
+  color: #fbbf24 !important;
+  letter-spacing: 0.02em !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+.mission-mini-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 2px 7px !important;
+  border-radius: 9999px !important;
+  background: rgba(30, 41, 59, 0.85) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  color: #e2e8f0 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+}
+
+.mission-mini-btn:hover {
+  background: rgba(51, 65, 85, 0.95) !important;
+  border-color: rgba(251, 191, 36, 0.65) !important;
+  color: #ffffff !important;
+}
+
+.mission-mini-btn-exit {
+  background: rgba(159, 18, 57, 0.78) !important;
+  border-color: rgba(251, 113, 133, 0.55) !important;
+  color: #ffe4e6 !important;
+}
+
+.mission-card-body,
+body.landscape-console #stepGuideBanner {
+  background: transparent !important;
+  border: none !important;
+  padding: 1px 0 0 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  text-align: left !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  color: #f8fafc !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85) !important;
+}
+
+body.landscape-console #moreToolsDrawer:not(.hidden) {
+  position: fixed !important;
+  top: 76px !important;
+  right: 14px !important;
+  left: 14px !important;
+  z-index: 65 !important;
+  background: rgba(15, 23, 42, 0.97) !important;
+  backdrop-filter: blur(16px) !important;
+  padding: 10px 12px !important;
+  border-radius: 1rem !important;
+  border: 1px solid rgba(251, 191, 36, 0.45) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* 4. Bottom-Left Floating Circular Virtual Joystick (#dpadWrapper & #dpadPad) */
+body.landscape-console #dpadWrapper {
+  position: fixed !important;
+  bottom: 16px !important;
+  left: 20px !important;
+  z-index: 35 !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+body.landscape-console #dpadPad,
+.joystick-circle-pad {
+  width: 126px !important;
+  height: 126px !important;
+  border-radius: 9999px !important;
+  background: radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.48) 0%, rgba(15, 23, 42, 0.76) 68%, rgba(148, 163, 184, 0.25) 100%) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 2px solid rgba(226, 232, 240, 0.36) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.62), inset 0 0 18px rgba(255, 255, 255, 0.12) !important;
+  padding: 6px !important;
+}
+
+.joystick-dir-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: rgba(248, 250, 252, 0.86) !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85) !important;
+  border-radius: 9999px !important;
+}
+
+.joystick-dir-btn:hover,
+.joystick-dir-btn:active {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fbbf24 !important;
+}
+
+.joystick-thumb-knob,
+body.landscape-console #dpadKnob {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 9999px !important;
+  background: radial-gradient(circle at 35% 30%, #f8fafc 0%, #cbd5e1 35%, #64748b 75%, #1e293b 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.85) !important;
+}
+
+/* 5. Bottom-Right Floating Circular Action Buttons (#actionButtonsWrapper) */
+body.landscape-console #actionButtonsWrapper {
+  position: fixed !important;
+  bottom: 16px !important;
+  right: 20px !important;
+  z-index: 35 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+body.landscape-console #actionButtonsWrapper > button.rescue-circle-btn:not(.hidden) {
+  width: 94px !important;
+  height: 94px !important;
+  flex: 0 0 94px !important;
+  border-radius: 9999px !important;
+  padding: 6px !important;
+  background: radial-gradient(circle at 50% 30%, rgba(51, 65, 85, 0.82) 0%, rgba(15, 23, 42, 0.92) 72%, rgba(2, 6, 23, 0.96) 100%) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 2px solid rgba(226, 232, 240, 0.38) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), inset 0 2px 6px rgba(255, 255, 255, 0.18) !important;
+  color: #f8fafc !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+body.landscape-console #actionButtonsWrapper > button.rescue-circle-btn:hover {
+  transform: translateY(-2px) scale(1.03) !important;
+  border-color: rgba(251, 191, 36, 0.75) !important;
+}
+
+body.landscape-console #actionButtonsWrapper > #btnAction.rescue-circle-btn:not(.hidden) {
+  border-color: rgba(251, 191, 36, 0.58) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.68), 0 0 18px rgba(245, 158, 11, 0.22), inset 0 2px 6px rgba(255, 255, 255, 0.22) !important;
+}
+
+/* 6. 01. 홈 화면 (3D Cinematic Corridor Illustration + 3-Tier Rescue Control Action Stack) */
+#homeHeroBgVignette {
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0.72) 0%,
+    rgba(2, 6, 23, 0.18) 32%,
+    rgba(2, 6, 23, 0.22) 62%,
+    rgba(2, 6, 23, 0.86) 100%
+  ) !important;
+}
+
+.hero-3d-emblem-title {
+  color: #fff7ed !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fde68a 48%, #f97316 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.92)) drop-shadow(0 0 24px rgba(249, 115, 22, 0.55)) !important;
+}
+
+.hero-3d-badge {
+  display: inline-block !important;
+  padding: 1px 10px !important;
+  margin-left: 4px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 55%, #b91c1c 100%) !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  border: 2px solid #fde68a !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.65) !important;
+  font-size: 0.78em !important;
+  vertical-align: middle !important;
+}
+
+.hero-3d-subtitle {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95) !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainIntroBody {
+  justify-content: space-between !important;
+  padding: 4px 0 6px 0 !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #mainHeroCol {
+  margin: 0 auto !important;
+  height: 100% !important;
+  justify-content: space-between !important;
+  max-width: 520px !important;
+}
+
+.home-tier1-btn {
+  background: linear-gradient(90deg, #d97706 0%, #ea580c 45%, #f59e0b 100%) !important;
+  border: 1.5px solid rgba(253, 230, 138, 0.78) !important;
+  box-shadow: 0 10px 28px rgba(234, 88, 12, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+
+.home-tier1-btn:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-1px) !important;
+}
+
+.home-tier2-btn {
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.42) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+.home-tier2-btn:hover {
+  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(251, 191, 36, 0.65) !important;
+}
+
+.home-tier3-pill {
+  background: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(148, 163, 184, 0.38) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+}
+
+.home-tier3-pill:hover {
+  background: rgba(30, 41, 59, 0.92) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+}
+
+.home-tier3-circle {
+  background: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(148, 163, 184, 0.38) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5) !important;
+  color: #f8fafc !important;
+}
+
+.home-tier3-circle:hover {
+  background: rgba(30, 41, 59, 0.92) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+}
+
+/* Hide Home-only buttons on Stage Clear / Game Over screens */
+#overlayCard:has(#overlayTipsBox.hidden) #homeHeroBgCanvas,
+#overlayCard:has(#overlayTipsBox.hidden) #homeHeroBgVignette,
+#overlayCard:has(#overlayTipsBox.hidden) #btnToggleStageSelectDock,
+#overlayCard:has(#overlayTipsBox.hidden) #homeBottomUtilityRow {
+  display: none !important;
+}
+
+/* Stage Selector Dock Drawer Behavior on Home Screen */
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #overlayTipsBox {
+  display: none !important;
+}
+
+body.landscape-console #overlayCard:not(:has(#overlayTipsBox.hidden)) #overlayTipsBox.stage-dock-open {
+  display: block !important;
+  position: fixed !important;
+  left: 24px !important;
+  right: 24px !important;
+  bottom: 155px !important;
+  z-index: 40 !important;
+  background: rgba(15, 23, 42, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85) !important;
+}
+
+@media (max-height: 540px) {
+  body.landscape-console #dpadPad,
+  .joystick-circle-pad {
+    width: 108px !important;
+    height: 108px !important;
+  }
+  body.landscape-console #actionButtonsWrapper > button.rescue-circle-btn:not(.hidden) {
+    width: 80px !important;
+    height: 80px !important;
+    flex: 0 0 80px !important;
+  }
+}

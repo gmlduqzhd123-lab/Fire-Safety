@@ -3021,6 +3021,1272 @@
     ctx.restore();
   }
 
+  // ============================================================================
+  // v29: 02 레스큐 컨트롤 — 45° Isometric Dollhouse Cutaway 3D Engine & Home 3D Scene
+  // ============================================================================
+  const ISO_A = 1.00;
+  const ISO_B = -0.58;
+  const ISO_C = 0.36;
+  const ISO_D = 0.78;
+  const ISO_DET = ISO_A * ISO_D - ISO_B * ISO_C; // 0.9888
+
+  function computeIsoTransform(canvasW, canvasH, cols, rows, zoomScale, focusX, focusY) {
+    const uMin = ISO_B * rows; // -0.58 * rows
+    const uMax = ISO_A * cols; // 1.00 * cols
+    const vMin = 0;
+    const vMax = ISO_C * cols + ISO_D * rows;
+    const spanU = Math.max(1, uMax - uMin);
+    const spanV = Math.max(1, vMax - vMin);
+
+    const padX = canvasW * 0.04;
+    const padTop = Math.max(52, canvasH * 0.11);
+    const padBottom = Math.max(20, canvasH * 0.04);
+    const availW = Math.max(160, canvasW - padX * 2);
+    const availH = Math.max(140, canvasH - padTop - padBottom);
+
+    const baseScaleX = availW / (spanU + 0.35);
+    const baseScaleY = availH / (spanV + 1.15);
+    const isCloseZoom = zoomScale && zoomScale > 1.22;
+    const zoomFactor = isCloseZoom ? zoomScale : 1.04;
+    const unit = Math.min(baseScaleX, baseScaleY * 1.12) * zoomFactor;
+    const scaleX = unit;
+    const scaleY = unit * 0.88;
+    const wallZUnit = unit * 0.72;
+
+    const uCenter = ISO_A * (cols * 0.5) + ISO_B * (rows * 0.5);
+    const vCenter = ISO_C * (cols * 0.5) + ISO_D * (rows * 0.5);
+    let originX = canvasW * 0.51 - uCenter * scaleX;
+    let originY = canvasH * 0.54 - vCenter * scaleY + wallZUnit * 0.22;
+
+    if (isCloseZoom && typeof focusX === 'number' && typeof focusY === 'number') {
+      const fu = ISO_A * focusX + ISO_B * focusY;
+      const fv = ISO_C * focusX + ISO_D * focusY;
+      originX = canvasW * 0.5 - fu * scaleX;
+      originY = canvasH * 0.54 - fv * scaleY;
+    }
+
+    return {
+      originX,
+      originY,
+      scaleX,
+      scaleY,
+      wallZUnit,
+      cols,
+      rows,
+      project(wx, wy, wz = 0) {
+        const u = ISO_A * wx + ISO_B * wy;
+        const v = ISO_C * wx + ISO_D * wy;
+        return {
+          x: originX + u * scaleX,
+          y: originY + v * scaleY - wz * wallZUnit
+        };
+      }
+    };
+  }
+
+  function screenToIsoTile(screenX, screenY, canvasW, canvasH, cols, rows, zoomScale, focusX, focusY) {
+    const tf = computeIsoTransform(canvasW, canvasH, cols, rows, zoomScale, focusX, focusY);
+    const u = (screenX - tf.originX) / tf.scaleX;
+    const v = (screenY - tf.originY) / tf.scaleY;
+    const wx = (ISO_D * u - ISO_B * v) / ISO_DET;
+    const wy = (-ISO_C * u + ISO_A * v) / ISO_DET;
+    return {
+      wx,
+      wy,
+      col: Math.floor(wx),
+      row: Math.floor(wy)
+    };
+  }
+
+  function drawIsoQuad(ctx, p0, p1, p2, p3, fillStyle, strokeStyle, lineWidth = 1) {
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p3.x, p3.y);
+    ctx.closePath();
+    if (fillStyle) {
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    }
+    if (strokeStyle) {
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke();
+    }
+  }
+
+  function drawIsoPrism(ctx, tf, wx, wy, wz, dw, dh, dz, topCol, southCol, eastCol, strokeCol) {
+    const b00 = tf.project(wx, wy, wz);
+    const b10 = tf.project(wx + dw, wy, wz);
+    const b11 = tf.project(wx + dw, wy + dh, wz);
+    const b01 = tf.project(wx, wy + dh, wz);
+
+    const t00 = tf.project(wx, wy, wz + dz);
+    const t10 = tf.project(wx + dw, wy, wz + dz);
+    const t11 = tf.project(wx + dw, wy + dh, wz + dz);
+    const t01 = tf.project(wx, wy + dh, wz + dz);
+
+    // South face (wy + dh)
+    drawIsoQuad(ctx, b01, b11, t11, t01, southCol, strokeCol, 0.8);
+    // East face (wx + dw)
+    drawIsoQuad(ctx, b10, b11, t11, t10, eastCol, strokeCol, 0.8);
+    // Top face (wz + dz)
+    drawIsoQuad(ctx, t00, t10, t11, t01, topCol, strokeCol, 0.9);
+  }
+
+  function classifyIsoRoomZone(c, r, stageIdx) {
+    if (stageIdx === 0) {
+      if (r <= 3 && c <= 4) return 'BEDROOM';
+      if (r <= 3 && c >= 5 && c <= 8) return 'BATHROOM';
+      if (r <= 3 && c >= 9) return 'STUDY';
+      return 'CORRIDOR';
+    }
+    if (stageIdx === 1) {
+      if (r <= 4 && c <= 6) return 'KITCHEN';
+      if (r <= 4 && c >= 7) return 'LIVING';
+      return 'CORRIDOR';
+    }
+    if (stageIdx === 2) {
+      if (r >= 6) return 'BALCONY';
+      if (c <= 5) return 'BEDROOM';
+      return 'LIVING';
+    }
+    if (stageIdx === 3) return 'SCIENCELAB';
+    if (stageIdx === 4) return 'SUBWAY';
+    if (stageIdx === 6) return 'CAMP';
+    if (stageIdx === 7) return 'EARTHQUAKE';
+    return (r <= 3 && c <= 5) ? 'BEDROOM' : 'CORRIDOR';
+  }
+
+  function drawIsoStageBackdrop(ctx, tf, canvasW, canvasH, cols, rows, stageIdx, now) {
+    // 1. Deep Atmospheric Studio Backdrop
+    const bgGrad = ctx.createRadialGradient(
+      canvasW * 0.5, canvasH * 0.46, canvasW * 0.08,
+      canvasW * 0.5, canvasH * 0.5, canvasW * 0.72
+    );
+    if (stageIdx === 6) {
+      bgGrad.addColorStop(0, '#0f221d');
+      bgGrad.addColorStop(0.65, '#071210');
+      bgGrad.addColorStop(1, '#030807');
+    } else {
+      bgGrad.addColorStop(0, '#1a2438');
+      bgGrad.addColorStop(0.62, '#0c1220');
+      bgGrad.addColorStop(1, '#050811');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // 2. Subtle Isometric Blueprint Grid in Outer Studio Space
+    ctx.save();
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.05)';
+    ctx.lineWidth = 1;
+    for (let c = -2; c <= cols + 2; c += 2) {
+      const pA = tf.project(c, -2, -0.22);
+      const pB = tf.project(c, rows + 2, -0.22);
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.stroke();
+    }
+    for (let r = -2; r <= rows + 2; r += 2) {
+      const pA = tf.project(-2, r, -0.22);
+      const pB = tf.project(cols + 2, r, -0.22);
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y);
+      ctx.lineTo(pB.x, pB.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 3. 3D Architectural Cutaway Foundation Plinth Under Building
+    const plinthDepth = 0.34;
+    const p00 = tf.project(-0.12, -0.12, 0);
+    const p10 = tf.project(cols + 0.12, -0.12, 0);
+    const p11 = tf.project(cols + 0.12, rows + 0.12, 0);
+    const p01 = tf.project(-0.12, rows + 0.12, 0);
+
+    const b10 = tf.project(cols + 0.12, -0.12, -plinthDepth);
+    const b11 = tf.project(cols + 0.12, rows + 0.12, -plinthDepth);
+    const b01 = tf.project(-0.12, rows + 0.12, -plinthDepth);
+
+    // Drop shadow beneath foundation
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+    ctx.beginPath();
+    ctx.moveTo(b01.x - 12, b01.y + 18);
+    ctx.lineTo(b11.x + 14, b11.y + 22);
+    ctx.lineTo(b10.x + 18, b10.y + 14);
+    ctx.lineTo(p00.x - 10, p00.y + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // South & East concrete slab faces
+    drawIsoQuad(ctx, b01, b11, p11, p01, '#1e2636', '#0f172a', 1.2);
+    drawIsoQuad(ctx, b10, b11, p11, p10, '#151c28', '#0f172a', 1.2);
+  }
+
+  function drawIsoFloorTile(ctx, tf, c, r, tile, T, stageIdx, now) {
+    const p00 = tf.project(c, r, 0);
+    const p10 = tf.project(c + 1, r, 0);
+    const p11 = tf.project(c + 1, r + 1, 0);
+    const p01 = tf.project(c, r + 1, 0);
+
+    const zone = classifyIsoRoomZone(c, r, stageIdx);
+    const parity = (c + r) % 2 === 0;
+
+    let baseCol = '#9b6b43';
+    let seamCol = 'rgba(68, 42, 22, 0.38)';
+
+    if (zone === 'BEDROOM') {
+      baseCol = parity ? '#b88454' : '#ae7a4b';
+      seamCol = 'rgba(74, 46, 24, 0.35)';
+    } else if (zone === 'BATHROOM') {
+      baseCol = parity ? '#8ea3b7' : '#8297ac';
+      seamCol = 'rgba(226, 232, 240, 0.38)';
+    } else if (zone === 'STUDY') {
+      baseCol = parity ? '#8a6240' : '#7f5838';
+      seamCol = 'rgba(54, 34, 18, 0.36)';
+    } else if (zone === 'KITCHEN') {
+      baseCol = parity ? '#cbd5e1' : '#94a3b8';
+      seamCol = 'rgba(71, 85, 105, 0.35)';
+    } else if (zone === 'BALCONY') {
+      baseCol = parity ? '#64748b' : '#526277';
+      seamCol = 'rgba(30, 41, 59, 0.45)';
+    } else if (zone === 'SCIENCELAB') {
+      baseCol = parity ? '#334155' : '#293548';
+      seamCol = 'rgba(148, 163, 184, 0.22)';
+    } else if (zone === 'SUBWAY') {
+      baseCol = (r === 4 || r === 6) ? '#ca8a04' : (parity ? '#334155' : '#273244');
+      seamCol = 'rgba(15, 23, 42, 0.45)';
+    } else if (zone === 'CAMP') {
+      baseCol = parity ? '#1e3a29' : '#173022';
+      seamCol = 'rgba(15, 23, 42, 0.28)';
+    } else {
+      // Corridor / Hallway warm walnut wood planks
+      baseCol = parity ? '#9c6b3f' : '#916137';
+      seamCol = 'rgba(58, 35, 16, 0.42)';
+    }
+
+    if (tile === T.EXIT) {
+      baseCol = '#065f46';
+      seamCol = '#34d399';
+    }
+
+    drawIsoQuad(ctx, p00, p10, p11, p01, baseCol, seamCol, 0.75);
+
+    // Wood plank lines for Bedroom / Corridor / Study
+    if (zone === 'BEDROOM' || zone === 'CORRIDOR' || zone === 'STUDY' || zone === 'LIVING') {
+      const m0 = tf.project(c, r + 0.5, 0);
+      const m1 = tf.project(c + 1, r + 0.5, 0);
+      ctx.beginPath();
+      ctx.moveTo(m0.x, m0.y);
+      ctx.lineTo(m1.x, m1.y);
+      ctx.strokeStyle = 'rgba(56, 34, 16, 0.24)';
+      ctx.lineWidth = 0.65;
+      ctx.stroke();
+    } else if (zone === 'BATHROOM') {
+      // Sub-tile ceramic cross grout
+      const m0 = tf.project(c, r + 0.5, 0);
+      const m1 = tf.project(c + 1, r + 0.5, 0);
+      const n0 = tf.project(c + 0.5, r, 0);
+      const n1 = tf.project(c + 0.5, r + 1, 0);
+      ctx.beginPath();
+      ctx.moveTo(m0.x, m0.y);
+      ctx.lineTo(m1.x, m1.y);
+      ctx.moveTo(n0.x, n0.y);
+      ctx.lineTo(n1.x, n1.y);
+      ctx.strokeStyle = 'rgba(241, 245, 249, 0.25)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+
+    // Cozy Bedroom Woven Area Rug (c=2..3, r=1..2)
+    if (stageIdx === 0 && c >= 2 && c <= 3 && r >= 1 && r <= 2 && tile === T.FLOOR) {
+      const r00 = tf.project(c + 0.06, r + 0.06, 0.01);
+      const r10 = tf.project(c + 0.94, r + 0.06, 0.01);
+      const r11 = tf.project(c + 0.94, r + 0.94, 0.01);
+      const r01 = tf.project(c + 0.06, r + 0.94, 0.01);
+      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(71, 85, 105, 0.65)', 'rgba(203, 213, 225, 0.45)', 0.9);
+    }
+
+    // Corridor Runner Carpet strip (r === 7, c=4..11)
+    if (stageIdx === 0 && r === 7 && c >= 4 && c <= 11 && tile === T.FLOOR) {
+      const r00 = tf.project(c, r + 0.18, 0.01);
+      const r10 = tf.project(c + 1, r + 0.18, 0.01);
+      const r11 = tf.project(c + 1, r + 0.82, 0.01);
+      const r01 = tf.project(c, r + 0.82, 0.01);
+      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(124, 45, 18, 0.42)', 'rgba(251, 191, 36, 0.28)', 0.7);
+    }
+  }
+
+  function isCutawayLowWall(c, r, cols, rows, grid, T) {
+    // Keep back walls (r === 0, c === 0) and upper vertical room dividers tall; cutaway foreground/interior horizontal walls so rooms & beds are 100% visible
+    if (r === 0 || c === 0) return false;
+    if (r <= 2 && (c === 4 || c === 9)) return false;
+    return true;
+  }
+
+  function drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now) {
+    const lowCut = isCutawayLowWall(c, r, cols, rows, grid, T);
+    const wz = lowCut ? 0.34 : 1.38;
+
+    const isPartition = tile === T.PARTITION;
+    const topCol = isPartition ? '#7c2d12' : '#283347';
+    const southCol = isPartition ? '#b45309' : '#d8cab8';
+    const eastCol = isPartition ? '#92400e' : '#c4b39f';
+    const rimCol = isPartition ? '#fb923c' : '#475569';
+
+    drawIsoPrism(ctx, tf, c, r, 0, 1, 1, wz, topCol, southCol, eastCol, rimCol);
+
+    // Dark wood baseboard along South and East interior wall bottom edges
+    if (!lowCut && !isPartition) {
+      const southFloor = (r + 1 < rows) && grid[r + 1][c] !== T.WALL;
+      const eastFloor = (c + 1 < cols) && grid[r][c + 1] !== T.WALL;
+      if (southFloor) {
+        const b0 = tf.project(c, r + 1, 0);
+        const b1 = tf.project(c + 1, r + 1, 0);
+        const t1 = tf.project(c + 1, r + 1, 0.12);
+        const t0 = tf.project(c, r + 1, 0.12);
+        drawIsoQuad(ctx, b0, b1, t1, t0, '#4a3525', null, 0);
+      }
+      if (eastFloor) {
+        const b0 = tf.project(c + 1, r, 0);
+        const b1 = tf.project(c + 1, r + 1, 0);
+        const t1 = tf.project(c + 1, r + 1, 0.12);
+        const t0 = tf.project(c + 1, r, 0.12);
+        drawIsoQuad(ctx, b0, b1, t1, t0, '#3d2b1d', null, 0);
+      }
+
+      // Framed wall art & window curtains on back walls (r === 0)
+      if (r === 0 && southFloor) {
+        if (c === 2) {
+          // Framed picture on bedroom wall
+          const f0 = tf.project(c + 0.18, 1.01, 0.55);
+          const f1 = tf.project(c + 0.82, 1.01, 0.55);
+          const f2 = tf.project(c + 0.82, 1.01, 1.08);
+          const f3 = tf.project(c + 0.18, 1.01, 1.08);
+          drawIsoQuad(ctx, f0, f1, f2, f3, '#38bdf8', '#4a3525', 2);
+        } else if (c === 6) {
+          // Bathroom glowing vanity mirror on back wall
+          const m0 = tf.project(c + 0.15, 1.01, 0.52);
+          const m1 = tf.project(c + 0.85, 1.01, 0.52);
+          const m2 = tf.project(c + 0.85, 1.01, 1.16);
+          const m3 = tf.project(c + 0.15, 1.01, 1.16);
+          drawIsoQuad(ctx, m0, m1, m2, m3, '#bae6fd', '#94a3b8', 1.5);
+        }
+      }
+
+      // Warm Wall Sconce Lights (복도 벽부등) casting golden glow
+      if (southFloor && ((r === 0 && (c === 3 || c === 10)) || (r === 3 && (c === 2 || c === 7)))) {
+        const sp = tf.project(c + 0.5, r + 1.02, 0.92);
+        const fp = tf.project(c + 0.5, r + 1.45, 0.02);
+        const rad = Math.max(18, tf.scaleX * 0.95);
+        const glow = ctx.createRadialGradient(sp.x, sp.y, 2, sp.x, sp.y + rad * 0.35, rad);
+        glow.addColorStop(0, 'rgba(254, 240, 138, 0.72)');
+        glow.addColorStop(0.45, 'rgba(251, 191, 36, 0.24)');
+        glow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y + rad * 0.2, rad, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Floor warm light pool
+        const fglow = ctx.createRadialGradient(fp.x, fp.y, 2, fp.x, fp.y, rad * 0.85);
+        fglow.addColorStop(0, 'rgba(251, 191, 36, 0.22)');
+        fglow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+        ctx.fillStyle = fglow;
+        ctx.beginPath();
+        ctx.arc(fp.x, fp.y, rad * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sconce fixture
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player) {
+    const zone = classifyIsoRoomZone(c, r, stageIdx);
+
+    // 1. Detailed 3D Bedroom Bed with Blue Checkered Duvet (Stage 1 Bedroom furniture at c<=3, r<=3)
+    if (tile === T.FURNITURE && zone === 'BEDROOM' && c <= 3 && r <= 3) {
+      // Bed Wooden Frame & Headboard
+      drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0, 0.88, 0.88, 0.28, '#784b2a', '#5c371d', '#4a2b15', '#361e0d');
+      drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0.28, 0.88, 0.16, 0.42, '#8c5832', '#6e4323', '#543218', '#361e0d');
+      // White Mattress & Blue Plaid Duvet
+      drawIsoPrism(ctx, tf, c + 0.10, r + 0.20, 0.26, 0.80, 0.70, 0.16, '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af');
+      // Plaid stripes on duvet top
+      const d0 = tf.project(c + 0.12, r + 0.52, 0.43);
+      const d1 = tf.project(c + 0.88, r + 0.52, 0.43);
+      ctx.strokeStyle = 'rgba(191, 219, 254, 0.65)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(d0.x, d0.y);
+      ctx.lineTo(d1.x, d1.y);
+      ctx.stroke();
+      // White Fluffy Pillow
+      drawIsoPrism(ctx, tf, c + 0.20, r + 0.22, 0.42, 0.58, 0.22, 0.09, '#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8');
+
+      // Warm Bedside Nightstand Lamp Glow next to bed
+      const lp = tf.project(c + 0.92, r + 0.22, 0.55);
+      const lg = ctx.createRadialGradient(lp.x, lp.y, 2, lp.x, lp.y, tf.scaleX * 0.9);
+      lg.addColorStop(0, 'rgba(254, 240, 138, 0.65)');
+      lg.addColorStop(0.5, 'rgba(251, 191, 36, 0.22)');
+      lg.addColorStop(1, 'rgba(251, 191, 36, 0)');
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.arc(lp.x, lp.y, tf.scaleX * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    // 2. Bathroom Porcelain Sink (T.SINK) + Toilet Prop
+    if (tile === T.SINK) {
+      // Vanity Cabinet + White Ceramic Washbasin
+      drawIsoPrism(ctx, tf, c + 0.14, r + 0.12, 0, 0.72, 0.64, 0.48, '#f8fafc', '#cbd5e1', '#94a3b8', '#64748b');
+      // Blue water pool inside basin
+      drawIsoPrism(ctx, tf, c + 0.24, r + 0.22, 0.48, 0.52, 0.42, 0.04, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+      // Companion Porcelain Toilet on left side of bathroom if in bathroom zone
+      if (zone === 'BATHROOM') {
+        drawIsoPrism(ctx, tf, c - 0.78, r + 0.12, 0, 0.44, 0.52, 0.34, '#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8');
+        drawIsoPrism(ctx, tf, c - 0.78, r + 0.08, 0.34, 0.44, 0.18, 0.32, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+      }
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.85, '🚰 세면대', '#0284c7');
+      return;
+    }
+
+    // 3. Doors (Closed Door, Open Door, Hot Door, Locked Door)
+    const isClosedDoor = tile === T.DOOR || tile === T.DOOR_CLOSED;
+    const isOpenDoor = tile === T.OPEN_DOOR || tile === T.DOOR_OPEN;
+    if (isClosedDoor || isOpenDoor || tile === T.HOT_DOOR || tile === T.LOCKED_DOOR) {
+      const isHot = tile === T.HOT_DOOR;
+      const isOpen = isOpenDoor;
+      const isLocked = tile === T.LOCKED_DOOR;
+      const topC = isHot ? '#dc2626' : (isLocked ? '#475569' : '#9a5b32');
+      const southC = isHot ? '#b91c1c' : (isLocked ? '#334155' : '#7c4522');
+      const eastC = isHot ? '#991b1b' : (isLocked ? '#1e293b' : '#5e3216');
+
+      if (isOpen) {
+        // Swung open door leaf on the side
+        drawIsoPrism(ctx, tf, c + 0.05, r + 0.05, 0, 0.18, 0.86, 1.18, '#a3663b', '#854f2b', '#693c1e', '#facc15');
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.28, '🚪 열린문(닫기)', '#0284c7');
+      } else {
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.36, 0, 0.84, 0.28, 1.22, topC, southC, eastC, isHot ? '#fbbf24' : '#3e200d');
+        if (isHot) {
+          const hp = tf.project(c + 0.5, r + 0.5, 0.6);
+          const hg = ctx.createRadialGradient(hp.x, hp.y, 2, hp.x, hp.y, tf.scaleX * 0.85);
+          hg.addColorStop(0, 'rgba(239, 68, 68, 0.55)');
+          hg.addColorStop(1, 'rgba(239, 68, 68, 0)');
+          ctx.fillStyle = hg;
+          ctx.beginPath();
+          ctx.arc(hp.x, hp.y, tf.scaleX * 0.85, 0, Math.PI * 2);
+          ctx.fill();
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.38, '🌡️ 고온문', '#dc2626');
+        } else if (isLocked) {
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.35, '🔒 잠긴문', '#475569');
+        } else {
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.34, '🚪 방화문', '#b45309');
+        }
+      }
+      return;
+    }
+
+    // 4. Glowing Green [🏃 EXIT] Doorway + Neon Green Floor Projection Arrow (➔)
+    if (tile === T.EXIT) {
+      // Illuminated Green Portal Arch
+      drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.18, 1.36, '#10b981', '#059669', '#047857', '#6ee7b7');
+
+      // Glowing Green Floor Projection Carpet & Arrow in front of EXIT
+      const ep = tf.project(c + 0.5, r + 0.5, 0.05);
+      const eg = ctx.createRadialGradient(ep.x, ep.y, 4, ep.x, ep.y, tf.scaleX * 1.45);
+      eg.addColorStop(0, 'rgba(16, 185, 129, 0.62)');
+      eg.addColorStop(0.55, 'rgba(52, 211, 153, 0.24)');
+      eg.addColorStop(1, 'rgba(16, 185, 129, 0)');
+      ctx.fillStyle = eg;
+      ctx.beginPath();
+      ctx.arc(ep.x, ep.y, tf.scaleX * 1.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Animated Neon Green Floor Arrow (➔) pointing into the EXIT
+      const pulse = 0.75 + 0.25 * Math.sin(now * 5.5);
+      const aStart = tf.project(c + 0.5, Math.max(0.5, r - 0.55), 0.04);
+      const aTip = tf.project(c + 0.5, r + 0.35, 0.04);
+      const aWing1 = tf.project(c + 0.18, r - 0.05, 0.04);
+      const aWing2 = tf.project(c + 0.82, r - 0.05, 0.04);
+
+      ctx.save();
+      ctx.strokeStyle = `rgba(110, 231, 183, ${pulse})`;
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(aStart.x, aStart.y);
+      ctx.lineTo(aTip.x, aTip.y);
+      ctx.moveTo(aWing1.x, aWing1.y);
+      ctx.lineTo(aTip.x, aTip.y);
+      ctx.lineTo(aWing2.x, aWing2.y);
+      ctx.stroke();
+      ctx.restore();
+
+      // Overhead [🏃 EXIT] Signboard
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.52, '🏃 EXIT 비상구', '#059669', '#ecfdf5');
+      return;
+    }
+
+    // 5. Generic Furniture (Desk, Bookshelf, Sofa, Lab Table, Potted Plant)
+    if (tile === T.FURNITURE || tile === T.DESK_SAFE || tile === T.DEBRIS || tile === T.ELEVATOR) {
+      if (tile === T.ELEVATOR) {
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.84, 1.25, '#475569', '#334155', '#1e293b', '#f87171');
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.38, '🛗 승강기(탑승금지)', '#b91c1c');
+        return;
+      }
+      if (tile === T.DEBRIS) {
+        drawIsoPrism(ctx, tf, c + 0.14, r + 0.18, 0, 0.72, 0.64, 0.42, '#78350f', '#5c280b', '#451a03', '#f59e0b');
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.68, '🪵 장애물', '#92400e');
+        return;
+      }
+      const isSafeDesk = tile === T.DESK_SAFE;
+      drawIsoPrism(
+        ctx, tf,
+        c + 0.12, r + 0.12, 0,
+        0.76, 0.76, 0.52,
+        isSafeDesk ? '#0284c7' : '#85522d',
+        isSafeDesk ? '#0369a1' : '#693f20',
+        isSafeDesk ? '#075985' : '#523017',
+        isSafeDesk ? '#7dd3fc' : '#3b210e'
+      );
+      // Add green potted plant on corridor/corner furniture
+      if ((c + r) % 3 === 0 && !isSafeDesk) {
+        const pp = tf.project(c + 0.5, r + 0.5, 0.66);
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(pp.x, pp.y, Math.max(5, tf.scaleX * 0.18), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (isSafeDesk) {
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.78, '🛡️ 내진책상', '#0284c7');
+      }
+      return;
+    }
+
+    // 6. Interactive Safety Items & Devices (Towel, Extinguisher, Bell, 119 Phone, Lifeline, Valve, Breaker, Mask, etc.)
+    const itemMeta = getIsoInteractiveMeta(tile, T);
+    if (itemMeta) {
+      drawIsoPrism(
+        ctx, tf,
+        c + 0.24, r + 0.24, 0,
+        0.52, 0.52, itemMeta.h,
+        itemMeta.top, itemMeta.south, itemMeta.east, '#fde68a'
+      );
+      const bob = Math.sin(now * 4.2 + c + r) * 0.08;
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, itemMeta.h + 0.34 + bob, itemMeta.label, itemMeta.badgeBg);
+    }
+  }
+
+  function getIsoInteractiveMeta(tile, T) {
+    if (tile === T.TOWEL) return { h: 0.28, top: '#38bdf8', south: '#0284c7', east: '#0369a1', label: '🧣 수건', badgeBg: '#0284c7' };
+    if (tile === T.EXTINGUISHER) return { h: 0.52, top: '#ef4444', south: '#dc2626', east: '#b91c1c', label: '🧯 소화기', badgeBg: '#dc2626' };
+    if (tile === T.ALARM_BELL || tile === T.BELL) return { h: 0.45, top: '#f59e0b', south: '#d97706', east: '#b45309', label: '🔔 비상벨', badgeBg: '#d97706' };
+    if (tile === T.PHONE_119) return { h: 0.42, top: '#10b981', south: '#059669', east: '#047857', label: '📞 119신고', badgeBg: '#059669' };
+    if (tile === T.GAS_VALVE) return { h: 0.44, top: '#f97316', south: '#ea580c', east: '#c2410c', label: '🔴 가스밸브', badgeBg: '#ea580c' };
+    if (tile === T.BREAKER) return { h: 0.50, top: '#eab308', south: '#ca8a04', east: '#a16207', label: '⚡ 차단기', badgeBg: '#ca8a04' };
+    if (tile === T.LIFELINE) return { h: 0.48, top: '#0ea5e9', south: '#0284c7', east: '#0369a1', label: '🪢 완강기', badgeBg: '#0284c7' };
+    if (tile === T.MASK) return { h: 0.32, top: '#22c55e', south: '#16a34a', east: '#15803d', label: '😷 방연마스크', badgeBg: '#16a34a' };
+    if (tile === T.FLASHLIGHT) return { h: 0.28, top: '#facc15', south: '#eab308', east: '#ca8a04', label: '🔦 손전등', badgeBg: '#ca8a04' };
+    if (tile === T.AXE) return { h: 0.36, top: '#ef4444', south: '#b91c1c', east: '#991b1b', label: '🪓 소방도끼', badgeBg: '#b91c1c' };
+    if (tile === T.KEY) return { h: 0.26, top: '#fbbf24', south: '#d97706', east: '#b45309', label: '🔑 열쇠', badgeBg: '#d97706' };
+    if (tile === T.WATER_BUCKET) return { h: 0.38, top: '#3b82f6', south: '#2563eb', east: '#1d4ed8', label: '🪣 물양동이', badgeBg: '#2563eb' };
+    if (tile === T.SAND_BAG) return { h: 0.34, top: '#d97706', south: '#b45309', east: '#92400e', label: '⏳ 모래주머니', badgeBg: '#b45309' };
+    if (tile === T.NPC) return { h: 0.65, top: '#ec4899', south: '#db2777', east: '#be185d', label: '🧒 구조대상', badgeBg: '#db2777' };
+    if (tile === T.HAZARD || tile === T.HAZARD_SPOT) return { h: 0.38, top: '#f43f5e', south: '#e11d48', east: '#be123c', label: '🔍 위험요소', badgeBg: '#e11d48' };
+    if (tile === T.SAFE_BOX || tile === T.WIRE_PANEL) return { h: 0.46, top: '#06b6d4', south: '#0891b2', east: '#0e7490', label: '🔐 퍼즐장치', badgeBg: '#0891b2' };
+    return null;
+  }
+
+  function drawIsoItemObject(ctx, tf, item, now) {
+    if (!item || item.collected) return;
+    const c = item.c;
+    const r = item.r;
+    let topC = '#38bdf8';
+    let southC = '#0284c7';
+    let eastC = '#0369a1';
+    let h = 0.34;
+    if (item.type === 'extinguisher') {
+      topC = '#ef4444'; southC = '#dc2626'; eastC = '#991b1b'; h = 0.50;
+    } else if (item.type === 'key' || item.type === 'flashlight') {
+      topC = '#facc15'; southC = '#ca8a04'; eastC = '#854d0e'; h = 0.28;
+    } else if (item.type === 'npc' || item.type === 'dog') {
+      topC = '#f472b6'; southC = '#db2777'; eastC = '#9d174d'; h = 0.58;
+    } else if (item.type === 'mask') {
+      topC = '#4ade80'; southC = '#16a34a'; eastC = '#166534'; h = 0.32;
+    }
+    drawIsoPrism(ctx, tf, c + 0.25, r + 0.25, 0, 0.50, 0.50, h, topC, southC, eastC, '#fef08a');
+    const bob = Math.sin(now * 4.2 + c + r) * 0.08;
+    drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, h + 0.34 + bob, `${item.icon || '✨'} ${item.name || item.type}`, southC);
+  }
+
+  function drawIsoBadgeLabel(ctx, tf, wx, wy, wz, text, bgColor, textColor = '#ffffff') {
+    const pt = tf.project(wx, wy, wz);
+    ctx.save();
+    ctx.font = '800 10.5px "Noto Sans KR", sans-serif';
+    const tw = ctx.measureText(text).width;
+    const pw = tw + 12;
+    const ph = 18;
+    ctx.fillStyle = bgColor || 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    safeRoundRect(ctx, pt.x - pw * 0.5, pt.y - ph * 0.5, pw, ph, 9);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, pt.x, pt.y + 0.5);
+    ctx.restore();
+  }
+
+  function drawIsoVolumetricFire(ctx, tf, f, now) {
+    const wx = f.c + 0.5;
+    const wy = f.r + 0.5;
+    const basePt = tf.project(wx, wy, 0.05);
+    const scale = Math.max(16, tf.scaleX * 0.68);
+
+    ctx.save();
+    // 1. Dynamic Orange-Red Floor Firelight Glow
+    const fg = ctx.createRadialGradient(basePt.x, basePt.y, 2, basePt.x, basePt.y, scale * 1.65);
+    fg.addColorStop(0, 'rgba(251, 146, 60, 0.68)');
+    fg.addColorStop(0.5, 'rgba(239, 68, 68, 0.28)');
+    fg.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(basePt.x, basePt.y, scale * 1.65, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Multi-Layered 3D Volumetric Flame Tongues
+    for (let i = 0; i < 4; i++) {
+      const phase = now * 6.8 + f.c * 1.7 + f.r * 2.3 + i * 1.4;
+      const sway = Math.sin(phase) * scale * 0.22;
+      const flameH = scale * (1.25 + 0.32 * Math.sin(phase * 1.3)) * (1 - i * 0.14);
+      const flameW = scale * (0.62 - i * 0.11);
+      const ox = basePt.x + (i - 1.5) * scale * 0.16;
+      const oy = basePt.y;
+
+      const grad = ctx.createLinearGradient(ox, oy, ox + sway, oy - flameH);
+      if (i === 3) {
+        grad.addColorStop(0, '#fef08a');
+        grad.addColorStop(0.6, '#facc15');
+        grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+      } else {
+        grad.addColorStop(0, '#dc2626');
+        grad.addColorStop(0.45, '#f97316');
+        grad.addColorStop(0.85, '#facc15');
+        grad.addColorStop(1, 'rgba(251, 146, 60, 0)');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(ox - flameW, oy);
+      ctx.quadraticCurveTo(ox - flameW * 0.5 + sway * 0.4, oy - flameH * 0.55, ox + sway, oy - flameH);
+      ctx.quadraticCurveTo(ox + flameW * 0.5 + sway * 0.4, oy - flameH * 0.55, ox + flameW, oy);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 3. Rising Dark Smoke Plume Above Fire
+    for (let s = 0; s < 3; s++) {
+      const sp = ((now * 0.85 + s * 0.33 + f.c * 0.19) % 1);
+      const smPt = tf.project(wx + Math.sin(now * 2 + s) * 0.18, wy, 0.85 + sp * 0.95);
+      const sr = scale * (0.38 + sp * 0.48);
+      ctx.fillStyle = `rgba(30, 41, 59, ${(1 - sp) * 0.52})`;
+      ctx.beginPath();
+      ctx.arc(smPt.x, smPt.y, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawIsoBillowingSmoke(ctx, tf, s, now, playerCrouching) {
+    const wx = s.c + 0.5;
+    const wy = s.r + 0.5;
+    const floorPt = tf.project(wx, wy, 0.04);
+    const ceilPt = tf.project(wx, wy, 0.92 + Math.sin(now * 2.2 + s.c + s.r) * 0.08);
+    const rad = Math.max(14, tf.scaleX * 0.58);
+
+    ctx.save();
+    // Subtle hazard ring on floor so player sees which tile has overhead smoke
+    ctx.strokeStyle = playerCrouching ? 'rgba(56, 189, 248, 0.26)' : 'rgba(148, 163, 184, 0.34)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(floorPt.x, floorPt.y, rad * 0.65, rad * 0.36, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Billowing dark charcoal smoke clouds near upper wall/ceiling
+    const sg = ctx.createRadialGradient(ceilPt.x, ceilPt.y, 2, ceilPt.x, ceilPt.y, rad * 1.15);
+    sg.addColorStop(0, 'rgba(30, 41, 59, 0.72)');
+    sg.addColorStop(0.6, 'rgba(51, 65, 85, 0.42)');
+    sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.arc(ceilPt.x, ceilPt.y, rad * 1.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawIsoArticulatedPlayer3D(ctx, tf, player, now, customGear) {
+    const wx = player.x;
+    const wy = player.y;
+    const basePt = tf.project(wx, wy, 0.02);
+    const scale = Math.max(18, tf.scaleX * 0.62);
+    const isCrouching = !!player.crouching;
+    const isMoving = !!(player.isMoving || Math.hypot(player.vx || 0, player.vy || 0) > 0.01);
+    const walkPhase = isMoving ? now * 11 : now * 2.2;
+
+    // Project facing direction in screen space
+    const dirPt = tf.project(wx + (player.dirX || 1) * 0.4, wy + (player.dirY || 0) * 0.4, 0.02);
+    const screenDx = dirPt.x - basePt.x;
+    const facingSign = screenDx >= -1 ? 1 : -1;
+
+    ctx.save();
+
+    // 1. Floor Safety Aura Ring & Contact Shadow
+    const ringR = scale * 0.72;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+    ctx.beginPath();
+    ctx.ellipse(basePt.x, basePt.y + 2, ringR * 0.85, ringR * 0.46, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = isCrouching ? '#34d399' : '#fbbf24';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.ellipse(basePt.x, basePt.y + 1, ringR, ringR * 0.54, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (isCrouching) {
+      // ======================================================================
+      // 4-Point Low Crawl / Crouch Posture (4점 지지 낮은 자세 포복 + 파란 책가방)
+      // ======================================================================
+      const crawlSwing = Math.sin(walkPhase) * scale * 0.14;
+      const bodyY = basePt.y - scale * 0.34;
+      const bodyX = basePt.x;
+
+      // Back Knees & Lower Legs (Dark Navy Pants + Sneakers)
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = Math.max(4, scale * 0.22);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bodyX - facingSign * scale * 0.18, bodyY + scale * 0.08);
+      ctx.lineTo(bodyX - facingSign * scale * 0.46 + crawlSwing * 0.5, basePt.y - 2);
+      ctx.stroke();
+
+      // Front Supporting Arm on Floor
+      ctx.strokeStyle = '#fb923c';
+      ctx.lineWidth = Math.max(3.5, scale * 0.18);
+      ctx.beginPath();
+      ctx.moveTo(bodyX + facingSign * scale * 0.18, bodyY + scale * 0.02);
+      ctx.lineTo(bodyX + facingSign * scale * 0.36 - crawlSwing * 0.5, basePt.y - 1);
+      ctx.stroke();
+
+      // Horizontal Forward-Leaning Torso (Warm Orange-Amber Jacket)
+      ctx.fillStyle = '#ea580c';
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(bodyX, bodyY, scale * 0.38, scale * 0.22, facingSign * -0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 3D Blue Backpack (파란 책가방) on Top of Crouching Back
+      const bpX = bodyX - facingSign * scale * 0.10;
+      const bpY = bodyY - scale * 0.20;
+      ctx.fillStyle = '#2563eb';
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      safeRoundRect(ctx, bpX - scale * 0.24, bpY - scale * 0.16, scale * 0.48, scale * 0.30, 6);
+      ctx.fill();
+      ctx.stroke();
+      // Backpack pocket stripe
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(bpX - scale * 0.14, bpY - scale * 0.05, scale * 0.28, scale * 0.07);
+
+      // Head + Hair + Hand Covering Mouth/Nose with Wet Towel
+      const headX = bodyX + facingSign * scale * 0.34;
+      const headY = bodyY - scale * 0.08;
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(headX, headY, scale * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dark brown/black hair or safety helmet
+      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1e1b18';
+      ctx.beginPath();
+      ctx.arc(headX, headY - scale * 0.04, scale * 0.23, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.fill();
+
+      // Wet Towel / Mask covering mouth & nose
+      ctx.fillStyle = player.wetTowel || player.hasWetTowel || player.hasMask ? '#38bdf8' : '#f8fafc';
+      ctx.beginPath();
+      safeRoundRect(ctx, headX + facingSign * scale * 0.02, headY - scale * 0.01, scale * 0.20, scale * 0.14, 3);
+      ctx.fill();
+
+      // Crouching status mini pill above player
+      drawIsoBadgeLabel(ctx, tf, wx, wy, 0.95, '🧎 낮은 자세', '#059669', '#ecfdf5');
+    } else {
+      // ======================================================================
+      // Upright 3D Student Character + Blue 3D Backpack
+      // ======================================================================
+      const legSwing = Math.sin(walkPhase) * scale * 0.14;
+      const torsoY = basePt.y - scale * 0.56;
+
+      // Legs
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = Math.max(4, scale * 0.20);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(basePt.x - scale * 0.12, torsoY + scale * 0.20);
+      ctx.lineTo(basePt.x - scale * 0.14 - legSwing, basePt.y - 2);
+      ctx.moveTo(basePt.x + scale * 0.12, torsoY + scale * 0.20);
+      ctx.lineTo(basePt.x + scale * 0.14 + legSwing, basePt.y - 2);
+      ctx.stroke();
+
+      // 3D Blue Backpack (파란 책가방)
+      const bpX = basePt.x - facingSign * scale * 0.16;
+      const bpY = torsoY;
+      ctx.fillStyle = '#2563eb';
+      ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      safeRoundRect(ctx, bpX - scale * 0.18, bpY - scale * 0.22, scale * 0.36, scale * 0.44, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Torso Jacket
+      ctx.fillStyle = '#ea580c';
+      ctx.strokeStyle = '#fed7aa';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      safeRoundRect(ctx, basePt.x - scale * 0.22, torsoY - scale * 0.22, scale * 0.44, scale * 0.46, 7);
+      ctx.fill();
+      ctx.stroke();
+
+      // Head
+      const headY = torsoY - scale * 0.44;
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(basePt.x, headY, scale * 0.23, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hair / Helmet
+      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1e1b18';
+      ctx.beginPath();
+      ctx.arc(basePt.x, headY - scale * 0.05, scale * 0.24, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function renderIsometricDollhouse3D(params) {
+    const {
+      ctx,
+      canvasW,
+      canvasH,
+      cols,
+      rows,
+      grid,
+      T,
+      stageIdx,
+      player,
+      coopPartner,
+      fires,
+      smokes,
+      items,
+      now,
+      zoomScale,
+      customGear,
+      breadcrumbTarget
+    } = params;
+
+    if (!ctx || !grid || !grid.length) return null;
+    const tf = computeIsoTransform(canvasW, canvasH, cols, rows, zoomScale, player.x, player.y);
+
+    // 1. Studio Backdrop & 3D Cutaway Foundation Plinth
+    drawIsoStageBackdrop(ctx, tf, canvasW, canvasH, cols, rows, stageIdx, now);
+
+    // 2. Render Room-by-Room Floor Tiles (Back-to-Front Painter's Order)
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tile = grid[r][c];
+        if (tile !== T.WALL) {
+          drawIsoFloorTile(ctx, tf, c, r, tile, T, stageIdx, now);
+        }
+      }
+    }
+
+    // 3. Guiding Floor Breadcrumb Line from Player toward Current Objective / EXIT
+    if (breadcrumbTarget && typeof breadcrumbTarget.c === 'number' && typeof breadcrumbTarget.r === 'number') {
+      const pStart = tf.project(player.x, player.y, 0.04);
+      const pEnd = tf.project(breadcrumbTarget.c + 0.5, breadcrumbTarget.r + 0.5, 0.04);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.lineDashOffset = -now * 28;
+      ctx.beginPath();
+      ctx.moveTo(pStart.x, pStart.y);
+      ctx.lineTo(pEnd.x, pEnd.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 4. Depth-Sorted 3D Walls, Furniture, Doors, Items, Fires, Smokes & Characters
+    const fireMap = new Map();
+    if (Array.isArray(fires)) {
+      for (let i = 0; i < fires.length; i++) {
+        fireMap.set(`${fires[i].c},${fires[i].r}`, fires[i]);
+      }
+    }
+    const smokeMap = new Map();
+    if (Array.isArray(smokes)) {
+      for (let i = 0; i < smokes.length; i++) {
+        smokeMap.set(`${smokes[i].c},${smokes[i].r}`, smokes[i]);
+      }
+    }
+    const itemMap = new Map();
+    if (Array.isArray(items)) {
+      for (let i = 0; i < items.length; i++) {
+        if (!items[i].collected) {
+          itemMap.set(`${items[i].c},${items[i].r}`, items[i]);
+        }
+      }
+    }
+
+    const pCol = Math.floor(player.x);
+    const pRow = Math.floor(player.y);
+    let playerDrawn = false;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tile = grid[r][c];
+        if (tile === T.WALL || tile === T.PARTITION) {
+          drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now);
+        } else {
+          drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player);
+        }
+
+        const itObj = itemMap.get(`${c},${r}`);
+        if (itObj) {
+          drawIsoItemObject(ctx, tf, itObj, now);
+        }
+
+        const fObj = fireMap.get(`${c},${r}`);
+        if (fObj) {
+          drawIsoVolumetricFire(ctx, tf, fObj, now);
+        }
+
+        if (!playerDrawn && r === pRow && c === pCol) {
+          drawIsoArticulatedPlayer3D(ctx, tf, player, now, customGear);
+          playerDrawn = true;
+        }
+
+        const sObj = smokeMap.get(`${c},${r}`);
+        if (sObj) {
+          drawIsoBillowingSmoke(ctx, tf, sObj, now, player.crouching);
+        }
+      }
+    }
+
+    if (!playerDrawn) {
+      drawIsoArticulatedPlayer3D(ctx, tf, player, now, customGear);
+    }
+
+    if (coopPartner && coopPartner.active) {
+      drawIsoArticulatedPlayer3D(
+        ctx,
+        tf,
+        { x: coopPartner.x, y: coopPartner.y, crouching: coopPartner.crouching, dirX: 1, dirY: 0, isMoving: true },
+        now + 0.4,
+        { helmetColor: '#38bdf8' }
+      );
+    }
+
+    return tf;
+  }
+
+  // ============================================================================
+  // 01. 홈 화면: 3D Cinematic Burning Corridor & Crouching Children Illustration
+  // ============================================================================
+  function renderHomeHeroBgCanvas(canvas, now) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(320, Math.floor(rect.width || window.innerWidth || 960));
+    const h = Math.max(240, Math.floor(rect.height || window.innerHeight || 540));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const t = (now || performance.now() * 0.001);
+    ctx.save();
+
+    // 1. Deep 3D Perspective Corridor Geometry (Vanishing Point at center-right)
+    const vx = w * 0.56;
+    const vy = h * 0.44;
+
+    // Ceiling (Dark smoky slate-brown)
+    const ceilGrad = ctx.createLinearGradient(0, 0, 0, vy);
+    ceilGrad.addColorStop(0, '#090d16');
+    ceilGrad.addColorStop(1, '#261c1a');
+    ctx.fillStyle = ceilGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(vx + w * 0.14, vy - h * 0.12);
+    ctx.lineTo(vx - w * 0.16, vy - h * 0.12);
+    ctx.closePath();
+    ctx.fill();
+
+    // Left Corridor Wall (Warm lit plaster & wooden doors)
+    const leftWallGrad = ctx.createLinearGradient(0, vy, vx - w * 0.16, vy);
+    leftWallGrad.addColorStop(0, '#7c4a2b');
+    leftWallGrad.addColorStop(0.55, '#b87d4b');
+    leftWallGrad.addColorStop(1, '#4a2c1d');
+    ctx.fillStyle = leftWallGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(vx - w * 0.16, vy - h * 0.12);
+    ctx.lineTo(vx - w * 0.16, vy + h * 0.16);
+    ctx.lineTo(0, h * 0.88);
+    ctx.closePath();
+    ctx.fill();
+
+    // Right Corridor Wall (Leading to glowing green EXIT)
+    const rightWallGrad = ctx.createLinearGradient(vx + w * 0.14, vy, w, vy);
+    rightWallGrad.addColorStop(0, '#47362b');
+    rightWallGrad.addColorStop(0.65, '#8c6d53');
+    rightWallGrad.addColorStop(1, '#574335');
+    ctx.fillStyle = rightWallGrad;
+    ctx.beginPath();
+    ctx.moveTo(w, 0);
+    ctx.lineTo(vx + w * 0.14, vy - h * 0.12);
+    ctx.lineTo(vx + w * 0.14, vy + h * 0.16);
+    ctx.lineTo(w, h * 0.92);
+    ctx.closePath();
+    ctx.fill();
+
+    // Back Corridor Wall
+    ctx.fillStyle = '#2b1e19';
+    ctx.fillRect(vx - w * 0.16, vy - h * 0.12, w * 0.30, h * 0.28);
+
+    // Corridor Wood Plank Floor with Perspective Lines & Warm Fire Reflections
+    const floorGrad = ctx.createLinearGradient(0, vy + h * 0.16, 0, h);
+    floorGrad.addColorStop(0, '#5c361e');
+    floorGrad.addColorStop(0.45, '#8a5229');
+    floorGrad.addColorStop(1, '#3b2212');
+    ctx.fillStyle = floorGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.88);
+    ctx.lineTo(vx - w * 0.16, vy + h * 0.16);
+    ctx.lineTo(vx + w * 0.14, vy + h * 0.16);
+    ctx.lineTo(w, h * 0.92);
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Perspective floor plank seams
+    ctx.strokeStyle = 'rgba(40, 20, 8, 0.45)';
+    ctx.lineWidth = 1.5;
+    for (let i = -4; i <= 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(vx + i * w * 0.032, vy + h * 0.16);
+      ctx.lineTo(vx + i * w * 0.18, h);
+      ctx.stroke();
+    }
+
+    // 2. Glowing Green [🏃 EXIT] Sign & Portal on the Right Wall (matching 01. 홈 화면)
+    const exitX = w * 0.77;
+    const exitY = h * 0.34;
+    const exitGlow = ctx.createRadialGradient(exitX, exitY, 4, exitX, exitY, w * 0.16);
+    exitGlow.addColorStop(0, 'rgba(52, 211, 153, 0.78)');
+    exitGlow.addColorStop(0.5, 'rgba(16, 185, 129, 0.24)');
+    exitGlow.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = exitGlow;
+    ctx.beginPath();
+    ctx.arc(exitX, exitY, w * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Green EXIT Sign Box
+    const signW = Math.max(76, w * 0.085);
+    const signH = Math.max(30, h * 0.062);
+    ctx.fillStyle = '#059669';
+    ctx.strokeStyle = '#a7f3d0';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    safeRoundRect(ctx, exitX - signW * 0.5, exitY - signH * 0.5, signW, signH, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `900 ${Math.max(12, Math.round(signH * 0.48))}px "Inter", "Noto Sans KR", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏃 EXIT', exitX, exitY + 1);
+
+    // 3. Roaring Organic 3D Volumetric Fire & Embers on the Left/Upper Corridor
+    const fireBaseX = w * 0.22;
+    const fireBaseY = h * 0.50;
+    const fireGlow = ctx.createRadialGradient(fireBaseX, fireBaseY - h * 0.08, 12, fireBaseX, fireBaseY, w * 0.38);
+    fireGlow.addColorStop(0, 'rgba(254, 240, 138, 0.88)');
+    fireGlow.addColorStop(0.32, 'rgba(249, 115, 22, 0.62)');
+    fireGlow.addColorStop(0.68, 'rgba(220, 38, 38, 0.25)');
+    fireGlow.addColorStop(1, 'rgba(220, 38, 38, 0)');
+    ctx.fillStyle = fireGlow;
+    ctx.beginPath();
+    ctx.arc(fireBaseX, fireBaseY, w * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Left Corridor Recessed Wooden Door Frame (Engulfed in Fire)
+    ctx.fillStyle = '#3b1d0e';
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.14, h * 0.72);
+    ctx.lineTo(w * 0.14, h * 0.22);
+    ctx.lineTo(w * 0.25, h * 0.27);
+    ctx.lineTo(w * 0.25, h * 0.65);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Organic S-Curved Multi-Layer Flame Tongues
+    for (let i = 0; i < 11; i++) {
+      const phase = t * 5.4 + i * 0.85;
+      const fx = w * (0.08 + i * 0.032) + Math.sin(phase) * 7;
+      const fy = h * (0.64 - (i % 4) * 0.035);
+      const fh = h * (0.22 + 0.09 * Math.sin(phase * 1.25));
+      const fw = w * (0.044 - (i % 3) * 0.006);
+      const sway1 = Math.sin(phase + 0.7) * fw * 0.85;
+      const sway2 = Math.cos(phase * 1.3) * fw * 0.95;
+
+      const fg = ctx.createLinearGradient(fx, fy, fx + sway2, fy - fh);
+      fg.addColorStop(0, 'rgba(185, 28, 28, 0.92)');
+      fg.addColorStop(0.38, 'rgba(249, 115, 22, 0.90)');
+      fg.addColorStop(0.78, 'rgba(253, 224, 71, 0.85)');
+      fg.addColorStop(1, 'rgba(254, 249, 195, 0)');
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      ctx.moveTo(fx - fw, fy);
+      ctx.bezierCurveTo(
+        fx - fw * 0.75 + sway1, fy - fh * 0.35,
+        fx - fw * 0.25 - sway1, fy - fh * 0.75,
+        fx + sway2 * 0.6, fy - fh
+      );
+      ctx.bezierCurveTo(
+        fx + fw * 0.35 + sway2, fy - fh * 0.72,
+        fx + fw * 0.85 - sway1, fy - fh * 0.32,
+        fx + fw, fy
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Floating Glowing Fire Embers
+    for (let e = 0; e < 18; e++) {
+      const ep = (t * 0.65 + e * 0.17) % 1;
+      const ex = w * (0.10 + (e * 0.043) % 0.45) + Math.sin(t * 3 + e) * 14;
+      const ey = h * (0.62 - ep * 0.48);
+      ctx.fillStyle = e % 2 === 0 ? `rgba(254, 240, 138, ${1 - ep})` : `rgba(251, 146, 60, ${1 - ep})`;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2.2 + (e % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Billowing Upper Dark Smoke Clouds
+    for (let s = 0; s < 11; s++) {
+      const sx = w * (0.06 + s * 0.088) + Math.sin(t * 0.9 + s) * 14;
+      const sy = h * (0.10 + (s % 3) * 0.055);
+      const sr = w * (0.095 + (s % 4) * 0.025);
+      const sg = ctx.createRadialGradient(sx, sy, 6, sx, sy, sr);
+      sg.addColorStop(0, 'rgba(15, 23, 42, 0.86)');
+      sg.addColorStop(0.62, 'rgba(30, 41, 59, 0.52)');
+      sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Two Crouching Children with Blue Backpacks Escaping Low Along the Corridor Floor
+    drawHomeHeroCrouchingChild(ctx, w * 0.38, h * 0.63, Math.min(w, h) * 0.155, t, '#ea580c', '#2563eb');
+    drawHomeHeroCrouchingChild(ctx, w * 0.56, h * 0.55, Math.min(w, h) * 0.118, t + 1.2, '#d97706', '#0284c7');
+
+    ctx.restore();
+  }
+
+  function drawHomeHeroCrouchingChild(ctx, cx, cy, size, t, jacketColor, backpackColor) {
+    const bob = Math.sin(t * 4.2) * size * 0.04;
+    ctx.save();
+    // Floor shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + size * 0.42, size * 0.62, size * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crouched Legs (Dark Pants)
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = size * 0.22;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - size * 0.15, cy + size * 0.1 + bob);
+    ctx.lineTo(cx - size * 0.42, cy + size * 0.34);
+    ctx.lineTo(cx - size * 0.12, cy + size * 0.36);
+    ctx.stroke();
+
+    // Torso (Leaning Forward Low)
+    ctx.fillStyle = jacketColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + bob, size * 0.38, size * 0.24, -0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Blue 3D Backpack on Back
+    ctx.fillStyle = backpackColor;
+    ctx.strokeStyle = '#93c5fd';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    safeRoundRect(ctx, cx - size * 0.34, cy - size * 0.32 + bob, size * 0.46, size * 0.30, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // Head + Hair + Hand Covering Mouth/Nose
+    const hx = cx + size * 0.32;
+    const hy = cy - size * 0.12 + bob;
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(hx, hy, size * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1c1917';
+    ctx.beginPath();
+    ctx.arc(hx, hy - size * 0.04, size * 0.23, Math.PI * 0.92, Math.PI * 2.08);
+    ctx.fill();
+
+    // Sleeve / Wet Towel covering nose & mouth
+    ctx.fillStyle = '#bae6fd';
+    ctx.beginPath();
+    safeRoundRect(ctx, hx + size * 0.02, hy - size * 0.02, size * 0.20, size * 0.14, 4);
+    ctx.fill();
+    ctx.restore();
+  }
+
   window.FireEscape.Tactical3D = {
     drawThermalVisionOverlay,
     computeIndoorAirflowVector,
@@ -3084,6 +4350,11 @@
     drawArticulatedCompanion3DFPS,
     draw3DHologramFocusAndBeaconDiorama,
     draw3DHologramFocusAndBeaconFPS,
-    drawCameraMorphTransitionOverlay
+    drawCameraMorphTransitionOverlay,
+    // v29: 02 레스큐 컨트롤 45° Isometric Dollhouse & Home 3D Scene Exports
+    computeIsoTransform,
+    screenToIsoTile,
+    renderIsometricDollhouse3D,
+    renderHomeHeroBgCanvas
   };
 })();
