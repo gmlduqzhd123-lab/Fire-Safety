@@ -942,6 +942,32 @@
         <button id="btnCopyClassUrl" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">🔗 학급링크 복사</button>
       </div>
 
+      <!-- Strategy #10: Classroom Random Student Number Picker (오늘의 119 출동 대원 뽑기) -->
+      <div class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-1.5 whitespace-nowrap">
+          <span class="font-extrabold text-amber-300">🎲 오늘의 119 출동 대원 뽑기:</span>
+          <label class="inline-flex items-center gap-1 text-slate-300 font-bold">
+            <span>인원</span>
+            <input id="classTotalStudentsInput" type="number" min="1" max="50" value="25" aria-label="학급 총 인원수" class="w-14 px-2 py-1 rounded bg-slate-900 border border-slate-700 text-amber-200 font-mono font-bold text-center" />
+            <span>명</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-1.5 whitespace-nowrap">
+          <span id="randomStudentResultBadge" class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-emerald-300 font-extrabold whitespace-nowrap">대기 중</span>
+          <button id="btnPickRandomStudent" type="button" class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold transition whitespace-nowrap">🎰 출동 번호 추첨</button>
+        </div>
+      </div>
+
+      <!-- Strategy #8: Serverless 4-Char Safety Code Quick Registration -->
+      <div class="p-2.5 rounded-xl bg-slate-950 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-1.5 text-xs">
+        <span class="font-extrabold text-emerald-300 whitespace-nowrap">🔑 4자리 안전코드 랭킹 등록:</span>
+        <div class="flex items-center gap-1.5 flex-1 min-w-[200px] justify-end">
+          <input id="quickSafetyStudentInput" type="text" maxlength="14" placeholder="이름(예: 7번 김민준)" aria-label="학생 이름" class="w-28 sm:w-32 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold text-xs" />
+          <input id="quickSafetyCodeInput" type="text" maxlength="6" placeholder="코드(예: 1S95)" aria-label="4자리 안전코드" class="w-24 px-2.5 py-1 rounded-lg bg-slate-900 border border-emerald-500/50 text-emerald-300 font-mono font-extrabold text-xs uppercase text-center" />
+          <button id="btnRegisterQuickSafetyCode" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold whitespace-nowrap shrink-0">➕ 코드 등록</button>
+        </div>
+      </div>
+
       <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2">
         <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
           <span id="classBoardTitle" class="text-xs font-extrabold text-amber-300">🏆 우리 반 안전 대피 명예의 전당</span>
@@ -991,7 +1017,13 @@
             <div class="text-slate-400 text-[10px] whitespace-nowrap">해결 근거·대피 전략 발표</div>
           </div>
         </div>
-        <div class="text-[11px] text-slate-300 bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800 whitespace-nowrap overflow-x-auto no-scrollbar">⏱️ <strong>40분 수업 예시:</strong> 도입(5분: 역할·조작 시연) → 전개(30분: 구역별 대피·퍼즐 실습) → 정리(5분: 진단표·성찰 공유)</div>
+        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-purple-500/40">
+          <div class="text-[11px] text-slate-200 whitespace-nowrap overflow-x-auto no-scrollbar">
+            ⏱️ <strong class="text-purple-300">40분 1차시 자동 가이드:</strong>
+            <span id="lessonTimerStatusBadge" class="text-amber-300 font-extrabold ml-1">대기 중 (도입 5분 → 실습 20분 → 릴레이 10분 → 정리 5분)</span>
+          </div>
+          <button id="btnClassLessonTimer" type="button" class="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-[11px] whitespace-nowrap shrink-0">▶️ 40분 수업 타이머 시작</button>
+        </div>
       </div>
 
       <div class="space-y-2">
@@ -1751,10 +1783,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=27"></script>
-  <script src="./stages.js?v=27"></script>
-  <script src="./editor.js?v=27"></script>
-  <script src="./tactical-3d.js?v=27"></script>
-  <script src="./game.js?v=27"></script>
+  <script src="./sound.js?v=28"></script>
+  <script src="./stages.js?v=28"></script>
+  <script src="./editor.js?v=28"></script>
+  <script src="./tactical-3d.js?v=28"></script>
+  <script src="./game.js?v=28"></script>
 </body>
 </html>

@@ -308,6 +308,19 @@
       this.playTone(440, 'triangle', 0.1, 0.15);
       setTimeout(() => this.playTone(660, 'triangle', 0.18, 0.15), 100);
     },
+    comboChime(comboCount = 1) {
+      if (this.muted) return;
+      const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+      const baseFreq = scale[Math.min(scale.length - 1, Math.max(0, comboCount - 1))];
+      this.playTone(baseFreq, 'triangle', 0.12, 0.14, baseFreq * 1.25);
+      setTimeout(() => this.playTone(baseFreq * 1.25, 'sine', 0.16, 0.13, baseFreq * 1.5), 75);
+    },
+    lessonBell() {
+      if (this.muted) return;
+      this.playTone(659.25, 'sine', 0.22, 0.15);
+      setTimeout(() => this.playTone(523.25, 'sine', 0.28, 0.15), 200);
+      setTimeout(() => this.playTone(783.99, 'triangle', 0.35, 0.16), 420);
+    },
     bell() {
       this.playTone(880, 'square', 0.12, 0.14);
       setTimeout(() => this.playTone(987, 'square', 0.18, 0.14), 130);

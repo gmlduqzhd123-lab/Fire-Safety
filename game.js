@@ -416,6 +416,83 @@
   let screenShakeTimer = 0;
   let heartbeatTimer = 0;
   let guidePingTimer = 0;
+  // --- v28 10 Zero-Clutter Participation & Fun Strategies State ---
+  let idleAssistTimer = 0;
+  let safetyComboCount = 0;
+  let safetyComboTimer = 0;
+  let activeBonusQuest = null;
+  let bestStageGhosts = {};
+  try {
+    const savedGhosts = JSON.parse(localStorage.getItem('fire_escape_stage_ghosts') || 'null');
+    if (savedGhosts && typeof savedGhosts === 'object') {
+      bestStageGhosts = savedGhosts;
+    }
+  } catch (e) {}
+
+  const BONUS_QUEST_POOL = [
+    {
+      id: 'fast_45',
+      shortLabel: '⚡보너스: 45초 내 탈출(+300점)',
+      check: () => elapsedSeconds <= 45
+    },
+    {
+      id: 'door_safety',
+      shortLabel: '🚪보너스: 문 온도확인·방화문 실천(+300점)',
+      check: () => (metrics.doorHeatChecked || 0) >= 1 || (player.fireDoorsClosed || 0) >= 1
+    },
+    {
+      id: 'high_o2',
+      shortLabel: '💨보너스: 산소 70% 이상 유지(+300점)',
+      check: () => player.o2 >= 70
+    },
+    {
+      id: 'crouch_master',
+      shortLabel: '🧎보너스: 연기 속 낮은자세 실천(+300점)',
+      check: () => metrics.smokeTimeTotal <= 0.5 || (metrics.smokeTimeCrouched / Math.max(0.1, metrics.smokeTimeTotal)) >= 0.6
+    }
+  ];
+
+  function registerSafetyCombo(actionLabel) {
+    safetyComboCount = Math.min(9, safetyComboCount + 1);
+    safetyComboTimer = 14.0;
+    const comboBonus = safetyComboCount * 30;
+    score += comboBonus;
+    if (typeof SoundFX.comboChime === 'function') {
+      SoundFX.comboChime(safetyComboCount);
+    }
+    const comboTitles = ['안전 대원', '침착 대응', '명예 소방관', '119 안전영웅', '재난 마스터'];
+    const title = comboTitles[Math.min(comboTitles.length - 1, safetyComboCount - 1)];
+    if (safetyComboCount >= 2) {
+      addFloatText(player.x, player.y - 0.42, `🔥 안전 ${safetyComboCount}콤보(${title})! +${comboBonus}`, '#fde047');
+    }
+  }
+
+  function generateShortSafetyCode(stgIdx, gradeChar, scoreVal) {
+    const stDigit = activeCustomStage ? 'C' : String(Math.max(0, Math.min(9, stgIdx + 1)));
+    const gChar = (gradeChar === 'S' || gradeChar === 'A' || gradeChar === 'B') ? gradeChar : 'S';
+    const hund = String(Math.max(10, Math.min(99, Math.round((Number(scoreVal) || 1000) / 100)))).padStart(2, '0');
+    return `${stDigit}${gChar}${hund}`;
+  }
+
+  function getInterpolatedGhostPos() {
+    if (activeCustomStage || gameState !== 'PLAYING') return null;
+    const key = `s${currentStageIdx}`;
+    const ghost = bestStageGhosts[key];
+    if (!ghost || !Array.isArray(ghost.points) || ghost.points.length < 2 || !(ghost.duration > 0)) return null;
+    if (elapsedSeconds > ghost.duration + 1.5) return null;
+    const ratio = Math.max(0, Math.min(1, elapsedSeconds / ghost.duration));
+    const exactIdx = ratio * (ghost.points.length - 1);
+    const i0 = Math.floor(exactIdx);
+    const i1 = Math.min(ghost.points.length - 1, i0 + 1);
+    const frac = exactIdx - i0;
+    const p0 = ghost.points[i0];
+    const p1 = ghost.points[i1] || p0;
+    return {
+      x: p0.x + (p1.x - p0.x) * frac,
+      y: p0.y + (p1.y - p0.y) * frac,
+      duration: ghost.duration
+    };
+  }
   let customGear = {
     helmetColor: '#ef4444',
     honorTitle: '용감한 대피 대장'
@@ -618,7 +695,12 @@
     choices.forEach((ch, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.innerHTML = `<span>${ch.label}</span><span class="kb-indicator text-xs opacity-90 shrink-0 font-mono px-1.5 py-0.5 rounded bg-black/25">▶</span>`;
+      const gestureTag = idx === 0
+        ? '<span class="px-1.5 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 text-[10px] font-black mr-1.5 shrink-0">🙆‍♂️ 머리O</span>'
+        : (idx === 1
+          ? '<span class="px-1.5 py-0.5 rounded bg-rose-500/25 border border-rose-400/50 text-rose-200 text-[10px] font-black mr-1.5 shrink-0">🙅‍♂️ 가슴X</span>'
+          : '<span class="px-1.5 py-0.5 rounded bg-amber-500/25 border border-amber-400/50 text-amber-200 text-[10px] font-black mr-1.5 shrink-0">🙋 손들기</span>');
+      btn.innerHTML = `<span class="inline-flex items-center min-w-0 truncate">${gestureTag}<span class="truncate">${ch.label}</span></span><span class="kb-indicator text-xs opacity-90 shrink-0 font-mono px-1.5 py-0.5 rounded bg-black/25">▶</span>`;
       btn.addEventListener('mouseenter', () => {
         if (eduSelectedIndex !== idx) {
           eduSelectedIndex = idx;
@@ -834,10 +916,17 @@
     player.carryingToy = false;
     player.hurtCooldown = 0;
     player.usedReviveChance = false;
+    player.secondWindUsed = false;
     player.customQuizSolved = false;
     rescuedCompanions = [];
     autoGuideTimer = 0;
     autoGuidePath = [];
+    idleAssistTimer = 0;
+    safetyComboCount = 0;
+    safetyComboTimer = 0;
+    activeBonusQuest = st.isPreventionMode
+      ? null
+      : BONUS_QUEST_POOL[(currentStageIdx + (customStageObj ? 1 : 0)) % BONUS_QUEST_POOL.length];
     relayCurrentRunner = 1;
     relayBatonTriggered = {};
     if (isSpeedDrillMode && runOptions.mode !== 'practice') {
@@ -889,7 +978,9 @@
     bookSortOrder = ['430', '425.2', '480', '425.12', '450', '440'];
 
     stageBadge.textContent = (st.name || '').split('[')[0].trim();
-    missionShort.textContent = st.mission;
+    missionShort.textContent = activeBonusQuest
+      ? `${st.mission} · [${activeBonusQuest.shortLabel}]`
+      : st.mission;
 
     const stageButtons = [
       { btn: btnStage1, idx: 0 },
@@ -1738,6 +1829,7 @@
           extinguishedCount++;
           metrics.correctExtinguishCount++;
           unlockBadge('pass_ext');
+          registerSafetyCombo('소화기 진압');
           if (isSpec) {
             specialExtinguished++;
             score += 200;
@@ -2346,6 +2438,7 @@
           unlockBadge('wet_towel');
           SoundFX.water();
           score += 250;
+          registerSafetyCombo('젖은 수건');
           addFloatText(c + 0.5, r + 0.5, '젖은 수건 + 물보충! +250', '#38bdf8');
           showToast('💧 게임 속 수건·물 보충 완료! 수건은 유독가스를 막거나 산소를 공급하지 않습니다. 대피를 늦추지 마세요!', 'border-sky-400');
         } else {
@@ -2369,6 +2462,7 @@
           interactedDoors.add(openKey);
           metrics.doorHeatChecked++;
           score += 50;
+          registerSafetyCombo('문 온도 확인');
           addFloatText(c + 0.5, r + 0.5, '손등 온도확인 후 개방! +50', '#a7f3d0');
           showToast('🤚🚪 문을 열었습니다! 통과한 뒤 문을 다시 닫으면 연기 확산을 물리적으로 막을 수 있습니다!');
           if (!findNearestTileOfTypes([TILE.ALARM_BELL]) && triggerTeacherCustomQuizIfPending(c, r)) {
@@ -2405,6 +2499,7 @@
           player.fireDoorsClosed++;
           unlockBadge('fire_door');
           score += 150;
+          registerSafetyCombo('방화문 닫기');
           addFloatText(c + 0.5, r + 0.5, '방화문 닫기(연기차단)! +150', '#818cf8');
           showToast('🚪🛡️ [방화문 닫기 완료!] 지나온 문을 닫아 불길과 유독가스가 문 너머로 번지는 것을 물리적으로 차단했습니다! (+150점)', 'border-indigo-400');
         } else {
@@ -2536,6 +2631,7 @@
           SoundFX.bell();
           SoundFX.speak('불이야! 화재가 발생했습니다! 모두 비상구로 대피하세요!');
           score += 250;
+          registerSafetyCombo('비상벨 발신');
           addFloatText(c + 0.5, r + 0.5, '🔔 비상벨 발신! "불이야!" +250', '#facc15');
           showToast('🔔 [화재 비상벨 발신!] "불이야!" 큰 소리로 외치고 비상벨을 눌러 이웃과 친구들에게 대피를 알렸습니다! (+250점)', 'border-yellow-400');
           if (triggerTeacherCustomQuizIfPending(c, r)) {
@@ -2832,20 +2928,32 @@
     itemsHtml.push(`<div class="whitespace-nowrap truncate">${metrics.waterOnSpecialFireMistake === 0 ? '✅' : '❌'} <strong>연소·방화문 차단:</strong> 화재 진압 <strong>${metrics.correctExtinguishCount}회</strong> · 방화문 <strong>${player.fireDoorsClosed}회</strong></div>`);
     itemsHtml.push(`<div class="whitespace-nowrap truncate">${metrics.backdraftTriggered === 0 ? '✅' : '❌'} <strong>문 온도·특수피난:</strong> 문 확인 <strong>${metrics.doorHeatChecked}회</strong>${metrics.usedPartition ? ' · 🧱칸막이' : ''}${metrics.usedLifeline ? ' · 🪢완강기' : ''}</div>`);
     itemsHtml.push(`<div class="whitespace-nowrap truncate">${(player.alarmRung || player.rescuedNpcs > 0 || metrics.called119 || isCoopMode) ? '✅' : '💡'} <strong>협동·신고·퍼즐:</strong> ${player.alarmRung ? '🔔비상벨 ' : ''}${player.rescuedNpcs > 0 ? `🧒구조 ${player.rescuedNpcs}명 ` : ''}${metrics.called119 ? '📞119신고 ' : ''}${safeSolved ? '🔐금고 ' : ''}${wireSolved ? '⚡배선 ' : ''}(힌트 ${hintLog.length}회)</div>`);
+    if (activeBonusQuest) {
+      const qPassed = !!activeBonusQuest.check();
+      itemsHtml.push(`<div class="whitespace-nowrap truncate">${qPassed ? '🎁' : '🎯'} <strong>돌발 보너스 미션:</strong> ${activeBonusQuest.shortLabel} — <strong>${qPassed ? '달성 완료!' : '다음 도전'}</strong></div>`);
+    }
 
     debriefChecklist.innerHTML = itemsHtml.join('');
 
+    let gChar = 'S';
     if (isGameOver) {
+      gChar = 'F';
       debriefGrade.textContent = '대피 실패 · 재도전 필요 (미수료)';
       debriefGrade.className = 'px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold text-[10px] sm:text-[11px]';
     } else if (metrics.waterOnSpecialFireMistake > 0 || metrics.backdraftTriggered > 0) {
-      debriefGrade.textContent = '안전 수칙 복습 필요 (B등급)';
+      gChar = 'B';
+      const shortCode = generateShortSafetyCode(currentStageIdx, 'B', score);
+      debriefGrade.textContent = `안전 수칙 복습 필요 (B등급 · 코드:${shortCode})`;
       debriefGrade.className = 'px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold text-[10px] sm:text-[11px]';
     } else if (crouchPct < 60 || !metrics.ignoredOrDroppedToy) {
-      debriefGrade.textContent = '우수 안전 대원 (A등급)';
+      gChar = 'A';
+      const shortCode = generateShortSafetyCode(currentStageIdx, 'A', score);
+      debriefGrade.textContent = `우수 안전 대원 (A등급 · 코드:${shortCode})`;
       debriefGrade.className = 'px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold text-[10px] sm:text-[11px]';
     } else {
-      debriefGrade.textContent = '최우수 안전 대원 (S등급)';
+      gChar = 'S';
+      const shortCode = generateShortSafetyCode(currentStageIdx, 'S', score);
+      debriefGrade.textContent = `최우수 안전 대원 (S등급 · 코드:${shortCode})`;
       debriefGrade.className = 'px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px] sm:text-[11px]';
     }
 
@@ -2946,8 +3054,24 @@
     const timeBonus = Math.max(0, Math.round((90 - elapsedSeconds) * 8));
     const vitalsBonus = Math.round((player.hp + player.o2) * 2);
     const coopBonus = isCoopMode ? 300 : 0;
-    const safetyBonus = (player.wetTowel ? 200 : 0) + (player.fireDoorsClosed * 100) + (player.rescuedNpcs * 250) + (player.rescuedDog ? 300 : 0) + coopBonus;
+    const questBonus = (activeBonusQuest && activeBonusQuest.check()) ? 300 : 0;
+    const safetyBonus = (player.wetTowel ? 200 : 0) + (player.fireDoorsClosed * 100) + (player.rescuedNpcs * 250) + (player.rescuedDog ? 300 : 0) + coopBonus + questBonus;
     score += timeBonus + vitalsBonus + safetyBonus;
+
+    // Strategy #7: Save Best-Record Ghost Trajectory for this stage
+    if (!activeCustomStage && pathHistory.length >= 2) {
+      const gKey = `s${currentStageIdx}`;
+      const curDur = Number(Math.max(2.0, elapsedSeconds).toFixed(1));
+      if (!bestStageGhosts[gKey] || curDur <= bestStageGhosts[gKey].duration) {
+        bestStageGhosts[gKey] = {
+          duration: curDur,
+          points: pathHistory.slice(0, 80).map(pt => ({ x: Number(pt.x.toFixed(2)), y: Number(pt.y.toFixed(2)) }))
+        };
+        try {
+          localStorage.setItem('fire_escape_stage_ghosts', JSON.stringify(bestStageGhosts));
+        } catch (e) {}
+      }
+    }
     saveBestScore(score);
     updateHUD();
 
@@ -3296,6 +3420,23 @@
         SoundFX.speakRadioCoaching('경고! 산소와 체력이 위험 수준입니다. 즉시 낮은 자세로 비상구로 탈출하십시오!', true);
       }
     }
+    // Strategy #3: Second Wind (119 구조대 긴급 산소 보급 — Stage-once auto-save when O2 or HP drops <= 18%)
+    if (!st.isPreventionMode && !player.secondWindUsed && (player.o2 <= 18 || player.hp <= 18)) {
+      player.secondWindUsed = true;
+      player.o2 = Math.min(100, player.o2 + 45);
+      player.hp = Math.min(100, Math.max(player.hp, 40));
+      player.hurtCooldown = 3.0;
+      SoundFX.pickup();
+      if (typeof SoundFX.speakRadioCoaching === 'function') {
+        SoundFX.speakRadioCoaching('구조대 긴급 지원! 비상용 산소 호흡기와 보호막을 가동합니다! 포기하지 말고 탈출하세요!', true);
+      }
+      addFloatText(player.x, player.y - 0.35, '🛟 119 긴급 산소 보급! +45% O2', '#38bdf8');
+      showToast('🛟 [119 구조대 긴급 산소 보급!] 위기 감지! 비상용 산소 호흡기(+45% O2)와 3초 보호막이 자동 가동되었습니다!', 'border-sky-400');
+    }
+    if (safetyComboTimer > 0) {
+      safetyComboTimer = Math.max(0, safetyComboTimer - dt);
+      if (safetyComboTimer <= 0) safetyComboCount = 0;
+    }
     // Idea #3: Auto-trigger ceiling sprinklers when alarm rung or multiple fires burn
     if (!st.isPreventionMode && !player.sprinklerActive && (player.alarmRung || (fires.length >= 2 && hazardExposure > 16))) {
       player.sprinklerActive = true;
@@ -3561,6 +3702,7 @@
 
       isMoving = (mvX !== 0 || mvY !== 0);
       if (isMoving) {
+        idleAssistTimer = 0;
         const len = Math.hypot(mvX, mvY);
         mvX /= len;
         mvY /= len;
@@ -3590,6 +3732,33 @@
 
     const currentSpeed = Math.hypot(playerVelX, playerVelY);
     const hasVelocity = currentSpeed > 0.02;
+    if (isMoving || hasVelocity) {
+      idleAssistTimer = 0;
+    } else {
+      idleAssistTimer += dt;
+    }
+
+    // Strategy #2: Auto-Interact when One-Tap Move Target arrives near an interactive object/door
+    if (pointerMoveTarget && typeof pointerMoveTarget.targetCol === 'number' && autoInteractCooldown <= 0) {
+      const tc = pointerMoveTarget.targetCol;
+      const tr = pointerMoveTarget.targetRow;
+      const distToTapTile = Math.hypot((tc + 0.5) - player.x, (tr + 0.5) - player.y);
+      if (distToTapTile <= 1.25) {
+        const tapItemIdx = items.findIndex(it => it.c === tc && it.r === tr);
+        const tapTile = (grid[tr] && grid[tr][tc]) || 0;
+        if (tapItemIdx !== -1) {
+          pointerMoveTarget = null;
+          autoInteractCooldown = 0.4;
+          triggerInteraction({ kind: 'item', index: tapItemIdx, item: items[tapItemIdx] });
+        } else if (
+          [TILE.DOOR, TILE.HOT_DOOR, TILE.LOCKED_DOOR, TILE.SINK, TILE.DEBRIS, TILE.GAS_VALVE, TILE.PHONE_119, TILE.BREAKER, TILE.LIFELINE, TILE.PARTITION, TILE.HAZARD, TILE.ALARM_BELL, TILE.FURNITURE].includes(tapTile)
+        ) {
+          pointerMoveTarget = null;
+          autoInteractCooldown = 0.4;
+          triggerInteraction({ kind: 'tile', c: tc, r: tr, tile: tapTile });
+        }
+      }
+    }
 
     if (isMoving || hasVelocity) {
       const probeDirX = player.dirX || mvX;
@@ -7094,6 +7263,28 @@
       }
     }
 
+    // Strategy #7: Render Best-Record Ghost Runner in 1st-Person 3D View
+    const fpsGhostPos = getInterpolatedGhostPos();
+    if (fpsGhostPos) {
+      const gp = project3DPoint(fpsGhostPos.x, fpsGhostPos.y, 0.34, 0.15);
+      if (gp && gp.depth > 0.25 && gp.depth < 7.5 && isPointVisibleInZBuffer(gp.x, gp.depth - 0.12)) {
+        const gr = Math.max(8, Math.min(28, 36 / gp.depth));
+        ctx.save();
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.34)';
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.88)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(gp.x, gp.y, gr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = 'bold 10px "Noto Sans KR", sans-serif';
+        ctx.fillStyle = '#bae6fd';
+        ctx.textAlign = 'center';
+        ctx.fillText(`👻최고기록`, gp.x, gp.y - gr - 6);
+        ctx.restore();
+      }
+    }
+
     // 4B. Realistic Upper-Ceiling Toxic Smoke Accumulation Layer & Fresh-Air Floor Zone (Smoothly responds to crouchVisualLerp via Shift!)
     if (smokes && smokes.length > 0) {
       const smokeHazeRatio = 0.80 - crouchVisualLerp * 0.42;
@@ -7526,6 +7717,58 @@
       if (nextObj && !player.onFire && typeof Tac3D.drawNeonBreadcrumbPathDiorama === 'function') {
         const escapePathDio = getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r);
         Tac3D.drawNeonBreadcrumbPathDiorama(ctx, escapePathDio, player, tileSize, now);
+        // Strategy #1: 3s Idle Smart Footstep Breadcrumbs
+        if (idleAssistTimer >= 3.0 && Array.isArray(escapePathDio) && escapePathDio.length > 0) {
+          ctx.save();
+          const maxSteps = Math.min(8, escapePathDio.length);
+          for (let si = 0; si < maxSteps; si++) {
+            const stepTile = escapePathDio[si];
+            const fx = (stepTile.c + 0.5) * tileSize;
+            const fy = (stepTile.r + 0.5) * tileSize;
+            const pulse = 0.55 + 0.45 * Math.sin(now * 6 - si * 0.7);
+            ctx.fillStyle = `rgba(16, 185, 129, ${(0.32 * pulse).toFixed(2)})`;
+            ctx.beginPath();
+            ctx.arc(fx, fy, tileSize * 0.24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.font = `${Math.max(10, Math.floor(tileSize * 0.28))}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👣', fx, fy);
+          }
+          ctx.restore();
+        }
+      }
+      // Strategy #2: One-Tap Target Beacon Ring
+      if (pointerMoveTarget) {
+        ctx.save();
+        const tx = pointerMoveTarget.x * tileSize;
+        const ty = pointerMoveTarget.y * tileSize;
+        const rPulse = tileSize * (0.24 + 0.08 * Math.sin(now * 8));
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(tx, ty, rPulse, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      // Strategy #7: Best-Record Ghost Runner on Floor
+      const ghostPos = getInterpolatedGhostPos();
+      if (ghostPos) {
+        ctx.save();
+        const gx = ghostPos.x * tileSize;
+        const gy = ghostPos.y * tileSize;
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.85)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(gx, gy, tileSize * 0.26, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.19))}px "Noto Sans KR", sans-serif`;
+        ctx.fillStyle = '#bae6fd';
+        ctx.textAlign = 'center';
+        ctx.fillText(`👻최고기록`, gx, gy - tileSize * 0.34);
+        ctx.restore();
       }
     }
 
@@ -8750,7 +8993,13 @@
       }
     }
 
-    pointerMoveTarget = { x: gx, y: gy };
+    pointerMoveTarget = {
+      x: gx,
+      y: gy,
+      persistentTap: !!isTapStart,
+      targetCol: c,
+      targetRow: r
+    };
   }
 
   canvas.addEventListener('pointerdown', (e) => {
@@ -8794,7 +9043,9 @@
   window.addEventListener('pointerup', () => {
     canvasPointerDown = false;
     canvasIsDraggingLook = false;
-    pointerMoveTarget = null;
+    if (pointerMoveTarget && !pointerMoveTarget.persistentTap) {
+      pointerMoveTarget = null;
+    }
   });
 
   window.addEventListener('pointercancel', () => {
@@ -9882,6 +10133,151 @@
       } catch (e) {}
       renderClassModal();
       showToast('🗑️ 학급 명예의 전당 기록이 초기화되었습니다.');
+    });
+  }
+
+  // --- Strategy #10: Classroom Random Student Number Picker (오늘의 119 출동 대원 뽑기) ---
+  const classTotalStudentsInput = document.getElementById('classTotalStudentsInput');
+  const randomStudentResultBadge = document.getElementById('randomStudentResultBadge');
+  const btnPickRandomStudent = document.getElementById('btnPickRandomStudent');
+  let pickedStudentPool = [];
+
+  if (btnPickRandomStudent) {
+    btnPickRandomStudent.addEventListener('click', () => {
+      SoundFX.init();
+      const total = Math.max(1, Math.min(50, parseInt((classTotalStudentsInput && classTotalStudentsInput.value) || '25', 10) || 25));
+      if (classTotalStudentsInput) classTotalStudentsInput.value = String(total);
+      let candidates = [];
+      for (let n = 1; n <= total; n++) {
+        if (!pickedStudentPool.includes(n)) candidates.push(n);
+      }
+      if (candidates.length === 0) {
+        pickedStudentPool = [];
+        for (let n = 1; n <= total; n++) candidates.push(n);
+      }
+      const picked = candidates[Math.floor(Math.random() * candidates.length)];
+      pickedStudentPool.push(picked);
+      if (typeof SoundFX.lessonBell === 'function') SoundFX.lessonBell();
+      else SoundFX.win();
+      if (randomStudentResultBadge) {
+        randomStudentResultBadge.textContent = `🚒 ${picked}번 대원 출동!`;
+      }
+      const quickStudentEl = document.getElementById('quickSafetyStudentInput');
+      if (quickStudentEl && !quickStudentEl.value.trim()) {
+        quickStudentEl.value = `${picked}번 대원`;
+      }
+      if (studentNameInput) {
+        studentNameInput.value = `${picked}번 대원`;
+      }
+      showToast(`🎰 [오늘의 119 출동 대원 추첨!] ${picked}번 학생이 출동 대원으로 선정되었습니다!`, 'border-amber-400');
+    });
+  }
+
+  // --- Strategy #8: Serverless 4-Char Safety Code Quick Registration ---
+  const quickSafetyStudentInput = document.getElementById('quickSafetyStudentInput');
+  const quickSafetyCodeInput = document.getElementById('quickSafetyCodeInput');
+  const btnRegisterQuickSafetyCode = document.getElementById('btnRegisterQuickSafetyCode');
+
+  if (btnRegisterQuickSafetyCode) {
+    btnRegisterQuickSafetyCode.addEventListener('click', () => {
+      SoundFX.init();
+      const sName = ((quickSafetyStudentInput && quickSafetyStudentInput.value) || '').trim() || '용감한 대원';
+      const rawCode = ((quickSafetyCodeInput && quickSafetyCodeInput.value) || '').trim().toUpperCase();
+      if (rawCode.length < 3) {
+        SoundFX.warning();
+        showToast('⚠️ 학생 결과 화면에 표시된 4자리 안전코드(예: 1S19)를 입력해 주세요!', 'border-amber-400');
+        return;
+      }
+      // Decode 4-char code [StageDigit][GradeChar][2-DigitScoreHundreds] (e.g., 1S19 -> Stage 1, S grade, 1900 pts)
+      const stChar = rawCode[0];
+      const gChar = ['S', 'A', 'B'].includes(rawCode[1]) ? rawCode[1] : 'S';
+      const numPart = parseInt(rawCode.slice(2).replace(/[^0-9]/g, ''), 10);
+      const parsedScore = Number.isFinite(numPart) && numPart > 0 ? (numPart < 100 ? numPart * 100 : numPart) : 1800;
+      const stIdx = parseInt(stChar, 10);
+      const stName = (!isNaN(stIdx) && stIdx >= 1 && stIdx <= STAGES.length)
+        ? (STAGES[stIdx - 1] ? STAGES[stIdx - 1].name.split('[')[0].trim() : `${stIdx}단계`)
+        : '오늘의 챌린지';
+      const board = getClassLeaderboard();
+      board.push({
+        classCode: (currentClassCode || '우리 반').trim(),
+        studentName: sName,
+        stageName: `${stName} (${gChar}등급)`,
+        score: parsedScore,
+        grade: `${gChar}등급`,
+        date: new Date().toISOString()
+      });
+      board.sort((a, b) => (b.score || 0) - (a.score || 0));
+      try {
+        localStorage.setItem('fire_escape_class_board', JSON.stringify(board.slice(0, 30)));
+      } catch (e) {}
+      if (quickSafetyCodeInput) quickSafetyCodeInput.value = '';
+      renderClassModal();
+      SoundFX.win();
+      showToast(`🏆 [${sName}] 대원의 안전코드(${rawCode} · ${parsedScore.toLocaleString()}점)가 우리 반 명예의 전당에 등록되었습니다!`, 'border-emerald-400');
+    });
+  }
+
+  // --- Strategy #9: 40-Minute Automated Classroom Lesson Timer & Phase Guide ---
+  const btnClassLessonTimer = document.getElementById('btnClassLessonTimer');
+  const lessonTimerStatusBadge = document.getElementById('lessonTimerStatusBadge');
+  let lessonTimerIntervalId = null;
+  let lessonElapsedSec = 0;
+  let lessonLastPhaseIdx = -1;
+
+  const LESSON_PHASES = [
+    { limitSec: 300, name: '1/4 도입 브리핑(5분)', toast: '📽️ [수업 1단계: 도입 5분] 핵심 과학·안전 원리 브리핑 슬라이드로 대류 현상과 소화 원리를 소개하세요!' },
+    { limitSec: 1500, name: '2/4 대피 실습(20분)', toast: '🏃 [수업 2단계: 개인·모둠 실습 20분] 학생들이 1~7단계 화재 현장을 직접 탈출하며 안전 수칙을 체득합니다!' },
+    { limitSec: 2100, name: '3/4 학급 릴레이·골든벨(10분)', toast: '🔔 [수업 3단계: 학급 릴레이 & 골든벨 10분] 4인 모둠 릴레이 또는 전자칠판 손들기 O/X 골든벨을 진행하세요!' },
+    { limitSec: 2400, name: '4/4 수료증·정리(5분)', toast: '🏅 [수업 4단계: 마무리 5분] 4자리 안전코드를 학급 랭킹에 등록하고 명예 소방관 수료증을 발급하세요!' }
+  ];
+
+  function updateLessonTimerUI() {
+    if (!lessonTimerStatusBadge || !btnClassLessonTimer) return;
+    if (!lessonTimerIntervalId) {
+      lessonTimerStatusBadge.textContent = '대기 중 (도입 5분 → 실습 20분 → 릴레이 10분 → 정리 5분)';
+      btnClassLessonTimer.textContent = '▶️ 40분 수업 타이머 시작';
+      return;
+    }
+    const remTotal = Math.max(0, 2400 - lessonElapsedSec);
+    const mm = String(Math.floor(remTotal / 60)).padStart(2, '0');
+    const ss = String(remTotal % 60).padStart(2, '0');
+    let phaseIdx = LESSON_PHASES.findIndex(p => lessonElapsedSec < p.limitSec);
+    if (phaseIdx === -1) phaseIdx = LESSON_PHASES.length - 1;
+    const curPhase = LESSON_PHASES[phaseIdx];
+    lessonTimerStatusBadge.textContent = `🟢 [${curPhase.name}] 남은 수업시간 ${mm}:${ss}`;
+    btnClassLessonTimer.textContent = '⏹️ 수업 타이머 종료';
+    if (phaseIdx !== lessonLastPhaseIdx) {
+      lessonLastPhaseIdx = phaseIdx;
+      if (typeof SoundFX.lessonBell === 'function') SoundFX.lessonBell();
+      showToast(curPhase.toast, 'border-purple-400');
+    }
+  }
+
+  if (btnClassLessonTimer) {
+    btnClassLessonTimer.addEventListener('click', () => {
+      SoundFX.init();
+      if (lessonTimerIntervalId) {
+        clearInterval(lessonTimerIntervalId);
+        lessonTimerIntervalId = null;
+        lessonElapsedSec = 0;
+        lessonLastPhaseIdx = -1;
+        updateLessonTimerUI();
+        showToast('⏹️ 40분 자동 수업 타이머가 종료되었습니다.');
+      } else {
+        lessonElapsedSec = 0;
+        lessonLastPhaseIdx = -1;
+        lessonTimerIntervalId = setInterval(() => {
+          lessonElapsedSec++;
+          if (lessonElapsedSec >= 2400) {
+            clearInterval(lessonTimerIntervalId);
+            lessonTimerIntervalId = null;
+            if (typeof SoundFX.lessonBell === 'function') SoundFX.lessonBell();
+            showToast('🎉 [40분 1차시 안전 수업 완료!] 모든 대원이 훌륭하게 대피 훈련을 마쳤습니다!', 'border-emerald-400');
+          }
+          updateLessonTimerUI();
+        }, 1000);
+        updateLessonTimerUI();
+      }
     });
   }
 
