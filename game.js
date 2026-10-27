@@ -1568,6 +1568,9 @@
 
     let normalExtinguished = 0;
     let hazardTriggered = false;
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerHandActionRecoil === 'function') {
+      window.FireEscape.Tactical3D.triggerHandActionRecoil('bucket');
+    }
 
     // Improvement #4: Cancel nearby pendingHazards when pouring water
     for (let pIdx = pendingHazards.length - 1; pIdx >= 0; pIdx--) {
@@ -1770,6 +1773,10 @@
       showToast(`🧯 불길 확산 예고 지점 ${canceledPending}곳을 사전에 방어했습니다! (+${canceledPending * 30}점)`, 'border-sky-400');
     } else {
       showToast('🧯 소화기를 분사했습니다. 바람을 등지고 불길 뿌리 쪽을 향해 분사하세요!', 'border-slate-600');
+    }
+
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerHandActionRecoil === 'function') {
+      window.FireEscape.Tactical3D.triggerHandActionRecoil('spray');
     }
 
     updateHUD();
@@ -2542,6 +2549,9 @@
       } else if (tile === TILE.DEBRIS) {
         if (player.hasAxe) {
           grid[r][c] = TILE.FLOOR;
+          if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerHandActionRecoil === 'function') {
+            window.FireEscape.Tactical3D.triggerHandActionRecoil('axe');
+          }
           if (typeof SoundFX.debrisBreak === 'function') SoundFX.debrisBreak();
           else SoundFX.unlock();
           for (let k = 0; k < 18; k++) {
@@ -4255,7 +4265,11 @@
   function toggleCamera3DMode() {
     SoundFX.init();
     SoundFX.pickup();
+    const prevMode = cameraMode3D;
     cameraMode3D = cameraMode3D === 'DIORAMA_3D' ? 'FPS_3D' : 'DIORAMA_3D';
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.triggerCameraMorphTransition === 'function') {
+      window.FireEscape.Tactical3D.triggerCameraMorphTransition(prevMode, cameraMode3D);
+    }
     const iconEl = document.getElementById('camera3DIcon');
     const textEl = document.getElementById('camera3DText');
     const zoomBtnEl = document.getElementById('btnMapZoomToggle');
@@ -5848,6 +5862,9 @@
     ceilGrad.addColorStop(1, '#1e293b');
     ctx.fillStyle = ceilGrad;
     ctx.fillRect(0, 0, width, horizon);
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.drawStageThemedCeilingAndSkyboxFPS === 'function') {
+      window.FireEscape.Tactical3D.drawStageThemedCeilingAndSkyboxFPS(ctx, width, horizon, currentStageIdx, fpsCamYaw, powerRestored, now);
+    }
 
     const floorGrad = ctx.createLinearGradient(0, horizon, 0, height);
     floorGrad.addColorStop(0, '#0f172a');
@@ -6102,10 +6119,13 @@
       ctx.fill();
     }
 
-    // 3. Optimized 3D Architectural Wall Shader with Adaptive Ray Count (4x fewer draw calls with crisp 2-3px columns)
+    // 3. Optimized 3D Architectural Wall Shader with Adaptive Ray Count & Dynamic 3D LOD Scaling (#10)
     const qSetting = (appSettings && appSettings.graphicsQuality) || 'auto';
     const rayBudget = qSetting === 'low' ? 160 : (qSetting === 'normal' ? 220 : (qSetting === 'high' ? 380 : 240));
-    const numRays = Math.min(rayBudget, Math.max(140, Math.floor(width * 0.40)));
+    const lodMul = (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.getDynamic3DLod === 'function')
+      ? (window.FireEscape.Tactical3D.getDynamic3DLod().rayMultiplier || 1.0)
+      : 1.0;
+    const numRays = Math.min(rayBudget, Math.max(120, Math.floor(width * 0.40 * lodMul)));
     const zBuffer = new Float32Array(numRays);
     const visibleWallFixtures = new Map();
 
@@ -7260,12 +7280,27 @@
     ctx.fillText(pBadgeText, charFootX, headTopY - 11.5);
     ctx.restore();
 
-    // Improvement #2, #4, #5, #6, #9: Draw 3D Neon Breadcrumbs, Smoke Exit Bloom, Door Ripples, Base-Aim & Compass Bar in FPS_3D
+    // Improvement #2, #4, #5, #6, #9 & 10-Point 3D Screen Advancements in FPS_3D
     const Tac3D = window.FireEscape && window.FireEscape.Tactical3D;
     if (Tac3D) {
       const escapePathFPS = nextObj ? getCachedShortestEscapePath(Math.floor(player.x), Math.floor(player.y), nextObj.c, nextObj.r) : [];
+      if (typeof Tac3D.drawFloorSpecularFPS === 'function') {
+        Tac3D.drawFloorSpecularFPS(ctx, fires, exitLightSources, project3DPoint, isPointVisibleInZBuffer, horizon, width, height, now);
+      }
       if (typeof Tac3D.drawNeonBreadcrumbPathFPS === 'function') {
         Tac3D.drawNeonBreadcrumbPathFPS(ctx, escapePathFPS, player, smokes, guideSigns, grid, TILE, projectClipped3DPolygon, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.drawConvectionSmokeLayersFPS === 'function') {
+        Tac3D.drawConvectionSmokeLayersFPS(ctx, width, height, horizon, smokes, player, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.drawHeatShimmerAndRisingEmbersFPS === 'function') {
+        Tac3D.drawHeatShimmerAndRisingEmbersFPS(ctx, fires, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.drawArticulatedCompanion3DFPS === 'function') {
+        Tac3D.drawArticulatedCompanion3DFPS(ctx, width, height, items, rescuedCompanions, player, project3DPoint, isPointVisibleInZBuffer, now);
+      }
+      if (typeof Tac3D.draw3DHologramFocusAndBeaconFPS === 'function') {
+        Tac3D.draw3DHologramFocusAndBeaconFPS(ctx, focusTarget, nextObj, player, project3DPoint, isPointVisibleInZBuffer, now);
       }
       if (typeof Tac3D.drawDoorEffectsFPS === 'function') {
         Tac3D.drawDoorEffectsFPS(ctx, project3DPoint, isPointVisibleInZBuffer);
@@ -7279,22 +7314,16 @@
       if (typeof Tac3D.drawColorblindPatternsFPS === 'function') {
         Tac3D.drawColorblindPatternsFPS(ctx, fires, smokes, project3DPoint, isPointVisibleInZBuffer, appSettings && appSettings.colorblindMode);
       }
+      if (typeof Tac3D.drawFirstPersonHandViewModel === 'function') {
+        Tac3D.drawFirstPersonHandViewModel(ctx, width, height, player, fpsWalkPhase, fpsForwardSurge, fpsTurnBias, now, reduceMot);
+      }
       if (typeof Tac3D.drawShelterInPlaceOverlay === 'function') {
         Tac3D.drawShelterInPlaceOverlay(ctx, width, height, shelterInPlaceState);
+      }
       if (typeof Tac3D.drawThermalVisionOverlay === 'function') {
         Tac3D.drawThermalVisionOverlay(ctx, width, height, {
           active: thermalVisionActive, isFps: true, fires, items, grid, rows: ROWS, cols: COLS, TILE, project3DPoint, now
         });
-      }
-      if (typeof Tac3D.drawExtinguisherSweepGaugeOverlay === 'function') {
-        Tac3D.drawExtinguisherSweepGaugeOverlay(ctx, width, height, sweepGaugeState, currentAirflowDraft);
-      }
-      if (typeof Tac3D.drawEarthquakeTremorOverlay === 'function') {
-        Tac3D.drawEarthquakeTremorOverlay(ctx, width, height, earthquakeState, player.crouching);
-      }
-      if (typeof Tac3D.drawSpatialAudioRadarHUD === 'function') {
-        Tac3D.drawSpatialAudioRadarHUD(ctx, width, height, SoundFX.lastAcousticCue);
-      }
       }
       if (typeof Tac3D.drawCriticalVitalsShaderOverlay === 'function') {
         Tac3D.drawCriticalVitalsShaderOverlay(ctx, width, height, player.hp, player.o2, now, appSettings && appSettings.reduceMotion);
@@ -7319,6 +7348,9 @@
       }
       if (typeof Tac3D.draw3DCompassBar === 'function') {
         Tac3D.draw3DCompassBar(ctx, width, height, { player, fpsCamYaw, nextObj });
+      }
+      if (typeof Tac3D.drawCameraMorphTransitionOverlay === 'function') {
+        Tac3D.drawCameraMorphTransitionOverlay(ctx, width, height);
       }
       if (cinematicReplayState && cinematicReplayState.active && typeof Tac3D.drawCinematicReplayHUD === 'function') {
         Tac3D.drawCinematicReplayHUD(ctx, width, height, cinematicReplayState);
@@ -7471,15 +7503,23 @@
     ctx.closePath();
     ctx.fill();
 
+    // Strategy #5: Stage-Themed 3D Exterior Skybox & Architectural Backdrop
+    if (window.FireEscape && window.FireEscape.Tactical3D && typeof window.FireEscape.Tactical3D.drawStageThemedExteriorDiorama === 'function') {
+      window.FireEscape.Tactical3D.drawStageThemedExteriorDiorama(ctx, boardW, boardH, wallH, currentStageIdx, now);
+    }
+
     // 1. Floor Pass: Draw Cached 3D Architectural Room Flooring in 1 blit
     const floorCache = getDioramaFloorCache(tileSize);
     if (floorCache) {
       ctx.drawImage(floorCache, 0, 0, boardW, boardH);
     }
 
-    // Improvement #4: Draw 3-Second Floor Hazard Warnings & 3D Neon Breadcrumb Path in DIORAMA_3D
+    // Improvement #4 & Strategy #4: Draw 3-Second Floor Hazard Warnings, Real-Time Floor Specular Reflections & 3D Neon Breadcrumb Path in DIORAMA_3D
     if (window.FireEscape && window.FireEscape.Tactical3D) {
       const Tac3D = window.FireEscape.Tactical3D;
+      if (typeof Tac3D.drawFloorSpecularAndSoftShadowsDiorama === 'function') {
+        Tac3D.drawFloorSpecularAndSoftShadowsDiorama(ctx, fires, guideSigns, grid, ROWS, COLS, TILE, tileSize, now);
+      }
       if (pendingHazards && pendingHazards.length > 0 && typeof Tac3D.drawPendingHazardsDiorama === 'function') {
         Tac3D.drawPendingHazardsDiorama(ctx, pendingHazards, tileSize, now);
       }
@@ -7598,8 +7638,15 @@
             northT === TILE.PARTITION
           );
           const isSouthOfPlayer = (r > pRow && r <= pRow + 2 && Math.abs(c - pCol) <= 2);
-          const isCutawayWall = (r === ROWS - 1) || isSouthOfDoor || (isCloseUp && isSouthOfPlayer);
-          const curWallH = isCutawayWall ? wallH * 0.16 : wallH;
+          const isSouthOfCompanion = rescuedCompanions.some(comp => {
+            const cr = Math.floor(comp.y);
+            const cc = Math.floor(comp.x);
+            return r > cr && r <= cr + 2 && Math.abs(c - cc) <= 1;
+          });
+          const isSouthOfItem = items.some(it => r > it.r && r <= it.r + 1 && Math.abs(c - it.c) <= 1);
+          const isSmartXrayWall = (r !== ROWS - 1) && (isSouthOfPlayer || isSouthOfCompanion || isSouthOfItem);
+          const isCutawayWall = (r === ROWS - 1) || isSouthOfDoor || isSmartXrayWall;
+          const curWallH = isCutawayWall ? wallH * (isSmartXrayWall ? 0.24 : 0.16) : wallH;
           const hasRightWall = c < COLS - 1 && grid[r][c + 1] === TILE.WALL;
           const hasBottomWall = r < ROWS - 1 && grid[r + 1][c] === TILE.WALL;
           const bX = Math.max(3, tileSize * 0.14);
@@ -7614,8 +7661,8 @@
           }
 
           ctx.save();
-          if (isSouthOfPlayer && r !== ROWS - 1) {
-            ctx.globalAlpha = 0.72;
+          if (isSmartXrayWall) {
+            ctx.globalAlpha = 0.36;
           }
 
           if (!hasRightWall) {
@@ -7666,8 +7713,8 @@
           }
           ctx.fillStyle = '#f1f5f9';
           ctx.fillRect(x + 2, y - curWallH + 2, tileSize - 4, Math.max(3, tileSize * 0.13));
-          ctx.strokeStyle = 'rgba(15, 23, 42, 0.50)';
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = isSmartXrayWall ? 'rgba(56, 189, 248, 0.85)' : 'rgba(15, 23, 42, 0.50)';
+          ctx.lineWidth = isSmartXrayWall ? 1.6 : 1;
           ctx.strokeRect(x, y - curWallH, tileSize, roofH);
           ctx.restore();
         } else if (t === TILE.FURNITURE) {
@@ -8232,9 +8279,21 @@
       ctx.restore();
     }
 
-    // Idea #2 & #6: Draw 3D Door Swing / Thermal Ripple Effects & Fire Base-Aim Reticle in DIORAMA_3D
+    // Idea #2 & #6 & 10-Point 3D Screen Advancements in DIORAMA_3D
     if (window.FireEscape && window.FireEscape.Tactical3D) {
       const Tac3D = window.FireEscape.Tactical3D;
+      if (typeof Tac3D.drawConvectionSmokeLayersDiorama === 'function') {
+        Tac3D.drawConvectionSmokeLayersDiorama(ctx, smokes, player, tileSize, wallH, crouchVisualLerp, now);
+      }
+      if (typeof Tac3D.drawHeatShimmerAndRisingEmbersDiorama === 'function') {
+        Tac3D.drawHeatShimmerAndRisingEmbersDiorama(ctx, fires, grid, ROWS, COLS, TILE, tileSize, wallH, now);
+      }
+      if (typeof Tac3D.drawArticulatedCompanion3DDiorama === 'function') {
+        Tac3D.drawArticulatedCompanion3DDiorama(ctx, items, rescuedCompanions, player, tileSize, wallH, now);
+      }
+      if (typeof Tac3D.draw3DHologramFocusAndBeaconDiorama === 'function') {
+        Tac3D.draw3DHologramFocusAndBeaconDiorama(ctx, activeTargetDiorama, nextObj, player, tileSize, wallH, now);
+      }
       if (typeof Tac3D.drawDoorEffectsDiorama === 'function') {
         Tac3D.drawDoorEffectsDiorama(ctx, tileSize, now);
       }
@@ -8289,6 +8348,9 @@
       }
       if (typeof Tac3D.drawLifelineDescentOverlay === 'function') {
         Tac3D.drawLifelineDescentOverlay(ctx, width, height);
+      }
+      if (typeof Tac3D.drawCameraMorphTransitionOverlay === 'function') {
+        Tac3D.drawCameraMorphTransitionOverlay(ctx, width, height);
       }
       if (cinematicReplayState && cinematicReplayState.active && typeof Tac3D.drawCinematicReplayHUD === 'function') {
         Tac3D.drawCinematicReplayHUD(ctx, width, height, cinematicReplayState);

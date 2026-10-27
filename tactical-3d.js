@@ -60,6 +60,9 @@
         lifelineAnim.active = false;
       }
     }
+    if (typeof updateDynamic3DLod === 'function') {
+      updateDynamic3DLod(dt);
+    }
   }
 
   function drawDoorEffectsDiorama(ctx, tileSize, now) {
@@ -1980,6 +1983,1036 @@
     ctx.fillText('✓ 119 소방안전 교육 공식 점검 완료 · 화재 탈출 넘버원 3D', w - 26, h - 22);
   }
 
+  // =========================================================================
+  // 10-POINT 3D SCREEN ADVANCEMENT ENGINE (v26)
+  // =========================================================================
+
+  // --- Strategy #7 & #3 & #10 State: Camera Morph Transition, Hand Recoil & Dynamic 3D LOD ---
+  const cameraMorphState = {
+    active: false,
+    fromMode: 'DIORAMA_3D',
+    toMode: 'FPS_3D',
+    timer: 0,
+    duration: 0.42
+  };
+
+  const handActionRecoilState = {
+    timer: 0,
+    duration: 0.28,
+    kind: 'spray' // 'spray' | 'axe' | 'bucket' | 'interact'
+  };
+
+  const dynamic3DLodState = {
+    emaDt: 0.0166,
+    rayMultiplier: 1.0,
+    particleStride: 1,
+    fpsEstimate: 60
+  };
+
+  function triggerCameraMorphTransition(fromMode, toMode) {
+    cameraMorphState.active = true;
+    cameraMorphState.fromMode = fromMode || 'DIORAMA_3D';
+    cameraMorphState.toMode = toMode || 'FPS_3D';
+    cameraMorphState.timer = 0;
+  }
+
+  function triggerHandActionRecoil(kind = 'spray') {
+    handActionRecoilState.kind = kind;
+    handActionRecoilState.duration = kind === 'axe' ? 0.34 : 0.26;
+    handActionRecoilState.timer = handActionRecoilState.duration;
+  }
+
+  function updateDynamic3DLod(dt) {
+    if (dt > 0.001 && dt < 0.25) {
+      dynamic3DLodState.emaDt = dynamic3DLodState.emaDt * 0.90 + dt * 0.10;
+      const fps = Math.round(1 / Math.max(0.008, dynamic3DLodState.emaDt));
+      dynamic3DLodState.fpsEstimate = Math.min(120, Math.max(15, fps));
+      if (dynamic3DLodState.emaDt > 0.026) {
+        dynamic3DLodState.rayMultiplier = Math.max(0.68, dynamic3DLodState.rayMultiplier - dt * 0.45);
+        dynamic3DLodState.particleStride = 2;
+      } else if (dynamic3DLodState.emaDt < 0.0185) {
+        dynamic3DLodState.rayMultiplier = Math.min(1.0, dynamic3DLodState.rayMultiplier + dt * 0.35);
+        dynamic3DLodState.particleStride = 1;
+      }
+    }
+    if (cameraMorphState.active) {
+      cameraMorphState.timer += dt;
+      if (cameraMorphState.timer >= cameraMorphState.duration) {
+        cameraMorphState.active = false;
+      }
+    }
+    if (handActionRecoilState.timer > 0) {
+      handActionRecoilState.timer = Math.max(0, handActionRecoilState.timer - dt);
+    }
+  }
+
+  function getDynamic3DLod() {
+    return dynamic3DLodState;
+  }
+
+  // --- Strategy #1: Convection-Based 2-Layer 3D Volumetric Smoke & Fresh Air Survival Zone ---
+  function drawConvectionSmokeLayersDiorama(ctx, smokes, player, tileSize, wallH, crouchLerp, now) {
+    if (!smokes || smokes.length === 0) return;
+    ctx.save();
+    const isCrouching = !!(player && player.crouching);
+
+    for (let i = 0; i < smokes.length; i++) {
+      const s = smokes[i];
+      const sx = (s.c + 0.5) * tileSize;
+      const floorY = (s.r + 0.58) * tileSize;
+      const ceilY = (s.r + 0.45) * tileSize - wallH * (0.62 + 0.12 * crouchLerp);
+      const drift = Math.sin(now * 1.4 + (s.phase || i)) * tileSize * 0.09;
+
+      // 1) Lower Fresh-Air Survival Zone (생존 공기층 30~60cm) near Floor
+      const freshAlpha = isCrouching ? 0.28 : 0.12;
+      ctx.fillStyle = `rgba(16, 185, 129, ${freshAlpha})`;
+      ctx.strokeStyle = isCrouching ? 'rgba(52, 211, 153, 0.72)' : 'rgba(52, 211, 153, 0.28)';
+      ctx.lineWidth = isCrouching ? 1.6 : 1.0;
+      ctx.beginPath();
+      ctx.ellipse(sx, floorY, tileSize * 0.42, tileSize * 0.18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 2) Upper Ceiling Toxic Convection Smoke Layer (천장 열기·유독연기 축적층)
+      const upperAlpha = isCrouching ? 0.34 : 0.54;
+      const grad = ctx.createRadialGradient(
+        sx + drift * 0.5, ceilY - tileSize * 0.06, tileSize * 0.08,
+        sx + drift, ceilY, tileSize * 0.54
+      );
+      grad.addColorStop(0, `rgba(15, 23, 42, ${upperAlpha + 0.14})`);
+      grad.addColorStop(0.65, `rgba(51, 65, 85, ${upperAlpha})`);
+      grad.addColorStop(1, 'rgba(30, 41, 59, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(sx + drift, ceilY, tileSize * 0.54, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Floating educational indicator above player when crouching in/near smoke
+    if (isCrouching && player) {
+      const nearSmoke = smokes.some(s => Math.hypot((s.c + 0.5) - player.x, (s.r + 0.5) - player.y) <= 2.3);
+      if (nearSmoke) {
+        const px = player.x * tileSize;
+        const py = player.y * tileSize + tileSize * 0.34;
+        ctx.fillStyle = 'rgba(6, 78, 59, 0.90)';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 1.3;
+        ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+        const msg = '🌿 바닥 생존 공기층(30~60cm) 호흡 중';
+        const tw = ctx.measureText(msg).width + 10;
+        const th = Math.max(13, Math.floor(tileSize * 0.24));
+        ctx.fillRect(px - tw * 0.5, py - th * 0.5, tw, th);
+        ctx.strokeRect(px - tw * 0.5, py - th * 0.5, tw, th);
+        ctx.fillStyle = '#a7f3d0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(msg, px, py);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawConvectionSmokeLayersFPS(ctx, width, height, horizon, smokes, player, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (!smokes || smokes.length === 0 || !project3DPoint) return;
+    ctx.save();
+    const isCrouching = !!(player && player.crouching);
+
+    for (let i = 0; i < smokes.length; i++) {
+      const s = smokes[i];
+      const wx = s.c + 0.5;
+      const wy = s.r + 0.5;
+      // Project Upper Ceiling Smoke Plume (wz = 0.82) & Lower Fresh-Air Band (wz = 0.12)
+      const ceilPt = project3DPoint(wx, wy, 0.82, 0.25);
+      if (ceilPt && ceilPt.depth <= 7.5 && (!isPointVisibleInZBuffer || isPointVisibleInZBuffer(ceilPt.x, ceilPt.depth - 0.15))) {
+        const rad = Math.min(width * 0.32, Math.max(18, (145 / ceilPt.depth)));
+        const driftX = Math.sin(now * 1.3 + (s.phase || i)) * (14 / ceilPt.depth);
+        const alpha = Math.max(0.08, Math.min(0.55, (1 - ceilPt.depth / 8.0) * (isCrouching ? 0.36 : 0.52)));
+        const sg = ctx.createRadialGradient(ceilPt.x + driftX, ceilPt.y, rad * 0.15, ceilPt.x + driftX, ceilPt.y, rad);
+        sg.addColorStop(0, `rgba(15, 23, 42, ${alpha})`);
+        sg.addColorStop(0.6, `rgba(51, 65, 85, ${alpha * 0.75})`);
+        sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(ceilPt.x + driftX, ceilPt.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const floorPt = project3DPoint(wx, wy, 0.10, 0.25);
+      if (floorPt && floorPt.depth <= 6.2 && (!isPointVisibleInZBuffer || isPointVisibleInZBuffer(floorPt.x, floorPt.depth - 0.15))) {
+        const rx = Math.min(width * 0.22, Math.max(12, 78 / floorPt.depth));
+        const ry = Math.max(4, rx * 0.32);
+        const fAlpha = isCrouching ? 0.34 : 0.15;
+        ctx.fillStyle = `rgba(16, 185, 129, ${fAlpha})`;
+        ctx.strokeStyle = isCrouching ? 'rgba(52, 211, 153, 0.78)' : 'rgba(52, 211, 153, 0.32)';
+        ctx.lineWidth = isCrouching ? 1.8 : 1.0;
+        ctx.beginPath();
+        ctx.ellipse(floorPt.x, floorPt.y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // Screen-space Stratified Layer Band Indicator when Crouching in/near Smoke
+    const nearSmoke = player && smokes.some(s => Math.hypot((s.c + 0.5) - player.x, (s.r + 0.5) - player.y) <= 2.6);
+    if (nearSmoke) {
+      if (isCrouching) {
+        const bandH = Math.max(26, height * 0.08);
+        const fg = ctx.createLinearGradient(0, height - bandH, 0, height);
+        fg.addColorStop(0, 'rgba(16, 185, 129, 0)');
+        fg.addColorStop(1, 'rgba(16, 185, 129, 0.22)');
+        ctx.fillStyle = fg;
+        ctx.fillRect(0, height - bandH, width, bandH);
+      } else {
+        const topBand = Math.max(36, horizon * 0.55);
+        const tg = ctx.createLinearGradient(0, 0, 0, topBand);
+        tg.addColorStop(0, 'rgba(15, 23, 42, 0.62)');
+        tg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        ctx.fillStyle = tg;
+        ctx.fillRect(0, 0, width, topBand);
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #3: First-Person 3D (FPS_3D) Equipped Hand View-Model & Action Recoil ---
+  function drawFirstPersonHandViewModel(ctx, width, height, player, walkPhase, forwardSurge, turnBias, now, reduceMotion) {
+    if (!player) return;
+    ctx.save();
+    const bobX = reduceMotion ? 0 : Math.cos(walkPhase || 0) * (4.5 * (forwardSurge || 0)) - (turnBias || 0) * 10;
+    const bobY = reduceMotion ? 0 : Math.abs(Math.sin(walkPhase || 0)) * (5.5 * (forwardSurge || 0));
+    const recoilProgress = handActionRecoilState.timer > 0
+      ? Math.sin((handActionRecoilState.timer / Math.max(0.05, handActionRecoilState.duration)) * Math.PI)
+      : 0;
+
+    const scale = Math.max(0.72, Math.min(1.18, Math.min(width, height) / 560));
+
+    // 1. LEFT HAND VIEW-MODEL (Wet Towel / Gas Mask / Flashlight)
+    if (player.wetTowel || player.hasTowel || player.hasMask || player.hasFlashlight) {
+      ctx.save();
+      const lx = width * 0.14 + bobX * 0.7;
+      const ly = height - 18 * scale + bobY * 0.7;
+      ctx.translate(lx, ly);
+      ctx.scale(scale, scale);
+
+      if (player.hasMask) {
+        // 3D Respirator Filter Canister Badge on lower-left periphery
+        ctx.fillStyle = 'rgba(15, 118, 110, 0.86)';
+        ctx.strokeStyle = '#5eead4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-52, -54, 108, 44, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(-26, -32, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ccfbf1';
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('😷 방독면 필터 가동', -8, -28);
+      } else if (player.wetTowel || player.hasTowel) {
+        // 3D Left Forearm + Hand Holding Folded Wet/Dry Towel near Mouth/Nose
+        const isWet = !!player.wetTowel;
+        const wetness = Math.round(typeof player.towelWetness === 'number' ? player.towelWetness : 100);
+        // Forearm sleeve
+        ctx.fillStyle = '#1d4ed8';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-48, 24);
+        ctx.lineTo(-18, -38);
+        ctx.lineTo(18, -30);
+        ctx.lineTo(-8, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Folded 3D Towel
+        ctx.fillStyle = isWet ? '#0284c7' : '#eab308';
+        ctx.strokeStyle = isWet ? '#bae6fd' : '#fef08a';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.roundRect(-24, -68, 86, 42, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Water droplets when wet
+        if (isWet) {
+          const dropY = (now * 18) % 14;
+          ctx.fillStyle = '#7dd3fc';
+          ctx.beginPath();
+          ctx.arc(14, -22 + dropY, 3.2, 0, Math.PI * 2);
+          ctx.arc(36, -25 + ((dropY + 7) % 14), 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Thumb & fingers gripping towel
+        ctx.fillStyle = '#fed7aa';
+        ctx.strokeStyle = '#7c2d12';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(4, -40, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 10.5px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(isWet ? `💧젖은수건 ${wetness}%` : '🧣마른수건(적시기 필요)', 19, -47);
+      } else if (player.hasFlashlight) {
+        // Left hand holding tactical 3D flashlight
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-24, -56, 68, 26, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(42, -43, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // 2. RIGHT HAND VIEW-MODEL (Extinguisher / Fire Axe / Water Bucket)
+    const hasExt = (player.extinguisherCharges || 0) > 0;
+    const hasAxe = !!player.hasAxe;
+    const hasBucket = (player.waterCharges || 0) > 0;
+
+    if (hasExt || hasAxe || hasBucket) {
+      ctx.save();
+      const rx = width * 0.85 - bobX * 0.8 - recoilProgress * 14;
+      const ry = height - 14 * scale + bobY * 0.85 + recoilProgress * 8;
+      ctx.translate(rx, ry);
+      ctx.scale(scale, scale);
+      if (recoilProgress > 0 && handActionRecoilState.kind === 'axe') {
+        ctx.rotate(-recoilProgress * 0.48);
+      }
+
+      if (hasExt) {
+        // 3D Red Fire Extinguisher Cylinder, Brass Valve, Pressure Gauge & Aimed Nozzle Hose
+        ctx.fillStyle = '#b91c1c';
+        ctx.strokeStyle = '#fca5a5';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-28, -82, 58, 86, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Specular highlight stripe on cylinder
+        ctx.fillStyle = 'rgba(254, 202, 202, 0.28)';
+        ctx.fillRect(-16, -76, 10, 74);
+
+        // Metallic Valve & Handle Assembly
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(-12, -98, 24, 16);
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-10, -96);
+        ctx.lineTo(24, -106);
+        ctx.stroke();
+
+        // Pressure Gauge (Green normal zone)
+        ctx.fillStyle = '#22c55e';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, -88, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Black Hose & Horn Nozzle pointing toward 3D center-screen fire base
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(-12, -90);
+        ctx.quadraticCurveTo(-48, -92, -66, -68);
+        ctx.stroke();
+
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-62, -73);
+        ctx.lineTo(-86, -82);
+        ctx.lineTo(-82, -58);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Spray jet cone when recoil is active
+        if (recoilProgress > 0.05 && handActionRecoilState.kind === 'spray') {
+          const jetGrad = ctx.createLinearGradient(-84, -70, -185, -110);
+          jetGrad.addColorStop(0, 'rgba(224, 242, 254, 0.85)');
+          jetGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+          ctx.fillStyle = jetGrad;
+          ctx.beginPath();
+          ctx.moveTo(-84, -70);
+          ctx.lineTo(-190, -135);
+          ctx.lineTo(-170, -75);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Charge count badge on cylinder
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-22, -52, 46, 20);
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`🧯x${player.extinguisherCharges}`, 1, -38);
+      } else if (hasAxe) {
+        // 3D Fire Axe Held in Right Hand
+        ctx.fillStyle = '#78350f';
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 1.8;
+        ctx.fillRect(-10, -96, 14, 98);
+        ctx.strokeRect(-10, -96, 14, 98);
+
+        ctx.fillStyle = '#e2e8f0';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(-10, -90);
+        ctx.lineTo(-48, -104);
+        ctx.lineTo(-44, -64);
+        ctx.lineTo(-10, -72);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (hasBucket) {
+        // 3D Water Bucket
+        ctx.fillStyle = '#2563eb';
+        ctx.strokeStyle = '#93c5fd';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-28, -68, 56, 64, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.ellipse(0, -64, 24, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`🪣x${player.waterCharges}`, 0, -32);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #4: Real-Time Floor Specular Reflections & Soft Directional 3D Shadows ---
+  function drawFloorSpecularAndSoftShadowsDiorama(ctx, fires, guideSigns, grid, rows, cols, TILE, tileSize, now) {
+    ctx.save();
+    // 1. Anisotropic Floor Specular Highlights from Active Fires
+    if (fires && fires.length > 0) {
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const fx = (f.c + 0.5) * tileSize;
+        const fy = (f.r + 0.72) * tileSize;
+        const pulse = 0.82 + 0.18 * Math.sin(now * 6.4 + (f.phase || i));
+        const isElec = f.fireType === 'electric';
+        const specGrad = ctx.createRadialGradient(fx, fy, tileSize * 0.05, fx, fy, tileSize * 1.15 * pulse);
+        specGrad.addColorStop(0, isElec ? 'rgba(125, 211, 252, 0.34)' : 'rgba(254, 240, 138, 0.34)');
+        specGrad.addColorStop(0.5, isElec ? 'rgba(56, 189, 248, 0.14)' : 'rgba(251, 146, 60, 0.16)');
+        specGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = specGrad;
+        ctx.beginPath();
+        ctx.ellipse(fx, fy, tileSize * 1.15 * pulse, tileSize * 0.52 * pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 2. Emerald Floor Specular Sheen in front of Emergency Exits (TILE.EXIT)
+    if (grid && TILE) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === TILE.EXIT) {
+            const ex = (c + 0.5) * tileSize;
+            const ey = (r + 0.65) * tileSize;
+            const eg = ctx.createRadialGradient(ex, ey, tileSize * 0.06, ex, ey, tileSize * 1.25);
+            eg.addColorStop(0, 'rgba(110, 231, 183, 0.32)');
+            eg.addColorStop(0.55, 'rgba(16, 185, 129, 0.14)');
+            eg.addColorStop(1, 'rgba(16, 185, 129, 0)');
+            ctx.fillStyle = eg;
+            ctx.beginPath();
+            ctx.ellipse(ex, ey, tileSize * 1.2, tileSize * 0.65, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawFloorSpecularFPS(ctx, fires, exitLightSources, project3DPoint, isPointVisibleInZBuffer, horizon, width, height, now) {
+    if (!project3DPoint) return;
+    ctx.save();
+    // Glossy vertical specular streaks on perspective floor from fires
+    if (fires && fires.length > 0) {
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const pt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.02, 0.22);
+        if (!pt || pt.depth > 7.5 || pt.y < horizon) continue;
+        if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.2)) continue;
+        const rx = Math.min(width * 0.22, Math.max(14, 92 / pt.depth));
+        const ry = Math.min(height * 0.18, Math.max(10, 64 / pt.depth));
+        const pulse = 0.85 + 0.15 * Math.sin(now * 6.5 + (f.phase || i));
+        const sg = ctx.createRadialGradient(pt.x, pt.y, 2, pt.x, pt.y, Math.max(rx, ry));
+        const isElec = f.fireType === 'electric';
+        sg.addColorStop(0, isElec ? `rgba(125, 211, 252, ${0.32 * pulse})` : `rgba(254, 215, 170, ${0.34 * pulse})`);
+        sg.addColorStop(0.55, isElec ? `rgba(56, 189, 248, ${0.14 * pulse})` : `rgba(249, 115, 22, ${0.15 * pulse})`);
+        sg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.ellipse(pt.x, pt.y, rx, ry * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Glossy emerald floor reflection from EXIT doors
+    if (exitLightSources && exitLightSources.length > 0) {
+      for (let i = 0; i < exitLightSources.length; i++) {
+        const ex = exitLightSources[i];
+        const pt = project3DPoint(ex.x, ex.y, 0.02, 0.22);
+        if (!pt || pt.depth > 8.0 || pt.y < horizon) continue;
+        const rx = Math.min(width * 0.24, Math.max(16, 98 / pt.depth));
+        const ry = Math.max(8, rx * 0.45);
+        const eg = ctx.createRadialGradient(pt.x, pt.y, 2, pt.x, pt.y, rx);
+        eg.addColorStop(0, 'rgba(52, 211, 153, 0.30)');
+        eg.addColorStop(0.6, 'rgba(16, 185, 129, 0.12)');
+        eg.addColorStop(1, 'rgba(16, 185, 129, 0)');
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.ellipse(pt.x, pt.y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #5: Stage-Themed 3D Ceiling Architecture & Exterior Skybox/Window Backdrops ---
+  function drawStageThemedExteriorDiorama(ctx, boardW, boardH, wallH, stageIdx, now) {
+    ctx.save();
+    const skyTop = -wallH - 28;
+    const skyH = 26;
+    const isCamping = stageIdx === 6;
+    const isSubway = stageIdx === 4;
+    const isSchool = stageIdx === 3;
+    const isQuake = stageIdx === 7;
+
+    const bgGrad = ctx.createLinearGradient(0, skyTop, 0, -wallH + 4);
+    if (isCamping) {
+      bgGrad.addColorStop(0, '#090d16');
+      bgGrad.addColorStop(1, '#3b1510');
+    } else if (isSubway) {
+      bgGrad.addColorStop(0, '#020617');
+      bgGrad.addColorStop(1, '#1e293b');
+    } else if (isSchool) {
+      bgGrad.addColorStop(0, '#0c192c');
+      bgGrad.addColorStop(1, '#1e3a5f');
+    } else {
+      bgGrad.addColorStop(0, '#060b16');
+      bgGrad.addColorStop(1, '#172554');
+    }
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(-6, skyTop, boardW + 18, skyH);
+
+    if (isCamping) {
+      ctx.fillStyle = '#fef08a';
+      for (let i = 0; i < 12; i++) {
+        const sx = ((i * 83) % Math.max(60, boardW - 16)) + 8;
+        const sy = skyTop + 5 + ((i * 17) % 10);
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+      ctx.fillStyle = '#064e3b';
+      for (let tx = 8; tx < boardW - 8; tx += 18) {
+        ctx.beginPath();
+        ctx.moveTo(tx, -wallH);
+        ctx.lineTo(tx + 7, skyTop + 8);
+        ctx.lineTo(tx + 14, -wallH);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (isSubway) {
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+      ctx.lineWidth = 2;
+      for (let rx = 16; rx < boardW; rx += 36) {
+        ctx.beginPath();
+        ctx.moveTo(rx, skyTop + 2);
+        ctx.lineTo(rx - 6, -wallH);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0, skyTop + 12);
+      ctx.lineTo(boardW, skyTop + 12);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+      for (let bx = 10; bx < boardW - 24; bx += 38) {
+        const bh = 10 + ((bx * 7) % 12);
+        ctx.fillRect(bx, -wallH - bh, 26, bh);
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.45)';
+        ctx.fillRect(bx + 5, -wallH - bh + 3, 4, 4);
+        ctx.fillRect(bx + 15, -wallH - bh + 3, 4, 4);
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+      }
+      if (isQuake) {
+        const warnAlpha = 0.25 + 0.2 * Math.sin(now * 6);
+        ctx.fillStyle = `rgba(244, 63, 94, ${warnAlpha})`;
+        ctx.fillRect(-6, skyTop, boardW + 18, skyH);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawStageThemedCeilingAndSkyboxFPS(ctx, width, horizon, stageIdx, fpsCamYaw, powerRestored, now) {
+    if (horizon <= 8) return;
+    ctx.save();
+    const isCamping = stageIdx === 6;
+    const isSubway = stageIdx === 4;
+    const isSchool = stageIdx === 3;
+    const isQuake = stageIdx === 7;
+    const yawOffset = ((fpsCamYaw || 0) / (Math.PI * 2)) * width;
+
+    if (isCamping) {
+      const skyG = ctx.createLinearGradient(0, 0, 0, horizon);
+      skyG.addColorStop(0, '#030712');
+      skyG.addColorStop(0.65, '#1e1b4b');
+      skyG.addColorStop(1, '#451a03');
+      ctx.fillStyle = skyG;
+      ctx.fillRect(0, 0, width, horizon);
+
+      ctx.fillStyle = '#fef9c3';
+      for (let i = 0; i < 24; i++) {
+        const sx = ((i * 97 - yawOffset * 1.2) % width + width) % width;
+        const sy = (i * 29) % Math.max(12, horizon * 0.72);
+        const tw = 1.2 + (i % 2) * 0.8;
+        ctx.fillRect(sx, sy, tw, tw);
+      }
+    } else if (isSubway) {
+      ctx.strokeStyle = 'rgba(51, 65, 85, 0.55)';
+      ctx.lineWidth = 3;
+      for (let r = 1; r <= 4; r++) {
+        const ry = horizon * (r / 4.5);
+        ctx.beginPath();
+        ctx.moveTo(0, ry);
+        ctx.quadraticCurveTo(width * 0.5, ry - 14 * (1 - r * 0.18), width, ry);
+        ctx.stroke();
+      }
+    } else if (isSchool) {
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+      ctx.lineWidth = 1;
+      for (let row = 1; row <= 3; row++) {
+        const y = horizon * (row / 3.6);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(71, 85, 105, 0.35)';
+      ctx.fillRect(width * 0.36, 0, width * 0.28, horizon * 0.42);
+    } else {
+      const swayX = isQuake ? Math.sin(now * 7.5) * 14 : 0;
+      for (let k = -1; k <= 1; k++) {
+        const lx = width * 0.5 + k * (width * 0.30) + swayX - ((yawOffset * 0.35) % (width * 0.30));
+        const ly = horizon * 0.32;
+        ctx.fillStyle = powerRestored ? 'rgba(254, 249, 195, 0.45)' : 'rgba(148, 163, 184, 0.18)';
+        ctx.beginPath();
+        ctx.ellipse(lx, ly, 22, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #6: High-Temp Heat Shimmer Distortion & 3D Rising Embers/Soot Particles ---
+  function drawHeatShimmerAndRisingEmbersDiorama(ctx, fires, grid, rows, cols, TILE, tileSize, wallH, now) {
+    if ((!fires || fires.length === 0) && !grid) return;
+    ctx.save();
+    const stride = dynamic3DLodState.particleStride || 1;
+
+    if (fires && fires.length > 0) {
+      for (let i = 0; i < fires.length; i++) {
+        const f = fires[i];
+        const fx = (f.c + 0.5) * tileSize;
+        const fy = (f.r + 0.5) * tileSize;
+
+        // 1. Wavy High-Temp Heat Shimmer Ring above Flame
+        const shimmerY = fy - wallH * 0.55;
+        const wave = Math.sin(now * 7.0 + i * 1.7) * (tileSize * 0.06);
+        ctx.strokeStyle = f.fireType === 'electric'
+          ? 'rgba(125, 211, 252, 0.35)'
+          : 'rgba(253, 186, 116, 0.36)';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.ellipse(fx + wave, shimmerY, tileSize * 0.34, tileSize * 0.12, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 2. Helical 3D Rising Ember Sparks
+        const sparkCount = stride === 1 ? 4 : 2;
+        for (let sp = 0; sp < sparkCount; sp++) {
+          const cycle = ((now * 1.45 + sp * 0.25 + (f.phase || i) * 0.3) % 1);
+          const emberX = fx + Math.sin(now * 5.2 + sp * 2.1 + i) * (tileSize * 0.24);
+          const emberY = fy - cycle * (wallH * 1.15);
+          const emberR = Math.max(1.3, tileSize * 0.055 * (1 - cycle * 0.5));
+          ctx.fillStyle = sp % 2 === 0 ? `rgba(253, 224, 71, ${1 - cycle})` : `rgba(251, 146, 60, ${1 - cycle})`;
+          ctx.beginPath();
+          ctx.arc(emberX, emberY, emberR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 3. Thermal Backdraft Shimmer on HOT_DOOR tiles
+    if (grid && TILE) {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c] === TILE.HOT_DOOR) {
+            const dx = (c + 0.5) * tileSize;
+            const dy = (r + 0.5) * tileSize - wallH * 0.35;
+            const pulse = 0.5 + 0.5 * Math.sin(now * 6.2 + c + r);
+            ctx.strokeStyle = `rgba(248, 113, 113, ${0.32 + 0.28 * pulse})`;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(dx, dy, tileSize * (0.28 + 0.10 * pulse), 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawHeatShimmerAndRisingEmbersFPS(ctx, fires, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (!fires || fires.length === 0 || !project3DPoint) return;
+    ctx.save();
+    const stride = dynamic3DLodState.particleStride || 1;
+    const sparkCount = stride === 1 ? 5 : 3;
+
+    for (let i = 0; i < fires.length; i++) {
+      const f = fires[i];
+      const basePt = project3DPoint(f.c + 0.5, f.r + 0.5, 0.45, 0.22);
+      if (!basePt || basePt.depth > 7.5) continue;
+      if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(basePt.x, basePt.depth - 0.2)) continue;
+
+      // Wavy Heat Refraction Halo
+      const haloR = Math.max(10, 46 / basePt.depth);
+      const shimmerShift = Math.sin(now * 8.0 + i) * (5 / basePt.depth);
+      ctx.strokeStyle = f.fireType === 'electric'
+        ? 'rgba(125, 211, 252, 0.35)'
+        : 'rgba(253, 186, 116, 0.32)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(basePt.x + shimmerShift, basePt.y - haloR * 0.45, haloR * 0.85, haloR * 0.35, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Rising 3D Ember Sparks in World Space
+      for (let sp = 0; sp < sparkCount; sp++) {
+        const cycle = (now * 1.35 + sp * (1 / sparkCount) + (f.phase || i) * 0.2) % 1;
+        const wz = 0.18 + cycle * 0.76;
+        const wx = f.c + 0.5 + Math.sin(now * 4.8 + sp * 1.9 + i) * 0.18;
+        const wy = f.r + 0.5 + Math.cos(now * 4.2 + sp * 1.7 + i) * 0.18;
+        const ePt = project3DPoint(wx, wy, wz, 0.22);
+        if (!ePt) continue;
+        const rad = Math.max(1.5, (5.5 / ePt.depth) * (1 - cycle * 0.4));
+        ctx.fillStyle = sp % 2 === 0
+          ? `rgba(254, 240, 138, ${0.95 * (1 - cycle)})`
+          : `rgba(251, 146, 60, ${0.92 * (1 - cycle)})`;
+        ctx.beginPath();
+        ctx.arc(ePt.x, ePt.y, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #8: Articulated 3D Companion/NPC Distress & Synchronized Follow Rendering ---
+  function drawArticulatedCompanion3DDiorama(ctx, items, rescuedCompanions, player, tileSize, wallH, now) {
+    ctx.save();
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.type !== 'npc' && it.type !== 'dog') continue;
+        const ix = (it.c + 0.5) * tileSize;
+        const iy = (it.r + 0.5) * tileSize;
+        const pulse = (now * 1.2 + i * 0.4) % 1;
+        const ringR = tileSize * (0.28 + pulse * 0.52);
+
+        ctx.strokeStyle = it.type === 'dog'
+          ? `rgba(74, 222, 128, ${(1 - pulse) * 0.85})`
+          : `rgba(56, 189, 248, ${(1 - pulse) * 0.85})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ix, iy, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const callText = it.type === 'dog' ? '🐶 "멍멍! 구해주세요!"' : '🙋 "콜록! 여기 있어요!"';
+        const callY = iy - wallH * 0.72 + Math.sin(now * 5 + i) * 2.5;
+        ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+        const cw = ctx.measureText(callText).width + 8;
+        const ch = Math.max(13, Math.floor(tileSize * 0.24));
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+        ctx.strokeStyle = it.type === 'dog' ? '#4ade80' : '#38bdf8';
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(ix - cw * 0.5, callY - ch * 0.5, cw, ch);
+        ctx.strokeRect(ix - cw * 0.5, callY - ch * 0.5, cw, ch);
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(callText, ix, callY);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawArticulatedCompanion3DFPS(ctx, width, height, items, rescuedCompanions, player, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (!project3DPoint) return;
+    ctx.save();
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it.type !== 'npc' && it.type !== 'dog') continue;
+        const pt = project3DPoint(it.c + 0.5, it.r + 0.5, 0.62, 0.25);
+        if (!pt || pt.depth > 8.5) continue;
+        if (isPointVisibleInZBuffer && !isPointVisibleInZBuffer(pt.x, pt.depth - 0.22)) continue;
+
+        const pulse = (now * 1.3 + i * 0.3) % 1;
+        const r = Math.max(12, (42 / pt.depth) * (0.5 + pulse * 0.7));
+        ctx.strokeStyle = `rgba(74, 222, 128, ${(1 - pulse) * 0.85})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const msg = it.type === 'dog' ? '🐶 초코 구조 요청!' : `🙋 ${it.name || '고립된 이웃'} 구조!`;
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        const tw = ctx.measureText(msg).width + 10;
+        ctx.fillStyle = 'rgba(6, 78, 59, 0.92)';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 1.4;
+        ctx.fillRect(pt.x - tw * 0.5, pt.y - r - 22, tw, 18);
+        ctx.strokeRect(pt.x - tw * 0.5, pt.y - r - 22, tw, 18);
+        ctx.fillStyle = '#ecfdf5';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(msg, pt.x, pt.y - r - 13);
+      }
+    }
+
+    if (rescuedCompanions && rescuedCompanions.length > 0) {
+      const compNames = rescuedCompanions.map(c => `${c.icon || '🧒'}${c.name || '동행자'}`).join(' · ');
+      const postureTxt = (player && player.crouching) ? '🧎낮은자세 동행 중' : '🏃함께 대피 중';
+      const label = `🤝 구조 동행: ${compNames} (${postureTxt})`;
+      ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+      const bw = ctx.measureText(label).width + 16;
+      const bx = width * 0.5 - bw * 0.5;
+      const by = height - 62;
+      ctx.fillStyle = 'rgba(6, 78, 59, 0.88)';
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, 22, 11);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#d1fae5';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, width * 0.5, by + 11);
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #9: 3D Hologram Interactive Focus Ring & World-Space Objective Beacon Pillar ---
+  function draw3DHologramFocusAndBeaconDiorama(ctx, activeTarget, nextObj, player, tileSize, wallH, now) {
+    ctx.save();
+    if (activeTarget) {
+      const tc = activeTarget.kind === 'item' ? activeTarget.item.c : activeTarget.c;
+      const tr = activeTarget.kind === 'item' ? activeTarget.item.r : activeTarget.r;
+      const cx = (tc + 0.5) * tileSize;
+      const cy = (tr + 0.5) * tileSize;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -now * 18;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, tileSize * 0.46, tileSize * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const br = tileSize * 0.42;
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.2;
+      const cLen = Math.max(4, tileSize * 0.14);
+      ctx.beginPath();
+      ctx.moveTo(-br, -br * 0.6 + cLen);
+      ctx.lineTo(-br, -br * 0.6);
+      ctx.lineTo(-br + cLen, -br * 0.6);
+      ctx.moveTo(br - cLen, br * 0.6);
+      ctx.lineTo(br, br * 0.6);
+      ctx.lineTo(br, br * 0.6 - cLen);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (nextObj && player && !player.onFire) {
+      const ox = (nextObj.c + 0.5) * tileSize;
+      const oy = (nextObj.r + 0.5) * tileSize;
+      const distMeters = (Math.hypot((nextObj.c + 0.5) - player.x, (nextObj.r + 0.5) - player.y) * 1.5).toFixed(1);
+      const pillarH = wallH * 1.35;
+      const beamW = Math.max(8, tileSize * 0.36);
+
+      const beamGrad = ctx.createLinearGradient(ox, oy, ox, oy - pillarH);
+      beamGrad.addColorStop(0, 'rgba(250, 204, 21, 0.36)');
+      beamGrad.addColorStop(0.6, 'rgba(56, 189, 248, 0.18)');
+      beamGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+      ctx.fillStyle = beamGrad;
+      ctx.fillRect(ox - beamW * 0.5, oy - pillarH, beamW, pillarH);
+
+      ctx.font = `bold ${Math.max(9, Math.floor(tileSize * 0.17))}px "Noto Sans KR", sans-serif`;
+      const distStr = `📍 ${distMeters}m`;
+      const dw = ctx.measureText(distStr).width + 8;
+      const dh = Math.max(12, Math.floor(tileSize * 0.22));
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.2;
+      ctx.fillRect(ox - dw * 0.5, oy + tileSize * 0.18, dw, dh);
+      ctx.strokeRect(ox - dw * 0.5, oy + tileSize * 0.18, dw, dh);
+      ctx.fillStyle = '#bae6fd';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(distStr, ox, oy + tileSize * 0.18 + dh * 0.5);
+    }
+    ctx.restore();
+  }
+
+  function draw3DHologramFocusAndBeaconFPS(ctx, activeTarget, nextObj, player, project3DPoint, isPointVisibleInZBuffer, now) {
+    if (!project3DPoint) return;
+    ctx.save();
+    if (activeTarget) {
+      const tc = activeTarget.kind === 'item' ? activeTarget.item.c : activeTarget.c;
+      const tr = activeTarget.kind === 'item' ? activeTarget.item.r : activeTarget.r;
+      const pt = project3DPoint(tc + 0.5, tr + 0.5, 0.48, 0.20);
+      if (pt && pt.depth <= 4.5) {
+        const rad = Math.min(68, Math.max(18, 44 / pt.depth));
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -now * 20;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, rad, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const tag = '⚡ [Space] 즉시 작동';
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        const tw = ctx.measureText(tag).width + 12;
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.90)';
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(pt.x - tw * 0.5, pt.y - rad - 22, tw, 18);
+        ctx.strokeRect(pt.x - tw * 0.5, pt.y - rad - 22, tw, 18);
+        ctx.fillStyle = '#fef08a';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tag, pt.x, pt.y - rad - 13);
+      }
+    }
+
+    if (nextObj && player && !player.onFire) {
+      const botPt = project3DPoint(nextObj.c + 0.5, nextObj.r + 0.5, 0.05, 0.25);
+      const topPt = project3DPoint(nextObj.c + 0.5, nextObj.r + 0.5, 0.92, 0.25);
+      if (botPt && topPt && botPt.depth <= 10.5) {
+        const visible = !isPointVisibleInZBuffer || isPointVisibleInZBuffer(botPt.x, botPt.depth + 0.35);
+        const beamW = Math.max(8, Math.min(46, 32 / botPt.depth));
+        const pillarH = Math.max(24, Math.abs(botPt.y - topPt.y));
+        const alphaMul = visible ? 1.0 : 0.42;
+
+        const bg = ctx.createLinearGradient(botPt.x, botPt.y, botPt.x, topPt.y);
+        bg.addColorStop(0, `rgba(250, 204, 21, ${0.42 * alphaMul})`);
+        bg.addColorStop(0.5, `rgba(56, 189, 248, ${0.24 * alphaMul})`);
+        bg.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        ctx.fillStyle = bg;
+        ctx.fillRect(botPt.x - beamW * 0.5, topPt.y, beamW, pillarH);
+
+        const distM = (Math.hypot((nextObj.c + 0.5) - player.x, (nextObj.r + 0.5) - player.y) * 1.5).toFixed(1);
+        const badgeTxt = `${nextObj.label || '🎯 목표'} (${distM}m)`;
+        ctx.font = 'bold 11px "Noto Sans KR", sans-serif';
+        const bw = ctx.measureText(badgeTxt).width + 12;
+        const by = Math.max(44, topPt.y - 14);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(botPt.x - bw * 0.5, by - 10, bw, 20);
+        ctx.strokeRect(botPt.x - bw * 0.5, by - 10, bw, 20);
+        ctx.fillStyle = '#fde047';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeTxt, botPt.x, by);
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Strategy #7: Cinematic 3D Camera Morphing Transition Overlay (DIORAMA_3D <-> FPS_3D) ---
+  function drawCameraMorphTransitionOverlay(ctx, width, height) {
+    if (!cameraMorphState.active) return;
+    const p = Math.min(1, cameraMorphState.timer / Math.max(0.05, cameraMorphState.duration));
+    const envelope = Math.sin(p * Math.PI);
+    if (envelope <= 0.02) return;
+
+    ctx.save();
+    const toFps = cameraMorphState.toMode === 'FPS_3D';
+    const cx = width * 0.5;
+    const cy = height * 0.5;
+
+    ctx.strokeStyle = `rgba(56, 189, 248, ${envelope * 0.45})`;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2;
+      const rInner = toFps ? (1 - p) * 180 + 24 : p * 160 + 24;
+      const rOuter = rInner + 95 * envelope;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(ang) * rInner, cy + Math.sin(ang) * rInner);
+      ctx.lineTo(cx + Math.cos(ang) * rOuter, cy + Math.sin(ang) * rOuter);
+      ctx.stroke();
+    }
+
+    const frameScale = toFps ? (1.35 - p * 0.35) : (0.65 + p * 0.35);
+    const fw = width * 0.55 * frameScale;
+    const fh = height * 0.55 * frameScale;
+    ctx.strokeStyle = `rgba(250, 204, 21, ${envelope * 0.55})`;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - fw * 0.5, cy - fh * 0.5, fw, fh);
+
+    const label = toFps ? '👁️ 1인칭 3D 몰입 시점 전환 중...' : '🧊 3D 전체 건물 입체 시점 전환 중...';
+    ctx.font = 'bold 13px "Noto Sans KR", sans-serif';
+    const lw = ctx.measureText(label).width + 24;
+    ctx.fillStyle = `rgba(15, 23, 42, ${envelope * 0.90})`;
+    ctx.strokeStyle = `rgba(56, 189, 248, ${envelope * 0.90})`;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.roundRect(cx - lw * 0.5, cy - 18, lw, 36, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = `rgba(248, 250, 252, ${envelope})`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, cy);
+    ctx.restore();
+  }
+
   window.FireEscape.Tactical3D = {
     drawThermalVisionOverlay,
     computeIndoorAirflowVector,
@@ -2024,6 +3057,25 @@
     renderScannableQrMatrix,
     drawCriticalVitalsShaderOverlay,
     drawColorblindPatternsDiorama,
-    drawColorblindPatternsFPS
+    drawColorblindPatternsFPS,
+    // 10-Point 3D Screen Advancement Engine Exports
+    triggerCameraMorphTransition,
+    triggerHandActionRecoil,
+    updateDynamic3DLod,
+    getDynamic3DLod,
+    drawConvectionSmokeLayersDiorama,
+    drawConvectionSmokeLayersFPS,
+    drawFirstPersonHandViewModel,
+    drawFloorSpecularAndSoftShadowsDiorama,
+    drawFloorSpecularFPS,
+    drawStageThemedExteriorDiorama,
+    drawStageThemedCeilingAndSkyboxFPS,
+    drawHeatShimmerAndRisingEmbersDiorama,
+    drawHeatShimmerAndRisingEmbersFPS,
+    drawArticulatedCompanion3DDiorama,
+    drawArticulatedCompanion3DFPS,
+    draw3DHologramFocusAndBeaconDiorama,
+    draw3DHologramFocusAndBeaconFPS,
+    drawCameraMorphTransitionOverlay
   };
 })();
