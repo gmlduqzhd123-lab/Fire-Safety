@@ -2050,6 +2050,14 @@
     return dynamic3DLodState;
   }
 
+  function safeRoundRect(ctx, x, y, w, h, r) {
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.rect(x, y, w, h);
+    }
+  }
+
   // --- Strategy #1: Convection-Based 2-Layer 3D Volumetric Smoke & Fresh Air Survival Zone ---
   function drawConvectionSmokeLayersDiorama(ctx, smokes, player, tileSize, wallH, crouchLerp, now) {
     if (!smokes || smokes.length === 0) return;
@@ -2200,7 +2208,7 @@
         ctx.strokeStyle = '#5eead4';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-52, -54, 108, 44, 12);
+        safeRoundRect(ctx, -52, -54, 108, 44, 12);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#facc15';
@@ -2233,7 +2241,7 @@
         ctx.strokeStyle = isWet ? '#bae6fd' : '#fef08a';
         ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.roundRect(-24, -68, 86, 42, 8);
+        safeRoundRect(ctx, -24, -68, 86, 42, 8);
         ctx.fill();
         ctx.stroke();
 
@@ -2266,7 +2274,7 @@
         ctx.strokeStyle = '#fde047';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-24, -56, 68, 26, 6);
+        safeRoundRect(ctx, -24, -56, 68, 26, 6);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#fef08a';
@@ -2298,7 +2306,7 @@
         ctx.strokeStyle = '#fca5a5';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-28, -82, 58, 86, 12);
+        safeRoundRect(ctx, -28, -82, 58, 86, 12);
         ctx.fill();
         ctx.stroke();
 
@@ -2390,7 +2398,7 @@
         ctx.strokeStyle = '#93c5fd';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-28, -68, 56, 64, 8);
+        safeRoundRect(ctx, -28, -68, 56, 64, 8);
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#38bdf8';
@@ -2820,7 +2828,7 @@
       ctx.strokeStyle = '#34d399';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(bx, by, bw, 22, 11);
+      safeRoundRect(ctx, bx, by, bw, 22, 11);
       ctx.fill();
       ctx.stroke();
       ctx.fillStyle = '#d1fae5';
@@ -3003,7 +3011,7 @@
     ctx.strokeStyle = `rgba(56, 189, 248, ${envelope * 0.90})`;
     ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.roundRect(cx - lw * 0.5, cy - 18, lw, 36, 18);
+    safeRoundRect(ctx, cx - lw * 0.5, cy - 18, lw, 36, 18);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = `rgba(248, 250, 252, ${envelope})`;

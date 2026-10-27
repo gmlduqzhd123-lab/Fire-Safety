@@ -7300,7 +7300,7 @@
         Tac3D.drawArticulatedCompanion3DFPS(ctx, width, height, items, rescuedCompanions, player, project3DPoint, isPointVisibleInZBuffer, now);
       }
       if (typeof Tac3D.draw3DHologramFocusAndBeaconFPS === 'function') {
-        Tac3D.draw3DHologramFocusAndBeaconFPS(ctx, focusTarget, nextObj, player, project3DPoint, isPointVisibleInZBuffer, now);
+        Tac3D.draw3DHologramFocusAndBeaconFPS(ctx, activeInteract3D, nextObj, player, project3DPoint, isPointVisibleInZBuffer, now);
       }
       if (typeof Tac3D.drawDoorEffectsFPS === 'function') {
         Tac3D.drawDoorEffectsFPS(ctx, project3DPoint, isPointVisibleInZBuffer);
