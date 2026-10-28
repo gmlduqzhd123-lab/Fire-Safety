@@ -12353,13 +12353,31 @@
   const btnCopyCustomQuizUrl = document.getElementById('btnCopyCustomQuizUrl');
   const customQuizFeedback = document.getElementById('customQuizFeedback');
 
+  // 맞춤 퀴즈 문구는 화면에 HTML로 들어가므로, 공유 링크로 받은 값에 태그가 섞여 있어도
+  // 코드가 실행되지 않게 HTML 특수문자를 빼고 길이를 제한한다.
+  function cleanQuizText(value, maxLength) {
+    return String(value ?? '').replace(/[<>&"'`]/g, '').trim().slice(0, maxLength);
+  }
+
+  function sanitizeCustomQuiz(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      safeCode: cleanQuizText(raw.safeCode, 12),
+      safeClue: cleanQuizText(raw.safeClue, 120),
+      quizTitle: cleanQuizText(raw.quizTitle, 120),
+      goodChoice: cleanQuizText(raw.goodChoice, 120),
+      badChoice: cleanQuizText(raw.badChoice, 120)
+    };
+  }
+
   function collectCustomQuizFromInputs() {
-    const safeCode = (customSafeCodeInput && customSafeCodeInput.value.trim()) || '';
-    const safeClue = (customSafeClueInput && customSafeClueInput.value.trim()) || '';
-    const quizTitle = (customQuizTitleInput && customQuizTitleInput.value.trim()) || '';
-    const goodChoice = (customQuizGoodInput && customQuizGoodInput.value.trim()) || '';
-    const badChoice = (customQuizBadInput && customQuizBadInput.value.trim()) || '';
-    return { safeCode, safeClue, quizTitle, goodChoice, badChoice };
+    return sanitizeCustomQuiz({
+      safeCode: customSafeCodeInput && customSafeCodeInput.value,
+      safeClue: customSafeClueInput && customSafeClueInput.value,
+      quizTitle: customQuizTitleInput && customQuizTitleInput.value,
+      goodChoice: customQuizGoodInput && customQuizGoodInput.value,
+      badChoice: customQuizBadInput && customQuizBadInput.value
+    });
   }
 
   function updateCustomQuizFeedbackUI() {
@@ -13706,8 +13724,8 @@
       const customQuizParam = params.get('customQuiz');
       if (customQuizParam) {
         try {
-          const decoded = JSON.parse(decodeURIComponent(atob(customQuizParam)));
-          if (decoded && typeof decoded === 'object') {
+          const decoded = sanitizeCustomQuiz(JSON.parse(decodeURIComponent(atob(customQuizParam))));
+          if (decoded) {
             customQuizConfig = decoded;
             if (customSafeCodeInput && decoded.safeCode) customSafeCodeInput.value = decoded.safeCode;
             if (customSafeClueInput && decoded.safeClue) customSafeClueInput.value = decoded.safeClue;
