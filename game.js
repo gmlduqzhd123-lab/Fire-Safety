@@ -9568,7 +9568,7 @@
     gameState = 'START';
     overlayIcon.textContent = '🔥';
     overlaySubtitle.textContent = '생명 최우선 · 3D 실감형 대피 훈련';
-    overlayTitle.innerHTML = '화재 탈출 넘버원 <span class="hero-3d-badge">3D</span>';
+    overlayTitle.innerHTML = '<span class="hero-logo-line1">화재 탈출</span><span class="hero-logo-line2"><span class="hero-logo-chrome">넘버원</span><span class="hero-logo-3d-cluster"><span class="hero-logo-flame-runner"><span class="hero-flame-icon">🔥</span><span class="hero-runner-icon">🏃</span></span><span class="hero-3d-badge">3D</span></span></span>';
     overlayDesc.innerHTML = '- 배우는 오늘, 더 안전한 내일 -';
     overlayTipsBox.classList.remove('hidden');
     overlayTipsBox.classList.remove('stage-dock-open');
@@ -9604,6 +9604,18 @@
   }
 
   // v29: 01. 홈 화면 3-Tier Rescue Control Action Stack Handlers
+  const btnCloseStageSelectDock = document.getElementById('btnCloseStageSelectDock');
+  if (btnCloseStageSelectDock) {
+    btnCloseStageSelectDock.addEventListener('click', () => {
+      SoundFX.init();
+      SoundFX.playTone(440, 'sine', 0.05, 0.06);
+      if (overlayTipsBox) {
+        overlayTipsBox.classList.remove('stage-dock-open');
+        const chevronEl = document.getElementById('stageSelectDockChevron');
+        if (chevronEl) chevronEl.textContent = '❯';
+      }
+    });
+  }
   const btnToggleStageSelectDock = document.getElementById('btnToggleStageSelectDock');
   if (btnToggleStageSelectDock) {
     btnToggleStageSelectDock.addEventListener('click', () => {

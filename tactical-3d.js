@@ -3237,25 +3237,25 @@
     const parity = (c + r) % 2 === 0;
 
     let baseCol = '#9b6b43';
-    let seamCol = 'rgba(68, 42, 22, 0.38)';
+    let seamCol = 'rgba(68, 42, 22, 0.32)';
 
     if (zone === 'BEDROOM') {
       baseCol = parity ? '#b88454' : '#ae7a4b';
-      seamCol = 'rgba(74, 46, 24, 0.35)';
+      seamCol = 'rgba(74, 46, 24, 0.30)';
     } else if (zone === 'BATHROOM') {
-      baseCol = parity ? '#8ea3b7' : '#8297ac';
-      seamCol = 'rgba(226, 232, 240, 0.38)';
+      baseCol = parity ? '#96acc0' : '#899fb4';
+      seamCol = 'rgba(226, 232, 240, 0.36)';
     } else if (zone === 'STUDY') {
-      baseCol = parity ? '#8a6240' : '#7f5838';
-      seamCol = 'rgba(54, 34, 18, 0.36)';
+      baseCol = parity ? '#8f6542' : '#835b3a';
+      seamCol = 'rgba(54, 34, 18, 0.32)';
     } else if (zone === 'KITCHEN') {
-      baseCol = parity ? '#cbd5e1' : '#94a3b8';
-      seamCol = 'rgba(71, 85, 105, 0.35)';
+      baseCol = parity ? '#cbd5e1' : '#b4c2d4';
+      seamCol = 'rgba(71, 85, 105, 0.30)';
     } else if (zone === 'BALCONY') {
       baseCol = parity ? '#64748b' : '#526277';
-      seamCol = 'rgba(30, 41, 59, 0.45)';
+      seamCol = 'rgba(30, 41, 59, 0.42)';
     } else if (zone === 'SCIENCELAB') {
-      baseCol = parity ? '#334155' : '#293548';
+      baseCol = parity ? '#3b4a61' : '#313f54';
       seamCol = 'rgba(148, 163, 184, 0.22)';
     } else if (zone === 'SUBWAY') {
       baseCol = (r === 4 || r === 6) ? '#ca8a04' : (parity ? '#334155' : '#273244');
@@ -3265,8 +3265,8 @@
       seamCol = 'rgba(15, 23, 42, 0.28)';
     } else {
       // Corridor / Hallway warm walnut wood planks
-      baseCol = parity ? '#9c6b3f' : '#916137';
-      seamCol = 'rgba(58, 35, 16, 0.42)';
+      baseCol = parity ? '#a27043' : '#96653b';
+      seamCol = 'rgba(58, 35, 16, 0.36)';
     }
 
     if (tile === T.EXIT) {
@@ -3274,7 +3274,7 @@
       seamCol = '#34d399';
     }
 
-    drawIsoQuad(ctx, p00, p10, p11, p01, baseCol, seamCol, 0.75);
+    drawIsoQuad(ctx, p00, p10, p11, p01, baseCol, seamCol, 0.7);
 
     // Wood plank lines for Bedroom / Corridor / Study
     if (zone === 'BEDROOM' || zone === 'CORRIDOR' || zone === 'STUDY' || zone === 'LIVING') {
@@ -3283,11 +3283,10 @@
       ctx.beginPath();
       ctx.moveTo(m0.x, m0.y);
       ctx.lineTo(m1.x, m1.y);
-      ctx.strokeStyle = 'rgba(56, 34, 16, 0.24)';
-      ctx.lineWidth = 0.65;
+      ctx.strokeStyle = 'rgba(56, 34, 16, 0.22)';
+      ctx.lineWidth = 0.6;
       ctx.stroke();
     } else if (zone === 'BATHROOM') {
-      // Sub-tile ceramic cross grout
       const m0 = tf.project(c, r + 0.5, 0);
       const m1 = tf.project(c + 1, r + 0.5, 0);
       const n0 = tf.project(c + 0.5, r, 0);
@@ -3298,49 +3297,53 @@
       ctx.moveTo(n0.x, n0.y);
       ctx.lineTo(n1.x, n1.y);
       ctx.strokeStyle = 'rgba(241, 245, 249, 0.25)';
-      ctx.lineWidth = 0.6;
+      ctx.lineWidth = 0.55;
       ctx.stroke();
     }
 
-    // Cozy Bedroom Woven Area Rug (c=2..3, r=1..2)
-    if (stageIdx === 0 && c >= 2 && c <= 3 && r >= 1 && r <= 2 && tile === T.FLOOR) {
-      const r00 = tf.project(c + 0.06, r + 0.06, 0.01);
-      const r10 = tf.project(c + 0.94, r + 0.06, 0.01);
-      const r11 = tf.project(c + 0.94, r + 0.94, 0.01);
-      const r01 = tf.project(c + 0.06, r + 0.94, 0.01);
-      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(71, 85, 105, 0.65)', 'rgba(203, 213, 225, 0.45)', 0.9);
+    // Seamless Woven Bedroom Rug (drawn once at anchor c===2, r===2 so no per-tile borders appear)
+    if (stageIdx === 0 && c === 2 && r === 2) {
+      const r00 = tf.project(2.05, 1.85, 0.01);
+      const r10 = tf.project(3.75, 1.85, 0.01);
+      const r11 = tf.project(3.75, 3.65, 0.01);
+      const r01 = tf.project(2.05, 3.65, 0.01);
+      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(71, 85, 105, 0.58)', 'rgba(148, 163, 184, 0.35)', 1.0);
     }
 
-    // Corridor Runner Carpet strip (r === 7, c=4..11)
-    if (stageIdx === 0 && r === 7 && c >= 4 && c <= 11 && tile === T.FLOOR) {
-      const r00 = tf.project(c, r + 0.18, 0.01);
-      const r10 = tf.project(c + 1, r + 0.18, 0.01);
-      const r11 = tf.project(c + 1, r + 0.82, 0.01);
-      const r01 = tf.project(c, r + 0.82, 0.01);
-      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(124, 45, 18, 0.42)', 'rgba(251, 191, 36, 0.28)', 0.7);
+    // Seamless Corridor Woven Runner Carpet (drawn along r===5, c=2..8)
+    if (stageIdx === 0 && r === 5 && c >= 2 && c <= 8 && tile === T.FLOOR) {
+      const r00 = tf.project(c, r + 0.22, 0.01);
+      const r10 = tf.project(c + 1, r + 0.22, 0.01);
+      const r11 = tf.project(c + 1, r + 0.78, 0.01);
+      const r01 = tf.project(c, r + 0.78, 0.01);
+      drawIsoQuad(ctx, r00, r10, r11, r01, 'rgba(100, 82, 66, 0.52)', 'rgba(214, 195, 175, 0.25)', 0.6);
     }
   }
 
   function isCutawayLowWall(c, r, cols, rows, grid, T) {
-    // Keep back walls (r === 0, c === 0) and upper vertical room dividers tall; cutaway foreground/interior horizontal walls so rooms & beds are 100% visible
+    // Only outer North (r === 0) and West (c === 0) walls are full height; all interior & front walls are cutaway so zero items/labels are ever blocked
     if (r === 0 || c === 0) return false;
-    if (r <= 2 && (c === 4 || c === 9)) return false;
     return true;
   }
 
-  function drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now) {
+  function drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now, stageIdx) {
     const lowCut = isCutawayLowWall(c, r, cols, rows, grid, T);
-    const wz = lowCut ? 0.34 : 1.38;
+    const isOuterFront = (r === rows - 1 || c === cols - 1);
+    const wz = lowCut ? (isOuterFront ? 0.28 : 0.36) : 1.42;
 
     const isPartition = tile === T.PARTITION;
-    const topCol = isPartition ? '#7c2d12' : '#283347';
-    const southCol = isPartition ? '#b45309' : '#d8cab8';
-    const eastCol = isPartition ? '#92400e' : '#c4b39f';
-    const rimCol = isPartition ? '#fb923c' : '#475569';
+    const topCol = isPartition ? '#9a3412' : (lowCut ? '#334155' : '#283347');
+    const southCol = isPartition ? '#ea580c' : '#dfd2c0';
+    const eastCol = isPartition ? '#c2410c' : '#cbbba6';
+    const rimCol = isPartition ? '#fdba74' : '#475569';
 
     drawIsoPrism(ctx, tf, c, r, 0, 1, 1, wz, topCol, southCol, eastCol, rimCol);
 
-    // Dark wood baseboard along South and East interior wall bottom edges
+    if (isPartition) {
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, wz + 0.26, '🧱 경량칸막이(파괴가능)', '#c2410c');
+    }
+
+    // Dark wood baseboard & interior wall decor along tall North/West studio walls
     if (!lowCut && !isPartition) {
       const southFloor = (r + 1 < rows) && grid[r + 1][c] !== T.WALL;
       const eastFloor = (c + 1 < cols) && grid[r][c + 1] !== T.WALL;
@@ -3359,169 +3362,248 @@
         drawIsoQuad(ctx, b0, b1, t1, t0, '#3d2b1d', null, 0);
       }
 
-      // Framed wall art & window curtains on back walls (r === 0)
+      // West Wall (c === 0) Bedroom Window with Warm Curtains (matching 02. 게임 플레이 화면)
+      if (c === 0 && eastFloor && (r === 1 || r === 2)) {
+        const w0 = tf.project(1.01, r + 0.12, 0.38);
+        const w1 = tf.project(1.01, r + 0.88, 0.38);
+        const w2 = tf.project(1.01, r + 0.88, 1.18);
+        const w3 = tf.project(1.01, r + 0.12, 1.18);
+        drawIsoQuad(ctx, w0, w1, w2, w3, '#fde68a', '#784b2a', 1.5);
+        // Draped beige curtain panels on sides
+        const c0 = tf.project(1.02, r + 0.08, 0.32);
+        const c1 = tf.project(1.02, r + 0.28, 0.32);
+        const c2 = tf.project(1.02, r + 0.28, 1.22);
+        const c3 = tf.project(1.02, r + 0.08, 1.22);
+        drawIsoQuad(ctx, c0, c1, c2, c3, '#d6c7b2', '#8c7355', 1);
+      }
+
+      // North Wall (r === 0) Framed Art, Bathroom Mirror, or Classroom Chalkboard
       if (r === 0 && southFloor) {
-        if (c === 2) {
-          // Framed picture on bedroom wall
-          const f0 = tf.project(c + 0.18, 1.01, 0.55);
-          const f1 = tf.project(c + 0.82, 1.01, 0.55);
-          const f2 = tf.project(c + 0.82, 1.01, 1.08);
-          const f3 = tf.project(c + 0.18, 1.01, 1.08);
-          drawIsoQuad(ctx, f0, f1, f2, f3, '#38bdf8', '#4a3525', 2);
+        if (stageIdx === 3 && c >= 2 && c <= 3) {
+          // Stage 4 School Green Chalkboard on North wall
+          const f0 = tf.project(c + 0.05, 1.01, 0.42);
+          const f1 = tf.project(c + 0.95, 1.01, 0.42);
+          const f2 = tf.project(c + 0.95, 1.01, 1.12);
+          const f3 = tf.project(c + 0.05, 1.01, 1.12);
+          drawIsoQuad(ctx, f0, f1, f2, f3, '#065f46', '#92400e', 2);
+        } else if (c === 1) {
+          // Framed picture above bedroom headboard
+          const f0 = tf.project(c + 0.22, 1.01, 0.68);
+          const f1 = tf.project(c + 0.78, 1.01, 0.68);
+          const f2 = tf.project(c + 0.78, 1.01, 1.12);
+          const f3 = tf.project(c + 0.22, 1.01, 1.12);
+          drawIsoQuad(ctx, f0, f1, f2, f3, '#94a3b8', '#4a3525', 2);
         } else if (c === 6) {
-          // Bathroom glowing vanity mirror on back wall
-          const m0 = tf.project(c + 0.15, 1.01, 0.52);
-          const m1 = tf.project(c + 0.85, 1.01, 0.52);
-          const m2 = tf.project(c + 0.85, 1.01, 1.16);
-          const m3 = tf.project(c + 0.15, 1.01, 1.16);
-          drawIsoQuad(ctx, m0, m1, m2, m3, '#bae6fd', '#94a3b8', 1.5);
+          // Bathroom glowing vanity mirror + shelf on back wall
+          const m0 = tf.project(c + 0.14, 1.01, 0.54);
+          const m1 = tf.project(c + 0.86, 1.01, 0.54);
+          const m2 = tf.project(c + 0.86, 1.01, 1.18);
+          const m3 = tf.project(c + 0.14, 1.01, 1.18);
+          drawIsoQuad(ctx, m0, m1, m2, m3, '#bae6fd', '#64748b', 1.8);
         }
       }
 
-      // Warm Wall Sconce Lights (복도 벽부등) casting golden glow
-      if (southFloor && ((r === 0 && (c === 3 || c === 10)) || (r === 3 && (c === 2 || c === 7)))) {
-        const sp = tf.project(c + 0.5, r + 1.02, 0.92);
+      // Warm Wall Sconce Lights (복도/침실 벽부등) casting golden glow
+      if (southFloor && (r === 0 && (c === 3 || c === 8 || c === 11))) {
+        const sp = tf.project(c + 0.5, r + 1.02, 0.94);
         const fp = tf.project(c + 0.5, r + 1.45, 0.02);
-        const rad = Math.max(18, tf.scaleX * 0.95);
+        const rad = Math.max(20, tf.scaleX * 1.05);
         const glow = ctx.createRadialGradient(sp.x, sp.y, 2, sp.x, sp.y + rad * 0.35, rad);
-        glow.addColorStop(0, 'rgba(254, 240, 138, 0.72)');
-        glow.addColorStop(0.45, 'rgba(251, 191, 36, 0.24)');
+        glow.addColorStop(0, 'rgba(254, 240, 138, 0.78)');
+        glow.addColorStop(0.45, 'rgba(251, 191, 36, 0.28)');
         glow.addColorStop(1, 'rgba(251, 191, 36, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
         ctx.arc(sp.x, sp.y + rad * 0.2, rad, 0, Math.PI * 2);
         ctx.fill();
 
-        // Floor warm light pool
-        const fglow = ctx.createRadialGradient(fp.x, fp.y, 2, fp.x, fp.y, rad * 0.85);
-        fglow.addColorStop(0, 'rgba(251, 191, 36, 0.22)');
+        const fglow = ctx.createRadialGradient(fp.x, fp.y, 2, fp.x, fp.y, rad * 0.9);
+        fglow.addColorStop(0, 'rgba(251, 191, 36, 0.24)');
         fglow.addColorStop(1, 'rgba(251, 191, 36, 0)');
         ctx.fillStyle = fglow;
         ctx.beginPath();
-        ctx.arc(fp.x, fp.y, rad * 0.85, 0, Math.PI * 2);
+        ctx.arc(fp.x, fp.y, rad * 0.9, 0, Math.PI * 2);
         ctx.fill();
 
-        // Sconce fixture
         ctx.fillStyle = '#fef08a';
         ctx.beginPath();
-        ctx.arc(sp.x, sp.y, 3.5, 0, Math.PI * 2);
+        ctx.arc(sp.x, sp.y, 3.8, 0, Math.PI * 2);
         ctx.fill();
       }
     }
   }
 
-  function drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player) {
+  function drawIsoPottedPlant(ctx, tf, wx, wy, wz = 0) {
+    // Terracotta / ceramic pot
+    drawIsoPrism(ctx, tf, wx - 0.16, wy - 0.16, wz, 0.32, 0.32, 0.24, '#b45309', '#92400e', '#78350f', '#451a03');
+    // Lush green foliage clusters
+    const pTop = tf.project(wx, wy, wz + 0.38);
+    const r = Math.max(6, tf.scaleX * 0.22);
+    ctx.save();
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath();
+    ctx.arc(pTop.x - r * 0.35, pTop.y + r * 0.1, r * 0.75, 0, Math.PI * 2);
+    ctx.arc(pTop.x + r * 0.35, pTop.y + r * 0.1, r * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(pTop.x, pTop.y - r * 0.2, r * 0.85, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player, grid) {
     const zone = classifyIsoRoomZone(c, r, stageIdx);
 
-    // 1. Detailed 3D Bedroom Bed with Blue Checkered Duvet (Stage 1 Bedroom furniture at c<=3, r<=3)
-    if (tile === T.FURNITURE && zone === 'BEDROOM' && c <= 3 && r <= 3) {
-      // Bed Wooden Frame & Headboard
-      drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0, 0.88, 0.88, 0.28, '#784b2a', '#5c371d', '#4a2b15', '#361e0d');
-      drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0.28, 0.88, 0.16, 0.42, '#8c5832', '#6e4323', '#543218', '#361e0d');
-      // White Mattress & Blue Plaid Duvet
-      drawIsoPrism(ctx, tf, c + 0.10, r + 0.20, 0.26, 0.80, 0.70, 0.16, '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af');
-      // Plaid stripes on duvet top
-      const d0 = tf.project(c + 0.12, r + 0.52, 0.43);
-      const d1 = tf.project(c + 0.88, r + 0.52, 0.43);
-      ctx.strokeStyle = 'rgba(191, 219, 254, 0.65)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(d0.x, d0.y);
-      ctx.lineTo(d1.x, d1.y);
-      ctx.stroke();
-      // White Fluffy Pillow
-      drawIsoPrism(ctx, tf, c + 0.20, r + 0.22, 0.42, 0.58, 0.22, 0.09, '#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8');
-
-      // Warm Bedside Nightstand Lamp Glow next to bed
-      const lp = tf.project(c + 0.92, r + 0.22, 0.55);
-      const lg = ctx.createRadialGradient(lp.x, lp.y, 2, lp.x, lp.y, tf.scaleX * 0.9);
-      lg.addColorStop(0, 'rgba(254, 240, 138, 0.65)');
-      lg.addColorStop(0.5, 'rgba(251, 191, 36, 0.22)');
+    // 0. Stage 1 Bedroom Ambient Decor on empty corner tiles (Desk + Laptop + Bookshelf + Nightstand Lamp)
+    if (stageIdx === 0 && tile === T.FLOOR && c === 1 && r === 2) {
+      // Bedside Nightstand + Glowing Warm Lamp at (1.15, 2.15)
+      drawIsoPrism(ctx, tf, c + 0.06, r + 0.08, 0, 0.42, 0.42, 0.34, '#8c5832', '#6e4323', '#543218', '#361e0d');
+      drawIsoPrism(ctx, tf, c + 0.16, r + 0.18, 0.34, 0.22, 0.22, 0.22, '#fef3c7', '#fde68a', '#f59e0b', '#b45309');
+      const lp = tf.project(c + 0.27, r + 0.29, 0.48);
+      const lg = ctx.createRadialGradient(lp.x, lp.y, 2, lp.x, lp.y, tf.scaleX * 0.95);
+      lg.addColorStop(0, 'rgba(254, 240, 138, 0.72)');
+      lg.addColorStop(0.5, 'rgba(251, 191, 36, 0.24)');
       lg.addColorStop(1, 'rgba(251, 191, 36, 0)');
       ctx.fillStyle = lg;
       ctx.beginPath();
-      ctx.arc(lp.x, lp.y, tf.scaleX * 0.9, 0, Math.PI * 2);
+      ctx.arc(lp.x, lp.y, tf.scaleX * 0.95, 0, Math.PI * 2);
       ctx.fill();
       return;
     }
 
-    // 2. Bathroom Porcelain Sink (T.SINK) + Toilet Prop
-    if (tile === T.SINK) {
-      // Vanity Cabinet + White Ceramic Washbasin
-      drawIsoPrism(ctx, tf, c + 0.14, r + 0.12, 0, 0.72, 0.64, 0.48, '#f8fafc', '#cbd5e1', '#94a3b8', '#64748b');
-      // Blue water pool inside basin
-      drawIsoPrism(ctx, tf, c + 0.24, r + 0.22, 0.48, 0.52, 0.42, 0.04, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
-      // Companion Porcelain Toilet on left side of bathroom if in bathroom zone
-      if (zone === 'BATHROOM') {
-        drawIsoPrism(ctx, tf, c - 0.78, r + 0.12, 0, 0.44, 0.52, 0.34, '#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8');
-        drawIsoPrism(ctx, tf, c - 0.78, r + 0.08, 0.34, 0.44, 0.18, 0.32, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+    // 1. Detailed Large 3D Bedroom Bed with Blue Checkered Duvet (Stage 1 Bedroom furniture at c<=3, r<=3)
+    if (tile === T.FURNITURE && zone === 'BEDROOM' && c <= 3 && r <= 3) {
+      const bw = 1.45;
+      const bh = 1.05;
+      const bx = c + 0.04;
+      const by = r - 0.10;
+      // Bed Wooden Frame & Tall Headboard against West wall
+      drawIsoPrism(ctx, tf, bx, by, 0, bw, bh, 0.28, '#784b2a', '#5c371d', '#4a2b15', '#361e0d');
+      drawIsoPrism(ctx, tf, bx, by, 0.28, 0.18, bh, 0.48, '#8c5832', '#6e4323', '#543218', '#361e0d');
+      // White Mattress Base
+      drawIsoPrism(ctx, tf, bx + 0.16, by + 0.06, 0.26, bw - 0.22, bh - 0.12, 0.14, '#f8fafc', '#e2e8f0', '#cbd5e1', '#94a3b8');
+      // Blue Plaid Duvet Blanket
+      drawIsoPrism(ctx, tf, bx + 0.42, by + 0.05, 0.28, bw - 0.46, bh - 0.10, 0.16, '#4f7cac', '#3b6491', '#2c4f75', '#1e3a5f');
+      // Checkered Plaid Grid Lines on Duvet Top
+      ctx.save();
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.38)';
+      ctx.lineWidth = 1.3;
+      for (let s = 1; s <= 3; s++) {
+        const pA = tf.project(bx + 0.42 + s * 0.24, by + 0.06, 0.45);
+        const pB = tf.project(bx + 0.42 + s * 0.24, by + bh - 0.06, 0.45);
+        ctx.beginPath();
+        ctx.moveTo(pA.x, pA.y);
+        ctx.lineTo(pB.x, pB.y);
+        ctx.stroke();
       }
-      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.85, '🚰 세면대', '#0284c7');
+      ctx.restore();
+      // Two White Fluffy Pillows
+      drawIsoPrism(ctx, tf, bx + 0.20, by + 0.12, 0.40, 0.22, 0.34, 0.09, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+      drawIsoPrism(ctx, tf, bx + 0.20, by + 0.54, 0.40, 0.22, 0.34, 0.09, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+      // Potted plant next to bed
+      drawIsoPottedPlant(ctx, tf, c + 0.24, r + 0.82, 0);
       return;
     }
 
-    // 3. Doors (Closed Door, Open Door, Hot Door, Locked Door)
+    // 2. Bathroom Porcelain Sink (T.SINK) + Porcelain Toilet & Vanity Mirror
+    if (tile === T.SINK) {
+      // Vanity Cabinet + White Ceramic Washbasin
+      drawIsoPrism(ctx, tf, c + 0.12, r + 0.10, 0, 0.76, 0.64, 0.52, '#f8fafc', '#cbd5e1', '#94a3b8', '#64748b');
+      // Blue water pool inside basin
+      drawIsoPrism(ctx, tf, c + 0.22, r + 0.20, 0.52, 0.56, 0.42, 0.04, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+      // Chrome faucet
+      drawIsoPrism(ctx, tf, c + 0.46, r + 0.12, 0.54, 0.08, 0.10, 0.14, '#e2e8f0', '#94a3b8', '#64748b', '#475569');
+      // Companion Porcelain Toilet on left side of bathroom if in bathroom zone
+      if (zone === 'BATHROOM') {
+        drawIsoPrism(ctx, tf, c - 0.82, r + 0.18, 0, 0.46, 0.54, 0.34, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+        drawIsoPrism(ctx, tf, c - 0.82, r + 0.08, 0.34, 0.46, 0.20, 0.38, '#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8');
+      }
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.96, '🚰 세면대', '#0284c7');
+      return;
+    }
+
+    // 3. Realistic 3D Architectural Doors (Closed Door, Open Door, Hot Door, Locked Door)
     const isClosedDoor = tile === T.DOOR || tile === T.DOOR_CLOSED;
     const isOpenDoor = tile === T.OPEN_DOOR || tile === T.DOOR_OPEN;
     if (isClosedDoor || isOpenDoor || tile === T.HOT_DOOR || tile === T.LOCKED_DOOR) {
       const isHot = tile === T.HOT_DOOR;
       const isOpen = isOpenDoor;
       const isLocked = tile === T.LOCKED_DOOR;
-      const topC = isHot ? '#dc2626' : (isLocked ? '#475569' : '#9a5b32');
-      const southC = isHot ? '#b91c1c' : (isLocked ? '#334155' : '#7c4522');
-      const eastC = isHot ? '#991b1b' : (isLocked ? '#1e293b' : '#5e3216');
+      const topC = isHot ? '#dc2626' : (isLocked ? '#475569' : '#9a6338');
+      const southC = isHot ? '#b91c1c' : (isLocked ? '#334155' : '#7c4d2b');
+      const eastC = isHot ? '#991b1b' : (isLocked ? '#1e293b' : '#5e381d');
+
+      // Detect wall orientation: vertical wall (N-S) vs horizontal wall (E-W)
+      const hasWallNorth = grid && r > 0 && (grid[r - 1][c] === T.WALL || grid[r - 1][c] === T.PARTITION);
+      const hasWallSouth = grid && r + 1 < grid.length && (grid[r + 1][c] === T.WALL || grid[r + 1][c] === T.PARTITION);
+      const isVerticalWall = hasWallNorth && hasWallSouth;
 
       if (isOpen) {
-        // Swung open door leaf on the side
-        drawIsoPrism(ctx, tf, c + 0.05, r + 0.05, 0, 0.18, 0.86, 1.18, '#a3663b', '#854f2b', '#693c1e', '#facc15');
-        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.28, '🚪 열린문(닫기)', '#0284c7');
+        drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0, 0.14, 0.82, 1.12, '#a3663b', '#854f2b', '#693c1e', '#facc15');
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.24, '🚪 열린문(닫기)', '#0284c7');
       } else {
-        drawIsoPrism(ctx, tf, c + 0.08, r + 0.36, 0, 0.84, 0.28, 1.22, topC, southC, eastC, isHot ? '#fbbf24' : '#3e200d');
+        if (isVerticalWall) {
+          // Thin door leaf aligned North-South + doorframe posts
+          drawIsoPrism(ctx, tf, c + 0.36, r + 0.02, 0, 0.28, 0.10, 1.18, '#5c3a21', '#472c18', '#362010', '#27170b');
+          drawIsoPrism(ctx, tf, c + 0.42, r + 0.10, 0, 0.16, 0.80, 1.14, topC, southC, eastC, isHot ? '#fbbf24' : '#3e200d');
+          drawIsoPrism(ctx, tf, c + 0.36, r + 0.88, 0, 0.28, 0.10, 1.18, '#5c3a21', '#472c18', '#362010', '#27170b');
+        } else {
+          // Thin door leaf aligned East-West + doorframe posts
+          drawIsoPrism(ctx, tf, c + 0.02, r + 0.36, 0, 0.10, 0.28, 1.18, '#5c3a21', '#472c18', '#362010', '#27170b');
+          drawIsoPrism(ctx, tf, c + 0.10, r + 0.42, 0, 0.80, 0.16, 1.14, topC, southC, eastC, isHot ? '#fbbf24' : '#3e200d');
+          drawIsoPrism(ctx, tf, c + 0.88, r + 0.36, 0, 0.10, 0.28, 1.18, '#5c3a21', '#472c18', '#362010', '#27170b');
+        }
+        // Brass Doorknob
+        const kp = tf.project(c + 0.62, r + 0.58, 0.54);
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(kp.x, kp.y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+
         if (isHot) {
-          const hp = tf.project(c + 0.5, r + 0.5, 0.6);
-          const hg = ctx.createRadialGradient(hp.x, hp.y, 2, hp.x, hp.y, tf.scaleX * 0.85);
-          hg.addColorStop(0, 'rgba(239, 68, 68, 0.55)');
+          const hp = tf.project(c + 0.5, r + 0.5, 0.58);
+          const hg = ctx.createRadialGradient(hp.x, hp.y, 2, hp.x, hp.y, tf.scaleX * 0.9);
+          hg.addColorStop(0, 'rgba(239, 68, 68, 0.62)');
           hg.addColorStop(1, 'rgba(239, 68, 68, 0)');
           ctx.fillStyle = hg;
           ctx.beginPath();
-          ctx.arc(hp.x, hp.y, tf.scaleX * 0.85, 0, Math.PI * 2);
+          ctx.arc(hp.x, hp.y, tf.scaleX * 0.9, 0, Math.PI * 2);
           ctx.fill();
-          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.38, '🌡️ 고온문', '#dc2626');
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.32, '🌡️ 고온문(개방금지)', '#dc2626');
         } else if (isLocked) {
-          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.35, '🔒 잠긴문', '#475569');
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.30, '🔒 잠긴문', '#475569');
         } else {
-          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.34, '🚪 방화문', '#b45309');
+          drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.28, '🚪 방화문', '#b45309');
         }
       }
       return;
     }
 
-    // 4. Glowing Green [🏃 EXIT] Doorway + Neon Green Floor Projection Arrow (➔)
+    // 4. Glowing Green [🏃 EXIT] Doorway + Neon Green Floor Projection Arrow (➔) + Potted Plant
     if (tile === T.EXIT) {
-      // Illuminated Green Portal Arch
-      drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.18, 1.36, '#10b981', '#059669', '#047857', '#6ee7b7');
+      drawIsoPrism(ctx, tf, c + 0.06, r + 0.06, 0, 0.88, 0.18, 1.36, '#10b981', '#059669', '#047857', '#6ee7b7');
+      drawIsoPottedPlant(ctx, tf, c + 0.15, r + 0.82, 0);
 
-      // Glowing Green Floor Projection Carpet & Arrow in front of EXIT
       const ep = tf.project(c + 0.5, r + 0.5, 0.05);
-      const eg = ctx.createRadialGradient(ep.x, ep.y, 4, ep.x, ep.y, tf.scaleX * 1.45);
-      eg.addColorStop(0, 'rgba(16, 185, 129, 0.62)');
-      eg.addColorStop(0.55, 'rgba(52, 211, 153, 0.24)');
+      const eg = ctx.createRadialGradient(ep.x, ep.y, 4, ep.x, ep.y, tf.scaleX * 1.55);
+      eg.addColorStop(0, 'rgba(16, 185, 129, 0.68)');
+      eg.addColorStop(0.55, 'rgba(52, 211, 153, 0.28)');
       eg.addColorStop(1, 'rgba(16, 185, 129, 0)');
       ctx.fillStyle = eg;
       ctx.beginPath();
-      ctx.arc(ep.x, ep.y, tf.scaleX * 1.45, 0, Math.PI * 2);
+      ctx.arc(ep.x, ep.y, tf.scaleX * 1.55, 0, Math.PI * 2);
       ctx.fill();
 
-      // Animated Neon Green Floor Arrow (➔) pointing into the EXIT
-      const pulse = 0.75 + 0.25 * Math.sin(now * 5.5);
-      const aStart = tf.project(c + 0.5, Math.max(0.5, r - 0.55), 0.04);
-      const aTip = tf.project(c + 0.5, r + 0.35, 0.04);
-      const aWing1 = tf.project(c + 0.18, r - 0.05, 0.04);
-      const aWing2 = tf.project(c + 0.82, r - 0.05, 0.04);
+      const pulse = 0.78 + 0.22 * Math.sin(now * 5.5);
+      const aStart = tf.project(c + 0.5, Math.max(0.5, r - 0.58), 0.04);
+      const aTip = tf.project(c + 0.5, r + 0.36, 0.04);
+      const aWing1 = tf.project(c + 0.16, r - 0.04, 0.04);
+      const aWing2 = tf.project(c + 0.84, r - 0.04, 0.04);
 
       ctx.save();
       ctx.strokeStyle = `rgba(110, 231, 183, ${pulse})`;
-      ctx.lineWidth = 4.5;
+      ctx.lineWidth = 4.8;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -3533,69 +3615,125 @@
       ctx.stroke();
       ctx.restore();
 
-      // Overhead [🏃 EXIT] Signboard
-      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.52, '🏃 EXIT 비상구', '#059669', '#ecfdf5');
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.54, '🏃 EXIT 비상구', '#059669', '#ecfdf5');
       return;
     }
 
-    // 5. Generic Furniture (Desk, Bookshelf, Sofa, Lab Table, Potted Plant)
+    // 5. Stage-Themed 3D Furniture & Props (Study Desk + Laptop, Kitchen Island, Science Lab Table, Glamping Tent, etc.)
     if (tile === T.FURNITURE || tile === T.DESK_SAFE || tile === T.DEBRIS || tile === T.ELEVATOR) {
       if (tile === T.ELEVATOR) {
-        drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.84, 1.25, '#475569', '#334155', '#1e293b', '#f87171');
-        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.38, '🛗 승강기(탑승금지)', '#b91c1c');
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.84, 1.28, '#475569', '#334155', '#1e293b', '#f87171');
+        // Elevator double doors seam
+        const e0 = tf.project(c + 0.5, r + 0.93, 0.05);
+        const e1 = tf.project(c + 0.5, r + 0.93, 1.18);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(e0.x, e0.y);
+        ctx.lineTo(e1.x, e1.y);
+        ctx.stroke();
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.42, '🛗 승강기(탑승금지)', '#b91c1c');
         return;
       }
       if (tile === T.DEBRIS) {
-        drawIsoPrism(ctx, tf, c + 0.14, r + 0.18, 0, 0.72, 0.64, 0.42, '#78350f', '#5c280b', '#451a03', '#f59e0b');
-        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.68, '🪵 장애물', '#92400e');
+        drawIsoPrism(ctx, tf, c + 0.10, r + 0.18, 0, 0.80, 0.24, 0.38, '#92400e', '#78350f', '#451a03', '#f59e0b');
+        drawIsoPrism(ctx, tf, c + 0.18, r + 0.48, 0.12, 0.68, 0.26, 0.36, '#78350f', '#5c280b', '#451a03', '#fbbf24');
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.72, '🪵 나무판자(도끼파괴)', '#92400e');
         return;
       }
-      const isSafeDesk = tile === T.DESK_SAFE;
-      drawIsoPrism(
-        ctx, tf,
-        c + 0.12, r + 0.12, 0,
-        0.76, 0.76, 0.52,
-        isSafeDesk ? '#0284c7' : '#85522d',
-        isSafeDesk ? '#0369a1' : '#693f20',
-        isSafeDesk ? '#075985' : '#523017',
-        isSafeDesk ? '#7dd3fc' : '#3b210e'
-      );
-      // Add green potted plant on corridor/corner furniture
-      if ((c + r) % 3 === 0 && !isSafeDesk) {
-        const pp = tf.project(c + 0.5, r + 0.5, 0.66);
-        ctx.fillStyle = '#16a34a';
-        ctx.beginPath();
-        ctx.arc(pp.x, pp.y, Math.max(5, tf.scaleX * 0.18), 0, Math.PI * 2);
-        ctx.fill();
+      if (tile === T.DESK_SAFE) {
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0.36, 0.84, 0.84, 0.14, '#0284c7', '#0369a1', '#075985', '#7dd3fc');
+        drawIsoPrism(ctx, tf, c + 0.12, r + 0.12, 0, 0.14, 0.14, 0.36, '#334155', '#1e293b', '#0f172a', null);
+        drawIsoPrism(ctx, tf, c + 0.74, r + 0.74, 0, 0.14, 0.14, 0.36, '#334155', '#1e293b', '#0f172a', null);
+        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.82, '🛡️ 내진책상(대피)', '#0284c7');
+        return;
       }
-      if (isSafeDesk) {
-        drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.78, '🛡️ 내진책상', '#0284c7');
+
+      // Stage 2 (stageIdx === 1): Kitchen Counter / Stove / Refrigerator
+      if (stageIdx === 1 && zone === 'KITCHEN') {
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.12, 0, 0.84, 0.76, 0.56, '#e2e8f0', '#94a3b8', '#64748b', '#475569');
+        // Black induction stove top
+        drawIsoPrism(ctx, tf, c + 0.22, r + 0.24, 0.56, 0.56, 0.48, 0.04, '#0f172a', '#1e293b', '#334155', '#38bdf8');
+        return;
+      }
+
+      // Stage 4 (stageIdx === 3): School Science Lab Table with Beakers
+      if (stageIdx === 3) {
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.14, 0, 0.84, 0.72, 0.48, '#1e293b', '#334155', '#0f172a', '#64748b');
+        // Science beaker & flask
+        drawIsoPrism(ctx, tf, c + 0.32, r + 0.34, 0.48, 0.16, 0.16, 0.22, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+        drawIsoPrism(ctx, tf, c + 0.56, r + 0.42, 0.48, 0.16, 0.16, 0.18, '#4ade80', '#16a34a', '#15803d', '#bbf7d0');
+        return;
+      }
+
+      // Stage 6 (stageIdx === 6): Glamping Tent / Forest Pine Tree
+      if (stageIdx === 6) {
+        if (c >= 10) {
+          // Warm Glamping Cabin Tent
+          drawIsoPrism(ctx, tf, c + 0.08, r + 0.08, 0, 0.84, 0.84, 0.72, '#d97706', '#b45309', '#92400e', '#fde68a');
+        } else {
+          drawIsoPottedPlant(ctx, tf, c + 0.5, r + 0.5, 0);
+        }
+        return;
+      }
+
+      // Default Study / Bedroom / Corridor Furniture: Wooden Study Desk + Laptop + Chair or Bookshelf
+      if (c >= 9 || (c === 5 && r === 3)) {
+        // Wooden Desk Table + Open Laptop Screen + Chair
+        drawIsoPrism(ctx, tf, c + 0.08, r + 0.12, 0, 0.82, 0.62, 0.46, '#8c5832', '#6e4323', '#543218', '#361e0d');
+        // Laptop on desk
+        drawIsoPrism(ctx, tf, c + 0.30, r + 0.26, 0.46, 0.36, 0.28, 0.04, '#94a3b8', '#64748b', '#475569', '#1e293b');
+        drawIsoPrism(ctx, tf, c + 0.30, r + 0.22, 0.50, 0.36, 0.05, 0.22, '#38bdf8', '#0284c7', '#0369a1', '#e2e8f0');
+        // Desk Chair
+        drawIsoPrism(ctx, tf, c + 0.32, r + 0.68, 0, 0.34, 0.28, 0.32, '#475569', '#334155', '#1e293b', '#0f172a');
+      } else {
+        // Corridor Console Cabinet + Lush Indoor Potted Plant
+        drawIsoPrism(ctx, tf, c + 0.14, r + 0.14, 0, 0.72, 0.72, 0.44, '#784b2a', '#5c371d', '#4a2b15', '#361e0d');
+        drawIsoPottedPlant(ctx, tf, c + 0.5, r + 0.5, 0.44);
       }
       return;
     }
 
-    // 6. Interactive Safety Items & Devices (Towel, Extinguisher, Bell, 119 Phone, Lifeline, Valve, Breaker, Mask, etc.)
+    // 6. Interactive Safety Devices (Bell, 119 Phone, Gas Valve, Breaker, Lifeline, Hazard)
     const itemMeta = getIsoInteractiveMeta(tile, T);
     if (itemMeta) {
-      drawIsoPrism(
-        ctx, tf,
-        c + 0.24, r + 0.24, 0,
-        0.52, 0.52, itemMeta.h,
-        itemMeta.top, itemMeta.south, itemMeta.east, '#fde68a'
-      );
-      const bob = Math.sin(now * 4.2 + c + r) * 0.08;
-      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, itemMeta.h + 0.34 + bob, itemMeta.label, itemMeta.badgeBg);
+      const bob = Math.sin(now * 4.2 + c + r) * 0.07;
+      if (tile === T.ALARM_BELL || tile === T.BELL) {
+        // Wall-mounted / Kiosk Red Fire Alarm Bell Box + Golden Dome Bell
+        drawIsoPrism(ctx, tf, c + 0.28, r + 0.28, 0, 0.44, 0.44, 0.68, '#dc2626', '#b91c1c', '#991b1b', '#fca5a5');
+        const bp = tf.project(c + 0.5, r + 0.5, 0.52);
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(bp.x, bp.y, Math.max(5, tf.scaleX * 0.14), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (tile === T.PHONE_119) {
+        // Green Emergency 119 Telephone Stand + Handset
+        drawIsoPrism(ctx, tf, c + 0.26, r + 0.26, 0, 0.48, 0.48, 0.62, '#10b981', '#059669', '#047857', '#6ee7b7');
+        drawIsoPrism(ctx, tf, c + 0.34, r + 0.34, 0.62, 0.32, 0.22, 0.14, '#ffffff', '#cbd5e1', '#94a3b8', '#059669');
+      } else if (tile === T.LIFELINE) {
+        // Blue High-Rise Lifeline Reel Box + Yellow Tripod Arm
+        drawIsoPrism(ctx, tf, c + 0.20, r + 0.20, 0, 0.60, 0.60, 0.48, '#0284c7', '#0369a1', '#075985', '#7dd3fc');
+        drawIsoPrism(ctx, tf, c + 0.42, r + 0.42, 0.48, 0.16, 0.16, 0.52, '#facc15', '#eab308', '#ca8a04', '#fef08a');
+      } else {
+        drawIsoPrism(
+          ctx, tf,
+          c + 0.24, r + 0.24, 0,
+          0.52, 0.52, itemMeta.h,
+          itemMeta.top, itemMeta.south, itemMeta.east, '#fde68a'
+        );
+      }
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, itemMeta.h + 0.38 + bob, itemMeta.label, itemMeta.badgeBg);
     }
   }
 
   function getIsoInteractiveMeta(tile, T) {
     if (tile === T.TOWEL) return { h: 0.28, top: '#38bdf8', south: '#0284c7', east: '#0369a1', label: '🧣 수건', badgeBg: '#0284c7' };
     if (tile === T.EXTINGUISHER) return { h: 0.52, top: '#ef4444', south: '#dc2626', east: '#b91c1c', label: '🧯 소화기', badgeBg: '#dc2626' };
-    if (tile === T.ALARM_BELL || tile === T.BELL) return { h: 0.45, top: '#f59e0b', south: '#d97706', east: '#b45309', label: '🔔 비상벨', badgeBg: '#d97706' };
-    if (tile === T.PHONE_119) return { h: 0.42, top: '#10b981', south: '#059669', east: '#047857', label: '📞 119신고', badgeBg: '#059669' };
-    if (tile === T.GAS_VALVE) return { h: 0.44, top: '#f97316', south: '#ea580c', east: '#c2410c', label: '🔴 가스밸브', badgeBg: '#ea580c' };
-    if (tile === T.BREAKER) return { h: 0.50, top: '#eab308', south: '#ca8a04', east: '#a16207', label: '⚡ 차단기', badgeBg: '#ca8a04' };
-    if (tile === T.LIFELINE) return { h: 0.48, top: '#0ea5e9', south: '#0284c7', east: '#0369a1', label: '🪢 완강기', badgeBg: '#0284c7' };
+    if (tile === T.ALARM_BELL || tile === T.BELL) return { h: 0.68, top: '#f59e0b', south: '#d97706', east: '#b45309', label: '🔔 비상벨', badgeBg: '#d97706' };
+    if (tile === T.PHONE_119) return { h: 0.68, top: '#10b981', south: '#059669', east: '#047857', label: '📞 119신고', badgeBg: '#059669' };
+    if (tile === T.GAS_VALVE) return { h: 0.48, top: '#f97316', south: '#ea580c', east: '#c2410c', label: '🔴 가스밸브', badgeBg: '#ea580c' };
+    if (tile === T.BREAKER) return { h: 0.56, top: '#eab308', south: '#ca8a04', east: '#a16207', label: '⚡ 차단기', badgeBg: '#ca8a04' };
+    if (tile === T.LIFELINE) return { h: 0.85, top: '#0ea5e9', south: '#0284c7', east: '#0369a1', label: '🪢 완강기', badgeBg: '#0284c7' };
     if (tile === T.MASK) return { h: 0.32, top: '#22c55e', south: '#16a34a', east: '#15803d', label: '😷 방연마스크', badgeBg: '#16a34a' };
     if (tile === T.FLASHLIGHT) return { h: 0.28, top: '#facc15', south: '#eab308', east: '#ca8a04', label: '🔦 손전등', badgeBg: '#ca8a04' };
     if (tile === T.AXE) return { h: 0.36, top: '#ef4444', south: '#b91c1c', east: '#991b1b', label: '🪓 소방도끼', badgeBg: '#b91c1c' };
@@ -3603,7 +3741,7 @@
     if (tile === T.WATER_BUCKET) return { h: 0.38, top: '#3b82f6', south: '#2563eb', east: '#1d4ed8', label: '🪣 물양동이', badgeBg: '#2563eb' };
     if (tile === T.SAND_BAG) return { h: 0.34, top: '#d97706', south: '#b45309', east: '#92400e', label: '⏳ 모래주머니', badgeBg: '#b45309' };
     if (tile === T.NPC) return { h: 0.65, top: '#ec4899', south: '#db2777', east: '#be185d', label: '🧒 구조대상', badgeBg: '#db2777' };
-    if (tile === T.HAZARD || tile === T.HAZARD_SPOT) return { h: 0.38, top: '#f43f5e', south: '#e11d48', east: '#be123c', label: '🔍 위험요소', badgeBg: '#e11d48' };
+    if (tile === T.HAZARD || tile === T.HAZARD_SPOT) return { h: 0.42, top: '#f43f5e', south: '#e11d48', east: '#be123c', label: '⚠️ 위험요소점검', badgeBg: '#e11d48' };
     if (tile === T.SAFE_BOX || tile === T.WIRE_PANEL) return { h: 0.46, top: '#06b6d4', south: '#0891b2', east: '#0e7490', label: '🔐 퍼즐장치', badgeBg: '#0891b2' };
     return null;
   }
@@ -3612,22 +3750,143 @@
     if (!item || item.collected) return;
     const c = item.c;
     const r = item.r;
-    let topC = '#38bdf8';
-    let southC = '#0284c7';
-    let eastC = '#0369a1';
-    let h = 0.34;
-    if (item.type === 'extinguisher') {
-      topC = '#ef4444'; southC = '#dc2626'; eastC = '#991b1b'; h = 0.50;
-    } else if (item.type === 'key' || item.type === 'flashlight') {
-      topC = '#facc15'; southC = '#ca8a04'; eastC = '#854d0e'; h = 0.28;
-    } else if (item.type === 'npc' || item.type === 'dog') {
-      topC = '#f472b6'; southC = '#db2777'; eastC = '#9d174d'; h = 0.58;
-    } else if (item.type === 'mask') {
-      topC = '#4ade80'; southC = '#16a34a'; eastC = '#166534'; h = 0.32;
+    const bob = Math.sin(now * 4.2 + c + r) * 0.07;
+
+    // 1. 3D Child NPC (동생 민수 / 짝꿍 지민 / 고립 시민)
+    if (item.type === 'npc') {
+      const basePt = tf.project(c + 0.5, r + 0.5, 0.02);
+      const sc = Math.max(18, tf.scaleX * 0.68);
+      ctx.save();
+      // Floor aura ring
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(basePt.x, basePt.y + 1, sc * 0.58, sc * 0.32, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Legs
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = Math.max(3.5, sc * 0.18);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(basePt.x - sc * 0.12, basePt.y - sc * 0.34);
+      ctx.lineTo(basePt.x - sc * 0.12, basePt.y - 1);
+      ctx.moveTo(basePt.x + sc * 0.12, basePt.y - sc * 0.34);
+      ctx.lineTo(basePt.x + sc * 0.12, basePt.y - 1);
+      ctx.stroke();
+      // Pink/Coral Jumper Torso
+      ctx.fillStyle = '#ec4899';
+      ctx.strokeStyle = '#fbcfe8';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      safeRoundRect(ctx, basePt.x - sc * 0.22, basePt.y - sc * 0.68, sc * 0.44, sc * 0.38, 6);
+      ctx.fill();
+      ctx.stroke();
+      // Waving Arm
+      const waveY = Math.sin(now * 8) * sc * 0.12;
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = Math.max(3, sc * 0.15);
+      ctx.beginPath();
+      ctx.moveTo(basePt.x + sc * 0.20, basePt.y - sc * 0.56);
+      ctx.lineTo(basePt.x + sc * 0.38, basePt.y - sc * 0.78 + waveY);
+      ctx.stroke();
+      // Head & Hair
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(basePt.x, basePt.y - sc * 0.86, sc * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#271c19';
+      ctx.beginPath();
+      ctx.arc(basePt.x, basePt.y - sc * 0.90, sc * 0.23, Math.PI * 0.92, Math.PI * 2.08);
+      ctx.fill();
+      ctx.restore();
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 1.18 + bob, `${item.icon || '🧒'} ${item.name || '구조대상'}`, '#db2777');
+      return;
     }
-    drawIsoPrism(ctx, tf, c + 0.25, r + 0.25, 0, 0.50, 0.50, h, topC, southC, eastC, '#fef08a');
-    const bob = Math.sin(now * 4.2 + c + r) * 0.08;
-    drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, h + 0.34 + bob, `${item.icon || '✨'} ${item.name || item.type}`, southC);
+
+    // 2. 3D Puppy Dog (초코)
+    if (item.type === 'dog') {
+      const basePt = tf.project(c + 0.5, r + 0.5, 0.02);
+      const sc = Math.max(16, tf.scaleX * 0.58);
+      ctx.save();
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.ellipse(basePt.x, basePt.y - sc * 0.28, sc * 0.34, sc * 0.22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(basePt.x + sc * 0.26, basePt.y - sc * 0.46, sc * 0.20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.85 + bob, `🐶 ${item.name || '반려견'}`, '#b45309');
+      return;
+    }
+
+    // 3. 3D Red Fire Extinguisher Cylinder + Nozzle Hose
+    if (item.type === 'extinguisher') {
+      const basePt = tf.project(c + 0.5, r + 0.5, 0.02);
+      const sc = Math.max(15, tf.scaleX * 0.55);
+      ctx.save();
+      // Floor highlight ring
+      ctx.strokeStyle = 'rgba(252, 165, 165, 0.7)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.ellipse(basePt.x, basePt.y + 1, sc * 0.52, sc * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Red cylinder body
+      ctx.fillStyle = '#dc2626';
+      ctx.strokeStyle = '#fecaca';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      safeRoundRect(ctx, basePt.x - sc * 0.24, basePt.y - sc * 0.78, sc * 0.48, sc * 0.76, 7);
+      ctx.fill();
+      ctx.stroke();
+      // White/yellow band
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(basePt.x - sc * 0.22, basePt.y - sc * 0.52, sc * 0.44, sc * 0.12);
+      // Chrome valve & handle
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(basePt.x - sc * 0.10, basePt.y - sc * 0.92, sc * 0.20, sc * 0.14);
+      // Black hose
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(basePt.x + sc * 0.10, basePt.y - sc * 0.86);
+      ctx.quadraticCurveTo(basePt.x + sc * 0.36, basePt.y - sc * 0.75, basePt.x + sc * 0.30, basePt.y - sc * 0.30);
+      ctx.stroke();
+      ctx.restore();
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.98 + bob, `${item.icon || '🧯'} ${item.name || '소화기'}`, '#dc2626');
+      return;
+    }
+
+    // 4. 3D Folded Towel on Wooden Stand
+    if (item.type === 'towel') {
+      drawIsoPrism(ctx, tf, c + 0.18, r + 0.18, 0, 0.64, 0.64, 0.22, '#8c5832', '#6e4323', '#543218', '#361e0d');
+      drawIsoPrism(ctx, tf, c + 0.24, r + 0.24, 0.22, 0.52, 0.52, 0.12, '#f8fafc', '#cbd5e1', '#94a3b8', '#38bdf8');
+      drawIsoPrism(ctx, tf, c + 0.26, r + 0.26, 0.34, 0.48, 0.48, 0.12, '#38bdf8', '#0284c7', '#0369a1', '#bae6fd');
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.82 + bob, `${item.icon || '🧣'} ${item.name || '수건'}`, '#0284c7');
+      return;
+    }
+
+    // 5. 3D Water Bucket with Shimmering Water Surface
+    if (item.type === 'bucket') {
+      drawIsoPrism(ctx, tf, c + 0.22, r + 0.22, 0, 0.56, 0.56, 0.42, '#60a5fa', '#2563eb', '#1d4ed8', '#93c5fd');
+      drawIsoPrism(ctx, tf, c + 0.26, r + 0.26, 0.42, 0.48, 0.48, 0.04, '#38bdf8', '#0284c7', '#0369a1', '#e0f2fe');
+      drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, 0.80 + bob, `${item.icon || '🪣'} ${item.name || '물양동이'}`, '#2563eb');
+      return;
+    }
+
+    // 6. Other Items (Key, Flashlight, Axe, Mask)
+    let topC = '#facc15';
+    let southC = '#ca8a04';
+    let eastC = '#854d0e';
+    let h = 0.30;
+    if (item.type === 'mask') {
+      topC = '#4ade80'; southC = '#16a34a'; eastC = '#166534'; h = 0.34;
+    } else if (item.type === 'axe') {
+      topC = '#ef4444'; southC = '#b91c1c'; eastC = '#7f1d1d'; h = 0.36;
+    }
+    drawIsoPrism(ctx, tf, c + 0.24, r + 0.24, 0, 0.52, 0.52, h, topC, southC, eastC, '#fef08a');
+    drawIsoBadgeLabel(ctx, tf, c + 0.5, r + 0.5, h + 0.38 + bob, `${item.icon || '✨'} ${item.name || item.type}`, southC);
   }
 
   function drawIsoBadgeLabel(ctx, tf, wx, wy, wz, text, bgColor, textColor = '#ffffff') {
@@ -3655,56 +3914,82 @@
   function drawIsoVolumetricFire(ctx, tf, f, now) {
     const wx = f.c + 0.5;
     const wy = f.r + 0.5;
-    const basePt = tf.project(wx, wy, 0.05);
-    const scale = Math.max(16, tf.scaleX * 0.68);
+    const basePt = tf.project(wx, wy, 0.04);
+    const scale = Math.max(18, tf.scaleX * 0.78);
 
     ctx.save();
     // 1. Dynamic Orange-Red Floor Firelight Glow
-    const fg = ctx.createRadialGradient(basePt.x, basePt.y, 2, basePt.x, basePt.y, scale * 1.65);
-    fg.addColorStop(0, 'rgba(251, 146, 60, 0.68)');
-    fg.addColorStop(0.5, 'rgba(239, 68, 68, 0.28)');
-    fg.addColorStop(1, 'rgba(239, 68, 68, 0)');
+    const fg = ctx.createRadialGradient(basePt.x, basePt.y, 2, basePt.x, basePt.y, scale * 1.75);
+    fg.addColorStop(0, 'rgba(254, 240, 138, 0.75)');
+    fg.addColorStop(0.38, 'rgba(249, 115, 22, 0.48)');
+    fg.addColorStop(0.75, 'rgba(220, 38, 38, 0.22)');
+    fg.addColorStop(1, 'rgba(220, 38, 38, 0)');
     ctx.fillStyle = fg;
     ctx.beginPath();
-    ctx.arc(basePt.x, basePt.y, scale * 1.65, 0, Math.PI * 2);
+    ctx.arc(basePt.x, basePt.y, scale * 1.75, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Multi-Layered 3D Volumetric Flame Tongues
-    for (let i = 0; i < 4; i++) {
-      const phase = now * 6.8 + f.c * 1.7 + f.r * 2.3 + i * 1.4;
-      const sway = Math.sin(phase) * scale * 0.22;
-      const flameH = scale * (1.25 + 0.32 * Math.sin(phase * 1.3)) * (1 - i * 0.14);
-      const flameW = scale * (0.62 - i * 0.11);
-      const ox = basePt.x + (i - 1.5) * scale * 0.16;
-      const oy = basePt.y;
+    // 2. Organic S-Curved Multi-Layered Volumetric Flame Plumes
+    for (let i = 0; i < 6; i++) {
+      const phase = now * 7.2 + f.c * 1.9 + f.r * 2.3 + i * 1.15;
+      const sway1 = Math.sin(phase) * scale * 0.28;
+      const sway2 = Math.cos(phase * 1.3) * scale * 0.24;
+      const flameH = scale * (1.15 + 0.34 * Math.sin(phase * 1.2)) * (1 - i * 0.09);
+      const flameW = scale * (0.54 - i * 0.065);
+      const ox = basePt.x + ((i % 3) - 1) * scale * 0.18;
+      const oy = basePt.y + ((i % 2) - 0.5) * scale * 0.08;
 
-      const grad = ctx.createLinearGradient(ox, oy, ox + sway, oy - flameH);
-      if (i === 3) {
-        grad.addColorStop(0, '#fef08a');
-        grad.addColorStop(0.6, '#facc15');
+      const grad = ctx.createLinearGradient(ox, oy, ox + sway2, oy - flameH);
+      if (i >= 4) {
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.45, '#fef08a');
+        grad.addColorStop(0.85, '#facc15');
         grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
       } else {
-        grad.addColorStop(0, '#dc2626');
-        grad.addColorStop(0.45, '#f97316');
-        grad.addColorStop(0.85, '#facc15');
-        grad.addColorStop(1, 'rgba(251, 146, 60, 0)');
+        grad.addColorStop(0, 'rgba(185, 28, 28, 0.95)');
+        grad.addColorStop(0.38, 'rgba(249, 115, 22, 0.92)');
+        grad.addColorStop(0.78, 'rgba(250, 204, 21, 0.85)');
+        grad.addColorStop(1, 'rgba(254, 240, 138, 0)');
       }
 
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.moveTo(ox - flameW, oy);
-      ctx.quadraticCurveTo(ox - flameW * 0.5 + sway * 0.4, oy - flameH * 0.55, ox + sway, oy - flameH);
-      ctx.quadraticCurveTo(ox + flameW * 0.5 + sway * 0.4, oy - flameH * 0.55, ox + flameW, oy);
+      ctx.bezierCurveTo(
+        ox - flameW * 0.7 + sway1, oy - flameH * 0.35,
+        ox - flameW * 0.2 - sway1, oy - flameH * 0.72,
+        ox + sway2 * 0.65, oy - flameH
+      );
+      ctx.bezierCurveTo(
+        ox + flameW * 0.3 + sway2, oy - flameH * 0.70,
+        ox + flameW * 0.8 - sway1, oy - flameH * 0.32,
+        ox + flameW, oy
+      );
       ctx.closePath();
       ctx.fill();
     }
 
-    // 3. Rising Dark Smoke Plume Above Fire
+    // 3. Rising Glowing Fire Sparks / Embers
+    for (let e = 0; e < 4; e++) {
+      const ep = (now * 1.4 + e * 0.25 + f.c * 0.17) % 1;
+      const ex = basePt.x + Math.sin(now * 5 + e * 2) * scale * 0.38;
+      const ey = basePt.y - scale * (0.4 + ep * 1.35);
+      ctx.fillStyle = `rgba(254, 240, 138, ${1 - ep})`;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 2.0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 4. Rising Multi-Puff Dark Smoke Plume Above Fire
     for (let s = 0; s < 3; s++) {
-      const sp = ((now * 0.85 + s * 0.33 + f.c * 0.19) % 1);
-      const smPt = tf.project(wx + Math.sin(now * 2 + s) * 0.18, wy, 0.85 + sp * 0.95);
-      const sr = scale * (0.38 + sp * 0.48);
-      ctx.fillStyle = `rgba(30, 41, 59, ${(1 - sp) * 0.52})`;
+      const sp = ((now * 0.75 + s * 0.33 + f.c * 0.19) % 1);
+      const smPt = tf.project(wx + Math.sin(now * 2 + s) * 0.18, wy, 0.82 + sp * 0.95);
+      const sr = scale * (0.44 + sp * 0.52);
+      const sg = ctx.createRadialGradient(smPt.x, smPt.y, 2, smPt.x, smPt.y, sr);
+      sg.addColorStop(0, `rgba(15, 23, 42, ${(1 - sp) * 0.68})`);
+      sg.addColorStop(0.6, `rgba(51, 65, 85, ${(1 - sp) * 0.38})`);
+      sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = sg;
       ctx.beginPath();
       ctx.arc(smPt.x, smPt.y, sr, 0, Math.PI * 2);
       ctx.fill();
@@ -3715,27 +4000,44 @@
   function drawIsoBillowingSmoke(ctx, tf, s, now, playerCrouching) {
     const wx = s.c + 0.5;
     const wy = s.r + 0.5;
-    const floorPt = tf.project(wx, wy, 0.04);
-    const ceilPt = tf.project(wx, wy, 0.92 + Math.sin(now * 2.2 + s.c + s.r) * 0.08);
-    const rad = Math.max(14, tf.scaleX * 0.58);
+    const floorPt = tf.project(wx, wy, 0.03);
+    const rad = Math.max(16, tf.scaleX * 0.68);
 
     ctx.save();
-    // Subtle hazard ring on floor so player sees which tile has overhead smoke
-    ctx.strokeStyle = playerCrouching ? 'rgba(56, 189, 248, 0.26)' : 'rgba(148, 163, 184, 0.34)';
-    ctx.lineWidth = 1.2;
+    // Soft floor shadow / fresh-air shimmer (no harsh stroke lines)
+    const fg = ctx.createRadialGradient(floorPt.x, floorPt.y, 2, floorPt.x, floorPt.y, rad * 0.85);
+    if (playerCrouching) {
+      fg.addColorStop(0, 'rgba(16, 185, 129, 0.18)');
+      fg.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    } else {
+      fg.addColorStop(0, 'rgba(15, 23, 42, 0.28)');
+      fg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    }
+    ctx.fillStyle = fg;
     ctx.beginPath();
-    ctx.ellipse(floorPt.x, floorPt.y, rad * 0.65, rad * 0.36, 0, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Billowing dark charcoal smoke clouds near upper wall/ceiling
-    const sg = ctx.createRadialGradient(ceilPt.x, ceilPt.y, 2, ceilPt.x, ceilPt.y, rad * 1.15);
-    sg.addColorStop(0, 'rgba(30, 41, 59, 0.72)');
-    sg.addColorStop(0.6, 'rgba(51, 65, 85, 0.42)');
-    sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
-    ctx.fillStyle = sg;
-    ctx.beginPath();
-    ctx.arc(ceilPt.x, ceilPt.y, rad * 1.15, 0, Math.PI * 2);
+    ctx.arc(floorPt.x, floorPt.y, rad * 0.85, 0, Math.PI * 2);
     ctx.fill();
+
+    // Multi-puff 3D Volumetric Charcoal Smoke Cloud near Ceiling (z = 0.82..1.18)
+    const puffs = [
+      { dx: -0.18, dy: -0.10, dz: 0.86, rMul: 0.95 },
+      { dx: 0.18, dy: 0.12, dz: 0.94, rMul: 1.05 },
+      { dx: 0.0, dy: -0.04, dz: 1.08, rMul: 1.18 }
+    ];
+    for (let i = 0; i < puffs.length; i++) {
+      const pf = puffs[i];
+      const wobble = Math.sin(now * 2.1 + s.c + s.r + i) * 0.07;
+      const ceilPt = tf.project(wx + pf.dx + wobble, wy + pf.dy, pf.dz);
+      const pr = rad * pf.rMul;
+      const sg = ctx.createRadialGradient(ceilPt.x - pr * 0.15, ceilPt.y - pr * 0.15, 2, ceilPt.x, ceilPt.y, pr);
+      sg.addColorStop(0, 'rgba(51, 65, 85, 0.68)');
+      sg.addColorStop(0.52, 'rgba(30, 41, 59, 0.48)');
+      sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(ceilPt.x, ceilPt.y, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -3743,150 +4045,176 @@
     const wx = player.x;
     const wy = player.y;
     const basePt = tf.project(wx, wy, 0.02);
-    const scale = Math.max(18, tf.scaleX * 0.62);
+    // 1.5x larger character scale so 4-point low crawl & blue backpack are unmistakably clear
+    const scale = Math.max(26, tf.scaleX * 0.90);
     const isCrouching = !!player.crouching;
     const isMoving = !!(player.isMoving || Math.hypot(player.vx || 0, player.vy || 0) > 0.01);
     const walkPhase = isMoving ? now * 11 : now * 2.2;
 
-    // Project facing direction in screen space
     const dirPt = tf.project(wx + (player.dirX || 1) * 0.4, wy + (player.dirY || 0) * 0.4, 0.02);
     const screenDx = dirPt.x - basePt.x;
     const facingSign = screenDx >= -1 ? 1 : -1;
 
     ctx.save();
 
-    // 1. Floor Safety Aura Ring & Contact Shadow
-    const ringR = scale * 0.72;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+    // 1. Floor Safety Aura Ring & Soft Contact Shadow
+    const ringR = scale * 0.62;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
     ctx.beginPath();
-    ctx.ellipse(basePt.x, basePt.y + 2, ringR * 0.85, ringR * 0.46, 0, 0, Math.PI * 2);
+    ctx.ellipse(basePt.x, basePt.y + 2, ringR * 0.92, ringR * 0.48, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = isCrouching ? '#34d399' : '#fbbf24';
     ctx.lineWidth = 2.4;
     ctx.beginPath();
-    ctx.ellipse(basePt.x, basePt.y + 1, ringR, ringR * 0.54, 0, 0, Math.PI * 2);
+    ctx.ellipse(basePt.x, basePt.y + 1, ringR, ringR * 0.52, 0, 0, Math.PI * 2);
     ctx.stroke();
 
     if (isCrouching) {
       // ======================================================================
-      // 4-Point Low Crawl / Crouch Posture (4점 지지 낮은 자세 포복 + 파란 책가방)
+      // 4-Point Low Crawl Posture (시안 02. 게임 플레이 화면 완벽 재현: 베이지 후드 + 네이비 바지 + 파란 책가방)
       // ======================================================================
-      const crawlSwing = Math.sin(walkPhase) * scale * 0.14;
-      const bodyY = basePt.y - scale * 0.34;
+      const crawlSwing = Math.sin(walkPhase) * scale * 0.12;
+      const bodyY = basePt.y - scale * 0.30;
       const bodyX = basePt.x;
 
-      // Back Knees & Lower Legs (Dark Navy Pants + Sneakers)
+      // Back Leg & Knee on Floor (Dark Navy Jeans + White Sneaker)
       ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = Math.max(4, scale * 0.22);
+      ctx.lineWidth = Math.max(5, scale * 0.20);
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
-      ctx.moveTo(bodyX - facingSign * scale * 0.18, bodyY + scale * 0.08);
-      ctx.lineTo(bodyX - facingSign * scale * 0.46 + crawlSwing * 0.5, basePt.y - 2);
+      ctx.moveTo(bodyX - facingSign * scale * 0.14, bodyY + scale * 0.06);
+      ctx.lineTo(bodyX - facingSign * scale * 0.34, basePt.y - 1);
+      ctx.lineTo(bodyX - facingSign * scale * 0.48 + crawlSwing * 0.4, basePt.y - 2);
       ctx.stroke();
 
-      // Front Supporting Arm on Floor
-      ctx.strokeStyle = '#fb923c';
-      ctx.lineWidth = Math.max(3.5, scale * 0.18);
+      // White Sneaker at back foot
+      ctx.fillStyle = '#f8fafc';
       ctx.beginPath();
-      ctx.moveTo(bodyX + facingSign * scale * 0.18, bodyY + scale * 0.02);
-      ctx.lineTo(bodyX + facingSign * scale * 0.36 - crawlSwing * 0.5, basePt.y - 1);
-      ctx.stroke();
+      ctx.ellipse(bodyX - facingSign * scale * 0.49 + crawlSwing * 0.4, basePt.y - 1, scale * 0.09, scale * 0.06, 0, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Horizontal Forward-Leaning Torso (Warm Orange-Amber Jacket)
-      ctx.fillStyle = '#ea580c';
-      ctx.strokeStyle = '#9a3412';
+      // Supporting Hand & Arm on Floor (Beige Hoodie Sleeve + Hand)
+      ctx.strokeStyle = '#d6cfc7';
+      ctx.lineWidth = Math.max(4.5, scale * 0.17);
+      ctx.beginPath();
+      ctx.moveTo(bodyX + facingSign * scale * 0.15, bodyY + scale * 0.02);
+      ctx.lineTo(bodyX + facingSign * scale * 0.28 - crawlSwing * 0.4, basePt.y);
+      ctx.stroke();
+      ctx.fillStyle = '#fed7aa';
+      ctx.beginPath();
+      ctx.arc(bodyX + facingSign * scale * 0.28 - crawlSwing * 0.4, basePt.y, scale * 0.065, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Horizontal Forward-Leaning Torso (Warm Beige Hoodie matching 02. 게임 플레이 화면)
+      ctx.fillStyle = '#e5dec9';
+      ctx.strokeStyle = '#78716c';
       ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.ellipse(bodyX, bodyY, scale * 0.38, scale * 0.22, facingSign * -0.18, 0, Math.PI * 2);
+      ctx.ellipse(bodyX, bodyY, scale * 0.34, scale * 0.20, facingSign * -0.15, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
       // 3D Blue Backpack (파란 책가방) on Top of Crouching Back
       const bpX = bodyX - facingSign * scale * 0.10;
-      const bpY = bodyY - scale * 0.20;
-      ctx.fillStyle = '#2563eb';
+      const bpY = bodyY - scale * 0.18;
+      ctx.fillStyle = '#1d4ed8';
       ctx.strokeStyle = '#93c5fd';
-      ctx.lineWidth = 1.3;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
-      safeRoundRect(ctx, bpX - scale * 0.24, bpY - scale * 0.16, scale * 0.48, scale * 0.30, 6);
+      safeRoundRect(ctx, bpX - scale * 0.22, bpY - scale * 0.15, scale * 0.44, scale * 0.28, 7);
       ctx.fill();
       ctx.stroke();
-      // Backpack pocket stripe
-      ctx.fillStyle = '#60a5fa';
-      ctx.fillRect(bpX - scale * 0.14, bpY - scale * 0.05, scale * 0.28, scale * 0.07);
+      // Backpack outer pocket & zipper highlight
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(bpX - scale * 0.13, bpY - scale * 0.04, scale * 0.26, scale * 0.08);
+      // Dark shoulder strap loop
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(bpX + facingSign * scale * 0.16, bpY - scale * 0.08);
+      ctx.lineTo(bodyX + facingSign * scale * 0.14, bodyY + scale * 0.10);
+      ctx.stroke();
 
-      // Head + Hair + Hand Covering Mouth/Nose with Wet Towel
-      const headX = bodyX + facingSign * scale * 0.34;
+      // Head + Ear + Layered Dark Hair + Hand Covering Nose/Mouth
+      const headX = bodyX + facingSign * scale * 0.30;
       const headY = bodyY - scale * 0.08;
       ctx.fillStyle = '#fed7aa';
       ctx.beginPath();
-      ctx.arc(headX, headY, scale * 0.22, 0, Math.PI * 2);
+      ctx.arc(headX, headY, scale * 0.21, 0, Math.PI * 2);
       ctx.fill();
 
-      // Dark brown/black hair or safety helmet
-      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1e1b18';
+      // Full Dark Brown/Black Hair Cap
+      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1c1917';
       ctx.beginPath();
-      ctx.arc(headX, headY - scale * 0.04, scale * 0.23, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.arc(headX - facingSign * scale * 0.02, headY - scale * 0.04, scale * 0.22, Math.PI * 0.85, Math.PI * 2.15);
       ctx.fill();
 
-      // Wet Towel / Mask covering mouth & nose
-      ctx.fillStyle = player.wetTowel || player.hasWetTowel || player.hasMask ? '#38bdf8' : '#f8fafc';
+      // Ear
+      ctx.fillStyle = '#fdba74';
       ctx.beginPath();
-      safeRoundRect(ctx, headX + facingSign * scale * 0.02, headY - scale * 0.01, scale * 0.20, scale * 0.14, 3);
+      ctx.arc(headX - facingSign * scale * 0.04, headY + scale * 0.02, scale * 0.055, 0, Math.PI * 2);
       ctx.fill();
 
-      // Crouching status mini pill above player
-      drawIsoBadgeLabel(ctx, tf, wx, wy, 0.95, '🧎 낮은 자세', '#059669', '#ecfdf5');
+      // Wet Towel / Mask held at mouth & nose
+      ctx.fillStyle = player.wetTowel || player.hasWetTowel || player.hasMask ? '#38bdf8' : '#ffffff';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      safeRoundRect(ctx, headX + facingSign * scale * 0.03, headY - scale * 0.01, scale * 0.18, scale * 0.13, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      drawIsoBadgeLabel(ctx, tf, wx, wy, 1.05, '🧎 낮은 자세', '#059669', '#ecfdf5');
     } else {
       // ======================================================================
       // Upright 3D Student Character + Blue 3D Backpack
       // ======================================================================
-      const legSwing = Math.sin(walkPhase) * scale * 0.14;
-      const torsoY = basePt.y - scale * 0.56;
+      const legSwing = Math.sin(walkPhase) * scale * 0.13;
+      const torsoY = basePt.y - scale * 0.52;
 
-      // Legs
+      // Legs (Dark Navy Pants + White Sneakers)
       ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = Math.max(4, scale * 0.20);
+      ctx.lineWidth = Math.max(4.5, scale * 0.18);
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(basePt.x - scale * 0.12, torsoY + scale * 0.20);
-      ctx.lineTo(basePt.x - scale * 0.14 - legSwing, basePt.y - 2);
-      ctx.moveTo(basePt.x + scale * 0.12, torsoY + scale * 0.20);
-      ctx.lineTo(basePt.x + scale * 0.14 + legSwing, basePt.y - 2);
+      ctx.moveTo(basePt.x - scale * 0.11, torsoY + scale * 0.18);
+      ctx.lineTo(basePt.x - scale * 0.13 - legSwing, basePt.y - 2);
+      ctx.moveTo(basePt.x + scale * 0.11, torsoY + scale * 0.18);
+      ctx.lineTo(basePt.x + scale * 0.13 + legSwing, basePt.y - 2);
       ctx.stroke();
 
       // 3D Blue Backpack (파란 책가방)
       const bpX = basePt.x - facingSign * scale * 0.16;
       const bpY = torsoY;
-      ctx.fillStyle = '#2563eb';
+      ctx.fillStyle = '#1d4ed8';
       ctx.strokeStyle = '#93c5fd';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      safeRoundRect(ctx, bpX - scale * 0.17, bpY - scale * 0.20, scale * 0.34, scale * 0.40, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // Torso Hoodie (Warm Beige)
+      ctx.fillStyle = '#e5dec9';
+      ctx.strokeStyle = '#78716c';
       ctx.lineWidth = 1.3;
       ctx.beginPath();
-      safeRoundRect(ctx, bpX - scale * 0.18, bpY - scale * 0.22, scale * 0.36, scale * 0.44, 6);
+      safeRoundRect(ctx, basePt.x - scale * 0.20, torsoY - scale * 0.20, scale * 0.40, scale * 0.42, 7);
       ctx.fill();
       ctx.stroke();
 
-      // Torso Jacket
-      ctx.fillStyle = '#ea580c';
-      ctx.strokeStyle = '#fed7aa';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      safeRoundRect(ctx, basePt.x - scale * 0.22, torsoY - scale * 0.22, scale * 0.44, scale * 0.46, 7);
-      ctx.fill();
-      ctx.stroke();
-
-      // Head
-      const headY = torsoY - scale * 0.44;
+      // Head & Hair
+      const headY = torsoY - scale * 0.40;
       ctx.fillStyle = '#fed7aa';
       ctx.beginPath();
-      ctx.arc(basePt.x, headY, scale * 0.23, 0, Math.PI * 2);
+      ctx.arc(basePt.x, headY, scale * 0.21, 0, Math.PI * 2);
       ctx.fill();
 
-      // Hair / Helmet
-      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1e1b18';
+      ctx.fillStyle = (customGear && customGear.helmetColor) ? customGear.helmetColor : '#1c1917';
       ctx.beginPath();
-      ctx.arc(basePt.x, headY - scale * 0.05, scale * 0.24, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.arc(basePt.x, headY - scale * 0.04, scale * 0.22, Math.PI * 0.90, Math.PI * 2.10);
       ctx.fill();
     }
 
@@ -3935,8 +4263,8 @@
       const pStart = tf.project(player.x, player.y, 0.04);
       const pEnd = tf.project(breadcrumbTarget.c + 0.5, breadcrumbTarget.r + 0.5, 0.04);
       ctx.save();
-      ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.42)';
+      ctx.lineWidth = 2.8;
       ctx.setLineDash([8, 6]);
       ctx.lineDashOffset = -now * 28;
       ctx.beginPath();
@@ -3976,9 +4304,9 @@
       for (let c = 0; c < cols; c++) {
         const tile = grid[r][c];
         if (tile === T.WALL || tile === T.PARTITION) {
-          drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now);
+          drawIsoWallTile(ctx, tf, c, r, cols, rows, grid, T, tile, now, stageIdx);
         } else {
-          drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player);
+          drawIsoFurnitureAndProps(ctx, tf, c, r, tile, T, stageIdx, now, player, grid);
         }
 
         const itObj = itemMap.get(`${c},${r}`);
@@ -4017,11 +4345,25 @@
       );
     }
 
+    // 5. Stage 5 (stageIdx === 4) Power-Outage Subway Flashlight Cone Effect
+    if (stageIdx === 4) {
+      const pScreen = tf.project(player.x, player.y, 0.35);
+      const spotR = (player.hasFlashlight && player.flashlightOn !== false) ? tf.scaleX * 4.5 : tf.scaleX * 2.6;
+      ctx.save();
+      const darkGrad = ctx.createRadialGradient(pScreen.x, pScreen.y, spotR * 0.35, pScreen.x, pScreen.y, spotR * 1.45);
+      darkGrad.addColorStop(0, 'rgba(254, 249, 195, 0.08)');
+      darkGrad.addColorStop(0.55, 'rgba(2, 6, 23, 0.35)');
+      darkGrad.addColorStop(1, 'rgba(2, 6, 23, 0.68)');
+      ctx.fillStyle = darkGrad;
+      ctx.fillRect(0, 0, canvasW, canvasH);
+      ctx.restore();
+    }
+
     return tf;
   }
 
   // ============================================================================
-  // 01. 홈 화면: 3D Cinematic Burning Corridor & Crouching Children Illustration
+  // 01. 홈 화면: High-Detail 3D Illustrated Burning Apartment & Escaping Children Duo
   // ============================================================================
   function renderHomeHeroBgCanvas(canvas, now) {
     if (!canvas) return;
@@ -4038,252 +4380,350 @@
     const t = (now || performance.now() * 0.001);
     ctx.save();
 
-    // 1. Deep 3D Perspective Corridor Geometry (Vanishing Point at center-right)
-    const vx = w * 0.56;
-    const vy = h * 0.44;
+    // 1. Night Sky & Smoky Urban Atmosphere Backdrop
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+    skyGrad.addColorStop(0, '#091122');
+    skyGrad.addColorStop(0.45, '#1b263b');
+    skyGrad.addColorStop(0.78, '#3b241e');
+    skyGrad.addColorStop(1, '#181010');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, h);
 
-    // Ceiling (Dark smoky slate-brown)
-    const ceilGrad = ctx.createLinearGradient(0, 0, 0, vy);
-    ceilGrad.addColorStop(0, '#090d16');
-    ceilGrad.addColorStop(1, '#261c1a');
-    ctx.fillStyle = ceilGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(w, 0);
-    ctx.lineTo(vx + w * 0.14, vy - h * 0.12);
-    ctx.lineTo(vx - w * 0.16, vy - h * 0.12);
-    ctx.closePath();
-    ctx.fill();
-
-    // Left Corridor Wall (Warm lit plaster & wooden doors)
-    const leftWallGrad = ctx.createLinearGradient(0, vy, vx - w * 0.16, vy);
-    leftWallGrad.addColorStop(0, '#7c4a2b');
-    leftWallGrad.addColorStop(0.55, '#b87d4b');
-    leftWallGrad.addColorStop(1, '#4a2c1d');
-    ctx.fillStyle = leftWallGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(vx - w * 0.16, vy - h * 0.12);
-    ctx.lineTo(vx - w * 0.16, vy + h * 0.16);
-    ctx.lineTo(0, h * 0.88);
-    ctx.closePath();
-    ctx.fill();
-
-    // Right Corridor Wall (Leading to glowing green EXIT)
-    const rightWallGrad = ctx.createLinearGradient(vx + w * 0.14, vy, w, vy);
-    rightWallGrad.addColorStop(0, '#47362b');
-    rightWallGrad.addColorStop(0.65, '#8c6d53');
-    rightWallGrad.addColorStop(1, '#574335');
-    ctx.fillStyle = rightWallGrad;
-    ctx.beginPath();
-    ctx.moveTo(w, 0);
-    ctx.lineTo(vx + w * 0.14, vy - h * 0.12);
-    ctx.lineTo(vx + w * 0.14, vy + h * 0.16);
-    ctx.lineTo(w, h * 0.92);
-    ctx.closePath();
-    ctx.fill();
-
-    // Back Corridor Wall
-    ctx.fillStyle = '#2b1e19';
-    ctx.fillRect(vx - w * 0.16, vy - h * 0.12, w * 0.30, h * 0.28);
-
-    // Corridor Wood Plank Floor with Perspective Lines & Warm Fire Reflections
-    const floorGrad = ctx.createLinearGradient(0, vy + h * 0.16, 0, h);
-    floorGrad.addColorStop(0, '#5c361e');
-    floorGrad.addColorStop(0.45, '#8a5229');
-    floorGrad.addColorStop(1, '#3b2212');
-    ctx.fillStyle = floorGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, h * 0.88);
-    ctx.lineTo(vx - w * 0.16, vy + h * 0.16);
-    ctx.lineTo(vx + w * 0.14, vy + h * 0.16);
-    ctx.lineTo(w, h * 0.92);
-    ctx.lineTo(w, h);
-    ctx.lineTo(0, h);
-    ctx.closePath();
-    ctx.fill();
-
-    // Perspective floor plank seams
-    ctx.strokeStyle = 'rgba(40, 20, 8, 0.45)';
-    ctx.lineWidth = 1.5;
-    for (let i = -4; i <= 4; i++) {
-      ctx.beginPath();
-      ctx.moveTo(vx + i * w * 0.032, vy + h * 0.16);
-      ctx.lineTo(vx + i * w * 0.18, h);
-      ctx.stroke();
+    // 2. Left & Right High-Rise Apartment Buildings with Glowing/Burning Windows (matching 01. 홈 화면)
+    // Left Mid-Ground Apartment Tower
+    ctx.fillStyle = '#162032';
+    ctx.fillRect(w * 0.02, h * 0.18, w * 0.16, h * 0.65);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(w * 0.16, h * 0.28, w * 0.10, h * 0.55);
+    for (let r = 0; r < 6; r++) {
+      for (let c = 0; c < 3; c++) {
+        const wx = w * (0.04 + c * 0.042);
+        const wy = h * (0.23 + r * 0.08);
+        const isLit = (r + c) % 2 === 0;
+        ctx.fillStyle = isLit ? 'rgba(251, 146, 60, 0.55)' : 'rgba(51, 65, 85, 0.55)';
+        ctx.fillRect(wx, wy, w * 0.026, h * 0.045);
+      }
     }
 
-    // 2. Glowing Green [🏃 EXIT] Sign & Portal on the Right Wall (matching 01. 홈 화면)
-    const exitX = w * 0.77;
-    const exitY = h * 0.34;
-    const exitGlow = ctx.createRadialGradient(exitX, exitY, 4, exitX, exitY, w * 0.16);
-    exitGlow.addColorStop(0, 'rgba(52, 211, 153, 0.78)');
-    exitGlow.addColorStop(0.5, 'rgba(16, 185, 129, 0.24)');
-    exitGlow.addColorStop(1, 'rgba(16, 185, 129, 0)');
-    ctx.fillStyle = exitGlow;
+    // Right Perspective Apartment Facade with Balconies & Blazing Windows
+    const rWallGrad = ctx.createLinearGradient(w * 0.66, 0, w, h);
+    rWallGrad.addColorStop(0, '#3e2b24');
+    rWallGrad.addColorStop(0.55, '#5c3a28');
+    rWallGrad.addColorStop(1, '#2a1812');
+    ctx.fillStyle = rWallGrad;
     ctx.beginPath();
-    ctx.arc(exitX, exitY, w * 0.16, 0, Math.PI * 2);
+    ctx.moveTo(w * 0.68, 0);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(w, h * 0.88);
+    ctx.lineTo(w * 0.66, h * 0.72);
+    ctx.closePath();
     ctx.fill();
 
-    // Green EXIT Sign Box
-    const signW = Math.max(76, w * 0.085);
-    const signH = Math.max(30, h * 0.062);
-    ctx.fillStyle = '#059669';
-    ctx.strokeStyle = '#a7f3d0';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    safeRoundRect(ctx, exitX - signW * 0.5, exitY - signH * 0.5, signW, signH, 6);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `900 ${Math.max(12, Math.round(signH * 0.48))}px "Inter", "Noto Sans KR", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🏃 EXIT', exitX, exitY + 1);
+    // Glowing Burning Windows & Balcony Railings on Right Building
+    for (let floor = 0; floor < 3; floor++) {
+      const wyTop = h * (0.08 + floor * 0.21);
+      const wyBot = wyTop + h * 0.15;
+      const wxL = w * 0.72;
+      const wxR = w * 0.94;
 
-    // 3. Roaring Organic 3D Volumetric Fire & Embers on the Left/Upper Corridor
-    const fireBaseX = w * 0.22;
-    const fireBaseY = h * 0.50;
-    const fireGlow = ctx.createRadialGradient(fireBaseX, fireBaseY - h * 0.08, 12, fireBaseX, fireBaseY, w * 0.38);
-    fireGlow.addColorStop(0, 'rgba(254, 240, 138, 0.88)');
-    fireGlow.addColorStop(0.32, 'rgba(249, 115, 22, 0.62)');
-    fireGlow.addColorStop(0.68, 'rgba(220, 38, 38, 0.25)');
+      // Window fire glow
+      const wg = ctx.createLinearGradient(wxL, wyBot, wxL, wyTop);
+      wg.addColorStop(0, '#fef08a');
+      wg.addColorStop(0.5, '#f97316');
+      wg.addColorStop(1, '#991b1b');
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.moveTo(wxL, wyTop + h * 0.02);
+      ctx.lineTo(wxR, wyTop);
+      ctx.lineTo(wxR, wyBot);
+      ctx.lineTo(wxL, wyBot - h * 0.01);
+      ctx.closePath();
+      ctx.fill();
+
+      // Window mullions & balcony bars
+      ctx.strokeStyle = '#1c1917';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(wxL, wyTop, wxR - wxL, wyBot - wyTop);
+      for (let b = 1; b <= 5; b++) {
+        const bx = wxL + ((wxR - wxL) * b) / 6;
+        ctx.beginPath();
+        ctx.moveTo(bx, wyBot - h * 0.05);
+        ctx.lineTo(bx, wyBot);
+        ctx.stroke();
+      }
+    }
+
+    // 3. Warm Firelight Glow & Volumetric Smoke Clouds Behind Characters
+    const fireGlow = ctx.createRadialGradient(w * 0.62, h * 0.52, 10, w * 0.62, h * 0.52, w * 0.42);
+    fireGlow.addColorStop(0, 'rgba(254, 240, 138, 0.65)');
+    fireGlow.addColorStop(0.4, 'rgba(249, 115, 22, 0.38)');
     fireGlow.addColorStop(1, 'rgba(220, 38, 38, 0)');
     ctx.fillStyle = fireGlow;
     ctx.beginPath();
-    ctx.arc(fireBaseX, fireBaseY, w * 0.38, 0, Math.PI * 2);
+    ctx.arc(w * 0.62, h * 0.52, w * 0.42, 0, Math.PI * 2);
     ctx.fill();
 
-    // Left Corridor Recessed Wooden Door Frame (Engulfed in Fire)
-    ctx.fillStyle = '#3b1d0e';
-    ctx.strokeStyle = '#7c2d12';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.14, h * 0.72);
-    ctx.lineTo(w * 0.14, h * 0.22);
-    ctx.lineTo(w * 0.25, h * 0.27);
-    ctx.lineTo(w * 0.25, h * 0.65);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Organic S-Curved Multi-Layer Flame Tongues
-    for (let i = 0; i < 11; i++) {
-      const phase = t * 5.4 + i * 0.85;
-      const fx = w * (0.08 + i * 0.032) + Math.sin(phase) * 7;
-      const fy = h * (0.64 - (i % 4) * 0.035);
-      const fh = h * (0.22 + 0.09 * Math.sin(phase * 1.25));
-      const fw = w * (0.044 - (i % 3) * 0.006);
-      const sway1 = Math.sin(phase + 0.7) * fw * 0.85;
-      const sway2 = Math.cos(phase * 1.3) * fw * 0.95;
-
-      const fg = ctx.createLinearGradient(fx, fy, fx + sway2, fy - fh);
-      fg.addColorStop(0, 'rgba(185, 28, 28, 0.92)');
-      fg.addColorStop(0.38, 'rgba(249, 115, 22, 0.90)');
-      fg.addColorStop(0.78, 'rgba(253, 224, 71, 0.85)');
-      fg.addColorStop(1, 'rgba(254, 249, 195, 0)');
-      ctx.fillStyle = fg;
-      ctx.beginPath();
-      ctx.moveTo(fx - fw, fy);
-      ctx.bezierCurveTo(
-        fx - fw * 0.75 + sway1, fy - fh * 0.35,
-        fx - fw * 0.25 - sway1, fy - fh * 0.75,
-        fx + sway2 * 0.6, fy - fh
-      );
-      ctx.bezierCurveTo(
-        fx + fw * 0.35 + sway2, fy - fh * 0.72,
-        fx + fw * 0.85 - sway1, fy - fh * 0.32,
-        fx + fw, fy
-      );
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Floating Glowing Fire Embers
-    for (let e = 0; e < 18; e++) {
-      const ep = (t * 0.65 + e * 0.17) % 1;
-      const ex = w * (0.10 + (e * 0.043) % 0.45) + Math.sin(t * 3 + e) * 14;
-      const ey = h * (0.62 - ep * 0.48);
-      ctx.fillStyle = e % 2 === 0 ? `rgba(254, 240, 138, ${1 - ep})` : `rgba(251, 146, 60, ${1 - ep})`;
-      ctx.beginPath();
-      ctx.arc(ex, ey, 2.2 + (e % 3), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Billowing Upper Dark Smoke Clouds
-    for (let s = 0; s < 11; s++) {
-      const sx = w * (0.06 + s * 0.088) + Math.sin(t * 0.9 + s) * 14;
-      const sy = h * (0.10 + (s % 3) * 0.055);
-      const sr = w * (0.095 + (s % 4) * 0.025);
-      const sg = ctx.createRadialGradient(sx, sy, 6, sx, sy, sr);
-      sg.addColorStop(0, 'rgba(15, 23, 42, 0.86)');
-      sg.addColorStop(0.62, 'rgba(30, 41, 59, 0.52)');
-      sg.addColorStop(1, 'rgba(15, 23, 42, 0)');
+    // Billowing Warm-Lit Smoke Clouds on Left & Right
+    const smokeClusters = [
+      { x: 0.08, y: 0.68, r: 0.14, col: 'rgba(148, 130, 120, 0.55)' },
+      { x: 0.18, y: 0.72, r: 0.12, col: 'rgba(120, 113, 108, 0.50)' },
+      { x: 0.62, y: 0.62, r: 0.16, col: 'rgba(168, 140, 122, 0.58)' },
+      { x: 0.74, y: 0.68, r: 0.18, col: 'rgba(140, 122, 112, 0.62)' },
+      { x: 0.86, y: 0.72, r: 0.15, col: 'rgba(100, 90, 85, 0.55)' }
+    ];
+    for (let i = 0; i < smokeClusters.length; i++) {
+      const sc = smokeClusters[i];
+      const sx = w * sc.x + Math.sin(t * 1.1 + i) * 10;
+      const sy = h * sc.y + Math.cos(t * 0.9 + i) * 6;
+      const sr = Math.min(w, h) * sc.r;
+      const sg = ctx.createRadialGradient(sx, sy - sr * 0.2, 4, sx, sy, sr);
+      sg.addColorStop(0, sc.col);
+      sg.addColorStop(0.65, 'rgba(71, 65, 62, 0.32)');
+      sg.addColorStop(1, 'rgba(30, 27, 26, 0)');
       ctx.fillStyle = sg;
       ctx.beginPath();
       ctx.arc(sx, sy, sr, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 4. Two Crouching Children with Blue Backpacks Escaping Low Along the Corridor Floor
-    drawHomeHeroCrouchingChild(ctx, w * 0.38, h * 0.63, Math.min(w, h) * 0.155, t, '#ea580c', '#2563eb');
-    drawHomeHeroCrouchingChild(ctx, w * 0.56, h * 0.55, Math.min(w, h) * 0.118, t + 1.2, '#d97706', '#0284c7');
+    // 4. Foreground Illustrated Children Duo (01. 홈 화면: 남학생 & 여학생 입체 캐릭터 일러스트)
+    const unit = Math.min(w, h * 1.35);
+    // Back Character: Girl in Coral-Pink Jacket covering nose/mouth with ponytail
+    drawHomeHeroGirlCharacter(ctx, w * 0.47, h * 0.56, unit * 0.26, t);
+    // Front Hero Character: Boy in Beige Hoodie + Blue 3D Backpack covering nose/mouth with sleeve
+    drawHomeHeroBoyCharacter(ctx, w * 0.29, h * 0.60, unit * 0.38, t);
+
+    // 5. Floating Fire Embers Across Scene
+    for (let e = 0; e < 22; e++) {
+      const ep = (t * 0.55 + e * 0.13) % 1;
+      const ex = w * ((e * 0.047) % 1) + Math.sin(t * 2.5 + e) * 16;
+      const ey = h * (0.92 - ep * 0.82);
+      ctx.fillStyle = e % 2 === 0 ? `rgba(254, 240, 138, ${(1 - ep) * 0.85})` : `rgba(251, 146, 60, ${(1 - ep) * 0.85})`;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 1.8 + (e % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.restore();
   }
 
-  function drawHomeHeroCrouchingChild(ctx, cx, cy, size, t, jacketColor, backpackColor) {
-    const bob = Math.sin(t * 4.2) * size * 0.04;
+  function drawHomeHeroGirlCharacter(ctx, cx, cy, s, t) {
+    const bob = Math.sin(t * 3.4 + 1.1) * s * 0.025;
     ctx.save();
-    // Floor shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.translate(cx, cy + bob);
+
+    // Ponytail hair behind head
+    ctx.fillStyle = '#3b2316';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + size * 0.42, size * 0.62, size * 0.18, 0, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.34, -s * 0.22, s * 0.22, s * 0.14, 0.45, 0, Math.PI * 2);
     ctx.fill();
 
-    // Crouched Legs (Dark Pants)
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = size * 0.22;
+    // Back hair volume behind face
+    ctx.fillStyle = '#361f13';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.28, s * 0.31, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Coral-Pink Jacket Torso
+    const jGrad = ctx.createLinearGradient(0, -s * 0.05, 0, s * 0.55);
+    jGrad.addColorStop(0, '#eb8a78');
+    jGrad.addColorStop(1, '#b85444');
+    ctx.fillStyle = jGrad;
+    ctx.strokeStyle = '#7c2d12';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    safeRoundRect(ctx, -s * 0.34, -s * 0.02, s * 0.68, s * 0.52, s * 0.18);
+    ctx.fill();
+    ctx.stroke();
+
+    // Head (Warm Skin Tone)
+    ctx.fillStyle = '#f7c6a3';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.22, s * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Top Hair Bangs (Sitting Above Eyebrows at y < -s * 0.29)
+    ctx.fillStyle = '#432818';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.25, s * 0.28, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.quadraticCurveTo(s * 0.12, -s * 0.28, 0, -s * 0.31);
+    ctx.quadraticCurveTo(-s * 0.12, -s * 0.28, -s * 0.27, -s * 0.32);
+    ctx.closePath();
+    ctx.fill();
+
+    // Expressive Dark Brown Eyes + White Specular Highlights (Drawn AFTER hair so 100% visible)
+    const drawEye = (ex, ey) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, s * 0.052, s * 0.056, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#291711';
+      ctx.beginPath();
+      ctx.arc(ex - s * 0.005, ey, s * 0.038, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ex - s * 0.015, ey - s * 0.015, s * 0.014, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawEye(-s * 0.10, -s * 0.21);
+    drawEye(s * 0.09, -s * 0.21);
+
+    // Eyebrows
+    ctx.strokeStyle = '#3b2316';
+    ctx.lineWidth = Math.max(2, s * 0.024);
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(cx - size * 0.15, cy + size * 0.1 + bob);
-    ctx.lineTo(cx - size * 0.42, cy + size * 0.34);
-    ctx.lineTo(cx - size * 0.12, cy + size * 0.36);
+    ctx.moveTo(-s * 0.16, -s * 0.29);
+    ctx.lineTo(-s * 0.05, -s * 0.28);
+    ctx.moveTo(s * 0.04, -s * 0.28);
+    ctx.lineTo(s * 0.15, -s * 0.29);
     ctx.stroke();
 
-    // Torso (Leaning Forward Low)
-    ctx.fillStyle = jacketColor;
+    // Raised Sleeves & Hands Covering Mouth and Nose
+    ctx.fillStyle = '#f29b8a';
+    ctx.strokeStyle = '#9a3412';
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.ellipse(cx, cy + bob, size * 0.38, size * 0.24, -0.22, 0, Math.PI * 2);
+    safeRoundRect(ctx, -s * 0.22, -s * 0.13, s * 0.42, s * 0.20, s * 0.09);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawHomeHeroBoyCharacter(ctx, cx, cy, s, t) {
+    const bob = Math.sin(t * 3.4) * s * 0.022;
+    ctx.save();
+    ctx.translate(cx, cy + bob);
+
+    // 1. 3D Blue Backpack Behind Right Shoulder (파란 책가방)
+    const bpGrad = ctx.createLinearGradient(s * 0.15, -s * 0.18, s * 0.58, s * 0.42);
+    bpGrad.addColorStop(0, '#2563eb');
+    bpGrad.addColorStop(1, '#1e3a8a');
+    ctx.fillStyle = bpGrad;
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    safeRoundRect(ctx, s * 0.12, -s * 0.14, s * 0.44, s * 0.54, s * 0.12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Crouched Dark Navy Knee & Pants
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    safeRoundRect(ctx, -s * 0.36, s * 0.24, s * 0.72, s * 0.36, s * 0.12);
     ctx.fill();
 
-    // Blue 3D Backpack on Back
-    ctx.fillStyle = backpackColor;
-    ctx.strokeStyle = '#93c5fd';
+    // 2. Beige Hooded Sweatshirt Torso
+    const hGrad = ctx.createLinearGradient(0, -s * 0.08, 0, s * 0.48);
+    hGrad.addColorStop(0, '#e7dfd3');
+    hGrad.addColorStop(1, '#b8afa2');
+    ctx.fillStyle = hGrad;
+    ctx.strokeStyle = '#57534e';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    safeRoundRect(ctx, -s * 0.40, -s * 0.04, s * 0.80, s * 0.48, s * 0.18);
+    ctx.fill();
+    ctx.stroke();
+
+    // Dark Backpack Shoulder Straps Over Chest
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = Math.max(6, s * 0.065);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.22, -s * 0.02);
+    ctx.lineTo(-s * 0.18, s * 0.32);
+    ctx.moveTo(s * 0.20, -s * 0.02);
+    ctx.lineTo(s * 0.26, s * 0.32);
+    ctx.stroke();
+
+    // Back Hair Volume Behind Head
+    ctx.fillStyle = '#22150f';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.29, s * 0.31, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. Head & Ears (Warm 3D Shaded Skin Tone)
+    ctx.fillStyle = '#f5c29d';
+    ctx.beginPath();
+    ctx.arc(s * 0.26, -s * 0.19, s * 0.06, 0, Math.PI * 2);
+    ctx.arc(-s * 0.26, -s * 0.19, s * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    const faceGrad = ctx.createRadialGradient(-s * 0.05, -s * 0.24, s * 0.04, 0, -s * 0.20, s * 0.30);
+    faceGrad.addColorStop(0, '#fde2cc');
+    faceGrad.addColorStop(0.75, '#f3be96');
+    faceGrad.addColorStop(1, '#d99b72');
+    ctx.fillStyle = faceGrad;
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.22, s * 0.26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Layered Dark-Brown Hair Bangs Sitting Above Eyes (y < -s * 0.29)
+    ctx.fillStyle = '#261811';
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.26, s * 0.29, Math.PI * 1.06, Math.PI * 1.94);
+    ctx.lineTo(s * 0.26, -s * 0.30);
+    ctx.quadraticCurveTo(s * 0.14, -s * 0.25, s * 0.05, -s * 0.32);
+    ctx.quadraticCurveTo(-s * 0.04, -s * 0.24, -s * 0.14, -s * 0.32);
+    ctx.quadraticCurveTo(-s * 0.22, -s * 0.26, -s * 0.27, -s * 0.31);
+    ctx.closePath();
+    ctx.fill();
+
+    // 5. Large Expressive Eyes with Glossy Highlights & Determined Eyebrows (Drawn ON TOP)
+    const drawBoyEye = (ex, ey) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(ex, ey, s * 0.055, s * 0.060, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#24140e';
+      ctx.beginPath();
+      ctx.arc(ex + s * 0.004, ey, s * 0.041, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ex - s * 0.012, ey - s * 0.016, s * 0.015, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ex + s * 0.014, ey + s * 0.014, s * 0.007, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawBoyEye(-s * 0.10, -s * 0.21);
+    drawBoyEye(s * 0.10, -s * 0.21);
+
+    // Eyebrows
+    ctx.strokeStyle = '#271710';
+    ctx.lineWidth = Math.max(2.5, s * 0.028);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.17, -s * 0.29);
+    ctx.lineTo(-s * 0.04, -s * 0.28);
+    ctx.moveTo(s * 0.04, -s * 0.28);
+    ctx.lineTo(s * 0.17, -s * 0.29);
+    ctx.stroke();
+
+    // 6. Raised Forearm Sleeve & Hand Covering Mouth and Nose (입과 코를 소매로 막은 자세)
+    const armGrad = ctx.createLinearGradient(-s * 0.42, s * 0.12, s * 0.10, -s * 0.12);
+    armGrad.addColorStop(0, '#cfc6b8');
+    armGrad.addColorStop(1, '#ebe4d8');
+    ctx.fillStyle = armGrad;
+    ctx.strokeStyle = '#78716c';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    safeRoundRect(ctx, -s * 0.36, -s * 0.12, s * 0.50, s * 0.20, s * 0.09);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hand gripping nose/mouth area
+    ctx.fillStyle = '#f5c29d';
+    ctx.strokeStyle = '#b47b56';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    safeRoundRect(ctx, cx - size * 0.34, cy - size * 0.32 + bob, size * 0.46, size * 0.30, 8);
+    ctx.arc(s * 0.05, -s * 0.08, s * 0.072, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Head + Hair + Hand Covering Mouth/Nose
-    const hx = cx + size * 0.32;
-    const hy = cy - size * 0.12 + bob;
-    ctx.fillStyle = '#fed7aa';
-    ctx.beginPath();
-    ctx.arc(hx, hy, size * 0.22, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#1c1917';
-    ctx.beginPath();
-    ctx.arc(hx, hy - size * 0.04, size * 0.23, Math.PI * 0.92, Math.PI * 2.08);
-    ctx.fill();
-
-    // Sleeve / Wet Towel covering nose & mouth
-    ctx.fillStyle = '#bae6fd';
-    ctx.beginPath();
-    safeRoundRect(ctx, hx + size * 0.02, hy - size * 0.02, size * 0.20, size * 0.14, 4);
-    ctx.fill();
     ctx.restore();
   }
 

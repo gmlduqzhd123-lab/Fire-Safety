@@ -28,7 +28,7 @@
   <title>화재 탈출 넘버원: 불타는 집에서 살아남기 (2022 개정 교육과정 & 10대 확장판)</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./style.css?v=29" />
+  <link rel="stylesheet" href="./style.css?v=30" />
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 landscape-console">
 
@@ -287,26 +287,30 @@
 
     <!-- Top-Left Floating Glass Capsule HUD (1단계 · 침실과 복도 | ❤️ 체력 100 | 🫁 산소 100) -->
     <section id="hudSection" class="bg-slate-900/95 border border-slate-800 rounded-xl px-2.5 py-2 shadow-lg flex flex-col gap-1.5 overflow-hidden">
-      <div id="hudVitalsRow" class="flex items-center justify-between gap-2 flex-nowrap min-w-0">
+      <div id="hudVitalsRow" class="flex items-center justify-between gap-2.5 flex-nowrap min-w-0">
         <span id="stageBadge" class="hud-stage-badge shrink-0 whitespace-nowrap">1단계 · 침실과 복도</span>
         <span class="hud-capsule-divider shrink-0">|</span>
-        <div id="hudBarsBox" class="flex items-center gap-2 flex-1 min-w-0">
-          <div class="hud-vital-pill flex items-center gap-1.5 flex-1 min-w-0">
-            <span class="hud-vital-label text-red-400 shrink-0 whitespace-nowrap">❤️ 체력</span>
-            <div class="hud-bar-track flex-1 min-w-[28px] h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-700/80 p-0.5">
-              <div id="hpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-150" style="width: 100%;"></div>
+        <div id="hudBarsBox" class="flex items-center gap-3 flex-1 min-w-0">
+          <div class="hud-vital-pill flex flex-col gap-1 min-w-[92px]">
+            <div class="flex items-center justify-between gap-2 w-full">
+              <span class="hud-vital-label text-rose-400 shrink-0 whitespace-nowrap">❤️ 체력</span>
+              <span id="hpValue" class="hud-vital-num font-mono font-black text-white shrink-0 text-right whitespace-nowrap">100</span>
             </div>
-            <span id="hpValue" class="hud-vital-num font-mono font-black text-white shrink-0 text-right whitespace-nowrap">100</span>
+            <div class="hud-bar-track w-full h-2 bg-slate-950/90 rounded-full overflow-hidden border border-amber-500/40">
+              <div id="hpBar" class="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
+            </div>
           </div>
 
           <span class="hud-capsule-divider shrink-0">|</span>
 
-          <div class="hud-vital-pill flex items-center gap-1.5 flex-1 min-w-0">
-            <span class="hud-vital-label text-sky-300 shrink-0 whitespace-nowrap">🫁 산소</span>
-            <div class="hud-bar-track flex-1 min-w-[28px] h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-700/80 p-0.5">
-              <div id="o2Bar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
+          <div class="hud-vital-pill flex flex-col gap-1 min-w-[92px]">
+            <div class="flex items-center justify-between gap-2 w-full">
+              <span class="hud-vital-label text-sky-300 shrink-0 whitespace-nowrap">🫁 산소</span>
+              <span id="o2Value" class="hud-vital-num font-mono font-black text-white shrink-0 text-right whitespace-nowrap">100</span>
             </div>
-            <span id="o2Value" class="hud-vital-num font-mono font-black text-white shrink-0 text-right whitespace-nowrap">100</span>
+            <div class="hud-bar-track w-full h-2 bg-slate-950/90 rounded-full overflow-hidden border border-sky-400/40">
+              <div id="o2Bar" class="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-teal-300 rounded-full transition-all duration-150" style="width: 100%;"></div>
+            </div>
           </div>
         </div>
 
@@ -410,8 +414,15 @@
                   <span id="overlaySubtitle" class="text-[10.5px] sm:text-xs font-black tracking-wide whitespace-nowrap">생명 최우선 · 3D 실감형 대피 훈련</span>
                 </div>
 
-                <h2 id="overlayTitle" class="hero-3d-emblem-title text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-                  화재 탈출 넘버원 <span class="hero-3d-badge">3D</span>
+                <h2 id="overlayTitle" class="hero-3d-emblem-title">
+                  <span class="hero-logo-line1">화재 탈출</span>
+                  <span class="hero-logo-line2">
+                    <span class="hero-logo-chrome">넘버원</span>
+                    <span class="hero-logo-3d-cluster">
+                      <span class="hero-logo-flame-runner"><span class="hero-flame-icon">🔥</span><span class="hero-runner-icon">🏃</span></span>
+                      <span class="hero-3d-badge">3D</span>
+                    </span>
+                  </span>
                 </h2>
 
                 <p id="overlayDesc" class="hero-3d-subtitle text-xs sm:text-sm text-amber-100/90 font-bold tracking-widest">
@@ -586,9 +597,10 @@
                   <span class="text-[11px] sm:text-xs text-orange-300 font-bold">원하는 구역을 누르면 바로 시작됩니다</span>
                 </div>
                 <div class="flex items-center gap-2 text-[10.5px] sm:text-[11px] text-slate-400">
-                  <span>⚠️ 실제 화재 시에는 물건을 찾거나 재진입하지 말고 즉시 대피하세요</span>
+                  <span class="hidden md:inline">⚠️ 실제 화재 시에는 물건을 찾거나 재진입하지 말고 즉시 대피하세요</span>
                   <span class="ys-credit hidden sm:inline">·</span>
                   <p class="ys-credit m-0 shrink-0">© 2026 엽쌤 · <a href="https://gmlduqzhd123-lab.github.io/YScode/" target="_blank" rel="noopener">다른 앱 보기 →</a></p>
+                  <button id="btnCloseStageSelectDock" type="button" class="px-2.5 py-0.5 rounded-full bg-slate-800 hover:bg-rose-700 border border-slate-600 text-slate-200 font-extrabold text-[11px] transition">✕ 닫기</button>
                 </div>
               </div>
 
@@ -1816,10 +1828,10 @@
   </div>
 
   <!-- Modular Scripts (Order: sound -> stages -> editor -> tactical-3d -> game) -->
-  <script src="./sound.js?v=29"></script>
-  <script src="./stages.js?v=29"></script>
-  <script src="./editor.js?v=29"></script>
-  <script src="./tactical-3d.js?v=29"></script>
-  <script src="./game.js?v=29"></script>
+  <script src="./sound.js?v=30"></script>
+  <script src="./stages.js?v=30"></script>
+  <script src="./editor.js?v=30"></script>
+  <script src="./tactical-3d.js?v=30"></script>
+  <script src="./game.js?v=30"></script>
 </body>
 </html>
